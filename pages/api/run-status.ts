@@ -1,175 +1,86 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { OpenAI } from 'openai';
 import { supabaseServer } from '@/lib/supabase-server';
-
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY! 
-});
-
-interface RunStatusRequest {
-  threadId: string;
-  runId: string;
-  sessionId?: string;
-  messageIndex?: number;
-}
-
-// Function to execute function calls
-async function executeFunctionCall(functionName: string, args: any, baseUrl: string) {
-  try {
-    switch (functionName) {
-      case 'query_package_vulnerabilities':
-        const packageResponse = await fetch(`${baseUrl}/api/osv-query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: args.name,
-            ecosystem: args.ecosystem,
-            version: args.version
-          })
-        });
-        
-        if (!packageResponse.ok) {
-          throw new Error(`Package query failed: ${packageResponse.status}`);
-        }
-        
-        const packageData = await packageResponse.json();
-        return JSON.stringify(packageData.result || packageData);
-
-      case 'query_cve_details':
-        const cveResponse = await fetch(`${baseUrl}/api/osv-query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            cve: args.cve_id
-          })
-        });
-        
-        if (!cveResponse.ok) {
-          throw new Error(`CVE query failed: ${cveResponse.status}`);
-        }
-        
-        const cveData = await cveResponse.json();
-        return JSON.stringify(cveData.result || cveData);
-
-      case 'analyze_sbom_package':
-        // This function analyzes data already in the conversation context
-        // The Assistant will use this to focus on specific packages from uploaded SBOM
-        return JSON.stringify({
-          message: `Analyzing package '${args.package_name}' from the uploaded SBOM data. Please refer to the scan results in our conversation for detailed analysis.`,
-          package_name: args.package_name,
-          include_dependencies: args.include_dependencies || false,
-          action: "analyze_uploaded_data"
-        });
-
-      case 'query_package_dependencies':
-        // This function queries dependency data already in the conversation context
-        // The Assistant will use this to focus on dependency relationships from uploaded SBOM
-        return JSON.stringify({
-          message: `Querying ${args.direction || 'dependencies'} for package '${args.package_name}' from the uploaded SBOM data. Please refer to the package dependency information in our conversation.`,
-          package_name: args.package_name,
-          direction: args.direction || 'dependencies',
-          action: "query_dependency_data"
-        });
-
-      default:
-        throw new Error(`Unknown function: ${functionName}`);
-    }
-  } catch (error) {
-    console.error(`Function execution error for ${functionName}:`, error);
-    throw error;
-  }
-}
+import {
+  continueFunctionCallingLoop,
+  extractResponseText,
+  formatOpenAIError,
+  getResponseErrorMessage,
+  getResponseUsage,
+  retrieveResponse,
+} from '../../lib/openai-responses';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { threadId, runId, sessionId, messageIndex } = req.query as { 
-    threadId: string; 
-    runId: string; 
-    sessionId?: string; 
-    messageIndex?: string; 
+  const {
+    conversationId: requestedConversationId,
+    responseId: requestedResponseId,
+    threadId,
+    runId,
+    sessionId,
+    messageIndex,
+  } = req.query as {
+    conversationId?: string;
+    responseId?: string;
+    threadId?: string;
+    runId?: string;
+    sessionId?: string;
+    messageIndex?: string;
   };
 
-  if (!threadId || !runId) {
-    return res.status(400).json({ 
-      error: 'Both threadId and runId are required' 
+  const conversationId = requestedConversationId || threadId;
+  const responseId = requestedResponseId || runId;
+
+  if (!conversationId || !responseId) {
+    return res.status(400).json({
+      error: 'Both conversationId and responseId are required',
     });
   }
 
   try {
-    // Get the run status
-    const run = await openai.beta.threads.runs.retrieve(threadId, runId);
+    const retrievedResponse = await retrieveResponse(responseId);
+    const effectiveConversationId = retrievedResponse.conversation?.id || conversationId;
+    const loopResult = await continueFunctionCallingLoop(
+      retrievedResponse,
+      effectiveConversationId,
+    );
+    const response = loopResult.response;
+    const responseWasReplaced = response.id !== responseId;
 
-    if (run.status === 'requires_action' && run.required_action?.type === 'submit_tool_outputs') {
-      // Handle function calls
-      const toolCalls = run.required_action.submit_tool_outputs.tool_calls;
-      const toolOutputs = [];
+    const ids = {
+      conversationId: effectiveConversationId,
+      responseId: response.id,
+      threadId: effectiveConversationId,
+      runId: response.id,
+    };
 
-      // Get base URL for internal API calls
-      const protocol = req.headers['x-forwarded-proto'] || 'http';
-      const host = req.headers.host;
-      const baseUrl = `${protocol}://${host}`;
-
-      for (const toolCall of toolCalls) {
-        try {
-          const functionName = toolCall.function.name;
-          const args = JSON.parse(toolCall.function.arguments);
-          
-          console.log(`Executing function: ${functionName} with args:`, args);
-          
-          const result = await executeFunctionCall(functionName, args, baseUrl);
-          
-          toolOutputs.push({
-            tool_call_id: toolCall.id,
-            output: result
-          });
-        } catch (error) {
-          console.error('Tool execution error:', error);
-          toolOutputs.push({
-            tool_call_id: toolCall.id,
-            output: JSON.stringify({ 
-              error: error instanceof Error ? error.message : 'Function execution failed',
-              success: false 
-            })
-          });
-        }
-      }
-
-      // Submit tool outputs
-      await openai.beta.threads.runs.submitToolOutputs(threadId, runId, {
-        tool_outputs: toolOutputs
-      });
-
+    if (loopResult.toolCallsProcessed > 0 && response.status !== 'completed') {
       return res.status(200).json({
+        ...ids,
         status: 'requires_action',
+        responseStatus: response.status,
         completed: false,
         action: 'tool_outputs_submitted',
-        tool_calls: toolCalls.length,
+        tool_calls: loopResult.toolCallsProcessed,
+        previousResponseId: responseWasReplaced ? responseId : undefined,
+        successorResponseIds: loopResult.successorResponseIds,
         run: {
-          id: run.id,
-          created_at: run.created_at
-        }
+          id: response.id,
+          created_at: response.created_at,
+        },
       });
     }
 
-    if (run.status === 'completed') {
-      // If completed, get the messages from the thread
-      const messages = await openai.beta.threads.messages.list(threadId, {
-        order: 'desc',
-        limit: 10
-      });
+    if (response.status === 'completed') {
+      const responseText = extractResponseText(response);
 
-      // Find the assistant's response (most recent message from assistant)
-      const assistantMessage = messages.data.find(msg => msg.role === 'assistant');
-      
-      let responseText = '';
-      if (assistantMessage && assistantMessage.content[0].type === 'text') {
-        responseText = assistantMessage.content[0].text.value;
-      }
-
-      // Log AI response to Supabase if sessionId and messageIndex are provided
+      // Log AI response to Supabase if sessionId and messageIndex are provided.
       if (sessionId && messageIndex && responseText) {
         try {
           await supabaseServer
@@ -182,52 +93,62 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .eq('message_index', parseInt(messageIndex));
         } catch (logError) {
           console.error('Error logging AI response:', logError);
-          // Continue even if logging fails
+          // Continue even if logging fails.
         }
       }
 
       return res.status(200).json({
-        status: run.status,
+        ...ids,
+        status: response.status,
         completed: true,
         response: responseText,
+        previousResponseId: responseWasReplaced ? responseId : undefined,
+        successorResponseIds: loopResult.successorResponseIds,
         run: {
-          id: run.id,
-          created_at: run.created_at,
-          completed_at: run.completed_at,
-          model: run.model,
-          usage: run.usage
-        }
-      });
-    } else if (run.status === 'failed') {
-      return res.status(200).json({
-        status: run.status,
-        completed: true,
-        error: run.last_error?.message || 'Run failed with unknown error',
-        run: {
-          id: run.id,
-          created_at: run.created_at,
-          failed_at: run.failed_at,
-          last_error: run.last_error
-        }
-      });
-    } else {
-      // Still running or in queue
-      return res.status(200).json({
-        status: run.status,
-        completed: false,
-        run: {
-          id: run.id,
-          created_at: run.created_at,
-          started_at: run.started_at
-        }
+          id: response.id,
+          created_at: response.created_at,
+          completed_at: response.completed_at,
+          model: response.model,
+          usage: getResponseUsage(response),
+        },
       });
     }
 
+    if (response.status === 'failed' || response.status === 'cancelled' || response.status === 'incomplete') {
+      return res.status(200).json({
+        ...ids,
+        status: 'failed',
+        responseStatus: response.status,
+        completed: true,
+        error: getResponseErrorMessage(response),
+        previousResponseId: responseWasReplaced ? responseId : undefined,
+        successorResponseIds: loopResult.successorResponseIds,
+        run: {
+          id: response.id,
+          created_at: response.created_at,
+          failed_at: response.completed_at || null,
+          last_error: response.error || response.incomplete_details,
+        },
+      });
+    }
+
+    return res.status(200).json({
+      ...ids,
+      status: response.status,
+      completed: false,
+      previousResponseId: responseWasReplaced ? responseId : undefined,
+      successorResponseIds: loopResult.successorResponseIds,
+      run: {
+        id: response.id,
+        created_at: response.created_at,
+        started_at: null,
+      },
+    });
   } catch (error) {
-    console.error('Run status check error:', error);
-    res.status(500).json({ 
-      error: 'Failed to check run status',
-      details: error instanceof Error ? error.message : 'Unknown error'
+    console.error('Response status check error:', error);
+    return res.status(500).json({
+      error: 'Failed to check response status',
+      details: formatOpenAIError(error),
     });
   }
-} 
+}

@@ -1,15 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { OpenAI } from 'openai';
 import { supabaseServer } from '@/lib/supabase-server';
+import { createBackgroundResponse, formatOpenAIError } from '../../lib/openai-responses';
 import { v4 as uuidv4 } from 'uuid';
-
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY! 
-});
 
 interface ChatRequest {
   message: string;
-  threadId: string;
+  conversationId?: string;
+  threadId?: string;
   sessionId: string;
   messageIndex: number;
   userEmail?: string;
@@ -20,11 +17,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { message, threadId, sessionId, messageIndex, userEmail }: ChatRequest = req.body;
+  const { message, conversationId: requestedConversationId, threadId, sessionId, messageIndex, userEmail }: ChatRequest = req.body;
+  const conversationId = requestedConversationId || threadId;
 
-  if (!message || !threadId || !sessionId || messageIndex === undefined) {
+  if (!message || !conversationId || !sessionId || messageIndex === undefined) {
     return res.status(400).json({ 
-      error: 'Message, threadId, sessionId, and messageIndex are required' 
+      error: 'Message, conversationId, sessionId, and messageIndex are required'
     });
   }
 
@@ -36,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .insert([{
           id: uuidv4(),
           session_id: sessionId,
-          thread_id: threadId,
+          thread_id: conversationId,
           message_index: messageIndex,
           message_type: 'user',
           user_message: message,
@@ -53,21 +51,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Continue with the chat even if logging fails
     }
 
-    // Send the message to the existing thread
-    await openai.beta.threads.messages.create(threadId, {
+    const response = await createBackgroundResponse(conversationId, [{
       role: 'user',
-      content: message
-    });
-
-    // Create a run with the assistant
-    const run = await openai.beta.threads.runs.create(threadId, {
-      assistant_id: process.env.ASSISTANT_ID!,
-    });
+      content: message,
+    }]);
 
     return res.status(200).json({ 
       success: true,
-      runId: run.id,
-      threadId: threadId,
+      conversationId,
+      responseId: response.id,
+      threadId: conversationId,
+      runId: response.id,
       message: message,
       sessionId: sessionId,
       messageIndex: messageIndex
@@ -77,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('Chat API error:', error);
     res.status(500).json({ 
       error: 'Failed to send message to assistant',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: formatOpenAIError(error)
     });
   }
-} 
+}

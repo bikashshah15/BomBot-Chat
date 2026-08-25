@@ -7,7 +7,7 @@ This guide covers deploying the **complete BOMbot application** (UI + API) as a 
 BOMbot is now configured as a **unified full-stack application** that includes:
 - **Frontend**: React UI built with Vite (TypeScript, TailwindCSS, Radix UI)
 - **Backend**: Next.js API with OpenAI integration and OSV vulnerability scanning
-- **Integration**: AI assistant with thread management and real-time polling
+- **Integration**: OpenAI Responses with Conversation state and real-time polling
 
 ## Build Process
 
@@ -55,7 +55,7 @@ Set these in your Vercel dashboard:
 
 **Required:**
 - `OPENAI_API_KEY` - Your OpenAI API key
-- `ASSISTANT_ID` - Your OpenAI Assistant ID
+- `OPENAI_MODEL` - OpenAI Responses model (`gpt-4o` is the compatibility default)
 
 **Optional:**
 - `OSV_SCANNER_PATH` - Path to OSV scanner binary (uses npm package if not set)
@@ -103,7 +103,7 @@ npm run build
 
 # Environment variables (same as Vercel)
 OPENAI_API_KEY=your_key
-ASSISTANT_ID=your_id
+OPENAI_MODEL=gpt-4o
 ```
 
 ### Railway
@@ -212,7 +212,7 @@ The deployment includes:
 Your BOMbot application is now deployed as a **unified full-stack application** with:
 - React UI accessible at root URL
 - Next.js API endpoints at `/api/*`
-- AI assistant with thread management
+- OpenAI Responses with Conversation state
 - File upload and SBOM scanning
 - Package vulnerability queries
 - Production-optimized builds
@@ -225,4 +225,4 @@ https://your-bombot-app.vercel.app
 ├── File Upload & SBOM Scanning  
 ├── Package Vulnerability Search
 └── Real-time Security Analysis
-``` 
+```

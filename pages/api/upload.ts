@@ -1,10 +1,10 @@
 import formidable from 'formidable';
 import fs from 'fs';
 import { NextApiRequest, NextApiResponse } from 'next';
-import { OpenAI } from 'openai';
 import tmp from 'tmp';
 import path from 'path';
 import { supabaseServer } from '@/lib/supabase-server';
+import { createBackgroundResponse, createConversation, formatOpenAIError } from '../../lib/openai-responses';
 import { v4 as uuidv4 } from 'uuid';
 
 export const config = {
@@ -13,10 +13,6 @@ export const config = {
     externalResolver: true,
   },
 };
-
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY! 
-});
 
 interface SBOMPackage {
   name: string;
@@ -380,7 +376,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       parseInt(fields.messageIndex[0]) : 
       parseInt(fields.messageIndex || '0');
     const userEmail = Array.isArray(fields.userEmail) ? fields.userEmail[0] : fields.userEmail;
-    const existingThreadId = Array.isArray(fields.threadId) ? fields.threadId[0] : fields.threadId;
+    const conversationField = fields.conversationId || fields.threadId;
+    const existingConversationId = Array.isArray(conversationField) ? conversationField[0] : conversationField;
 
     // Validate file type (basic check for SBOM files)
     const validExtensions = ['.json', '.xml', '.spdx', '.cyclonedx'];
@@ -458,15 +455,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }]
     };
 
-    // Use existing thread if available, otherwise create a new one
-    let threadId: string;
-    if (existingThreadId) {
-      threadId = existingThreadId;
-      console.log(`Reusing existing thread: ${threadId} for SBOM upload`);
+    // Use the current conversation if available, otherwise create a new one.
+    let conversationId: string;
+    if (existingConversationId) {
+      conversationId = existingConversationId;
+      console.log(`Reusing existing conversation: ${conversationId} for SBOM upload`);
     } else {
-      const thread = await openai.beta.threads.create();
-      threadId = thread.id;
-      console.log(`Created new thread: ${threadId} for SBOM upload`);
+      const conversation = await createConversation();
+      conversationId = conversation.id;
+      console.log(`Created new conversation: ${conversationId} for SBOM upload`);
     }
 
     // Send the scan results to the assistant
@@ -494,9 +491,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     });
 
-    await openai.beta.threads.messages.create(threadId, {
-      role: 'user',
-      content: `I've uploaded ${existingThreadId ? 'an additional' : 'an'} SBOM file "${fileName}" with ${packages.length} packages${existingThreadId ? ' for comparison with the previous SBOM(s)' : ''}. Here's the comprehensive analysis data:
+    const responseInput = `I've uploaded ${existingConversationId ? 'an additional' : 'an'} SBOM file "${fileName}" with ${packages.length} packages${existingConversationId ? ' for comparison with the previous SBOM(s)' : ''}. Here's the comprehensive analysis data:
 
 **Quick Scan Summary:**
 - Total packages scanned: ${packagesToScan.length}
@@ -518,105 +513,14 @@ ${JSON.stringify(packages.map(pkg => ({
   id: pkg.id
 })), null, 2)}
 
-${existingThreadId ? 
+${existingConversationId ?
   'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Since this is an additional SBOM, you can also compare it with previously uploaded SBOMs. Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", "dependency analysis", or "SBOM comparison" for comprehensive information.' :
-  'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", or "dependency analysis" for comprehensive information.'}`
-    });
+  'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", or "dependency analysis" for comprehensive information.'}`;
 
-    // Create a run with the assistant
-    const run = await openai.beta.threads.runs.create(threadId, {
-      assistant_id: process.env.ASSISTANT_ID!,
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "query_package_vulnerabilities",
-            description: "Query the OSV database for vulnerabilities in a specific package and version",
-            parameters: {
-              type: "object",
-              properties: {
-                name: {
-                  type: "string",
-                  description: "The package name (e.g., 'lodash', 'express')"
-                },
-                ecosystem: {
-                  type: "string",
-                  description: "The package ecosystem (npm, PyPI, Maven, Go, etc.)",
-                  enum: ["npm", "PyPI", "Maven", "Go", "Packagist", "RubyGems", "NuGet", "crates.io", "Hex", "Pub"]
-                },
-                version: {
-                  type: "string",
-                  description: "Optional: specific version to check (e.g., '4.17.20')"
-                }
-              },
-              required: ["name", "ecosystem"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "query_cve_details",
-            description: "Get detailed information about a specific CVE from the OSV database",
-            parameters: {
-              type: "object",
-              properties: {
-                cve_id: {
-                  type: "string",
-                  description: "The CVE identifier (e.g., 'CVE-2023-1234')"
-                }
-              },
-              required: ["cve_id"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "analyze_sbom_package",
-            description: "Analyze a specific package from the uploaded SBOM data in detail",
-            parameters: {
-              type: "object",
-              properties: {
-                package_name: {
-                  type: "string",
-                  description: "The name of the package to analyze from the SBOM"
-                },
-                include_dependencies: {
-                  type: "boolean",
-                  description: "Whether to include analysis of package dependencies",
-                  default: false
-                }
-              },
-              required: ["package_name"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "query_package_dependencies",
-            description: "Query dependency relationships for a specific package from the uploaded SBOM",
-            parameters: {
-              type: "object",
-              properties: {
-                package_name: {
-                  type: "string",
-                  description: "The name of the package to query dependencies for"
-                },
-                direction: {
-                  type: "string",
-                  description: "Query direction: 'dependencies' (what this package depends on) or 'dependents' (what depends on this package)",
-                  enum: ["dependencies", "dependents"],
-                  default: "dependencies"
-                }
-              },
-              required: ["package_name"]
-            }
-          }
-        }
-      ]
-    });
+    const response = await createBackgroundResponse(conversationId, [{
+      role: 'user',
+      content: responseInput,
+    }]);
 
     // Log file upload to Supabase if session info is provided
     if (sessionId && messageIndex !== undefined) {
@@ -626,7 +530,7 @@ ${existingThreadId ?
           .insert([{
             id: uuidv4(),
             session_id: sessionId,
-            thread_id: threadId,
+            thread_id: conversationId,
             message_index: messageIndex,
             message_type: 'file_upload',
             user_message: `Uploaded SBOM file: ${fileName}`,
@@ -653,8 +557,10 @@ ${existingThreadId ?
 
     res.status(200).json({ 
       success: true,
-      runId: run.id, 
-      threadId: threadId,
+      conversationId,
+      responseId: response.id,
+      threadId: conversationId,
+      runId: response.id,
       fileName: fileName,
       packagesScanned: packagesToScan.length,
       totalPackages: packages.length,
@@ -686,7 +592,7 @@ ${existingThreadId ?
     console.error('Upload handler error:', error);
     res.status(500).json({ 
       error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: formatOpenAIError(error)
     });
   } finally {
     // Cleanup temporary directory
@@ -696,4 +602,4 @@ ${existingThreadId ?
       console.warn('Failed to cleanup temp directory:', cleanupError);
     }
   }
-} 
+}

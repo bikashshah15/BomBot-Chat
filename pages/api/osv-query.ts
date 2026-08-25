@@ -1,15 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { OpenAI } from 'openai';
-
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY! 
-});
+import { createBackgroundResponse } from '../../lib/openai-responses';
 
 interface OSVQueryRequest {
   version?: string;
   name?: string;
   ecosystem?: string;
   cve?: string;
+  conversationId?: string;
   threadId?: string;
   userEmail?: string;
 }
@@ -56,7 +53,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { version, name, ecosystem, cve, threadId, userEmail }: OSVQueryRequest = req.body;
+  const { version, name, ecosystem, cve, conversationId: requestedConversationId, threadId }: OSVQueryRequest = req.body;
+  const conversationId = requestedConversationId || threadId;
 
   if (!cve && (!name || !ecosystem)) {
     return res.status(400).json({ 
@@ -114,8 +112,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data = await response.json() as OSVQueryResponse;
     }
 
-    // If threadId is provided, send the results to the existing conversation
-    if (threadId) {
+    // If a conversation is provided, send the authoritative OSV result into it.
+    if (conversationId) {
       try {
         let messageContent: string;
         
@@ -133,20 +131,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
 
-        await openai.beta.threads.messages.create(threadId, {
+        const aiResponse = await createBackgroundResponse(conversationId, [{
           role: 'user',
-          content: messageContent
-        });
-
-        const run = await openai.beta.threads.runs.create(threadId, {
-          assistant_id: process.env.ASSISTANT_ID!,
-        });
+          content: messageContent,
+        }]);
 
         return res.status(200).json({ 
           success: true,
           result: data,
-          runId: run.id,
-          threadId: threadId,
+          conversationId,
+          responseId: aiResponse.id,
+          threadId: conversationId,
+          runId: aiResponse.id,
           query: cve ? { cve } : { name, ecosystem, version }
         });
       } catch (assistantError) {
@@ -174,4 +170,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-} 
+}

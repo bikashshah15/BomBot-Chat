@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface LogChatMessageParams {
   sessionId: string;
-  threadId?: string | null;
+  conversationId?: string | null;
   messageIndex: number;
   messageType: 'user' | 'assistant' | 'file_upload';
   userMessage?: string | null;
@@ -22,7 +22,7 @@ export class ChatLogger {
       const logEntry: Partial<ChatLog> = {
         id: uuidv4(),
         session_id: params.sessionId,
-        thread_id: params.threadId || null,
+        thread_id: params.conversationId || null,
         message_index: params.messageIndex,
         message_type: params.messageType,
         user_message: params.userMessage || null,
@@ -133,4 +133,4 @@ export class ChatLogger {
       return [];
     }
   }
-} 
+}

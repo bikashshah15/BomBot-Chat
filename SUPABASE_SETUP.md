@@ -51,7 +51,7 @@ Add these variables to your `.env.local` file (create it if it doesn't exist):
 ```bash
 # Existing OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key_here
-ASSISTANT_ID=your_openai_assistant_id_here
+OPENAI_MODEL=gpt-4o
 
 # NEW: Supabase Configuration for Chat Logging
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
@@ -87,7 +87,7 @@ Stores all chat information in one comprehensive table:
 **Core Message Data:**
 - `id`: Primary key (UUID)
 - `session_id`: Unique identifier for the session
-- `thread_id`: OpenAI thread identifier
+- `thread_id`: OpenAI Conversation identifier (legacy database column name)
 - `message_index`: Order of message in conversation
 - `message_type`: 'user', 'assistant', or 'file_upload'
 - `user_message`: User's input text
@@ -172,4 +172,4 @@ If you're adding this to an existing BOMbot installation:
 
 ---
 
-For additional support, check the [Supabase documentation](https://supabase.com/docs) or create an issue in this repository. 
+For additional support, check the [Supabase documentation](https://supabase.com/docs) or create an issue in this repository.

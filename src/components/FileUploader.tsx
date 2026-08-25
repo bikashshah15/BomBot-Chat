@@ -7,7 +7,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Upload, FileText, X, Check } from 'lucide-react';
 
 const FileUploader = () => {
-  const { addUploadedFile, addMessage, setCurrentThreadId, currentThreadId } = useChat();
+  const { addUploadedFile, addMessage, setCurrentConversationId, currentConversationId } = useChat();
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,9 +47,9 @@ const FileUploader = () => {
       const formData = new FormData();
       formData.append('file', file);
       
-      // Include existing threadId if available to maintain conversation continuity
-      if (currentThreadId) {
-        formData.append('threadId', currentThreadId);
+      // Include the existing Conversation ID to maintain continuity.
+      if (currentConversationId) {
+        formData.append('conversationId', currentConversationId);
       }
 
       // Upload file to API
@@ -70,7 +70,7 @@ const FileUploader = () => {
 
       // Add file to context
       const uploadedFile = {
-        id: uploadResult.threadId || Math.random().toString(36).substr(2, 9),
+        id: uploadResult.conversationId || uploadResult.threadId || Math.random().toString(36).substr(2, 9),
         name: file.name,
         size: file.size,
         type: file.type,
@@ -80,9 +80,11 @@ const FileUploader = () => {
 
       addUploadedFile(uploadedFile);
 
-      // Set the thread ID for this conversation
-      if (uploadResult.threadId) {
-        setCurrentThreadId(uploadResult.threadId);
+      // Keep the Conversation ID for follow-up turns.
+      const uploadConversationId = uploadResult.conversationId || uploadResult.threadId;
+      const uploadResponseId = uploadResult.responseId || uploadResult.runId;
+      if (uploadConversationId) {
+        setCurrentConversationId(uploadConversationId);
       }
 
       setUploadProgress(90);
@@ -94,8 +96,8 @@ const FileUploader = () => {
       });
 
       // Poll for the assistant's response
-      if (uploadResult.runId && uploadResult.threadId) {
-        pollForResponse(uploadResult.threadId, uploadResult.runId, file.name);
+      if (uploadResponseId && uploadConversationId) {
+        pollForResponse(uploadConversationId, uploadResponseId, file.name);
       }
 
       setUploadProgress(100);
@@ -116,21 +118,25 @@ const FileUploader = () => {
       setIsUploading(false);
       setTimeout(() => setUploadProgress(0), 1000);
     }
-  }, [addUploadedFile, addMessage, setCurrentThreadId, currentThreadId]);
+  }, [addUploadedFile, addMessage, setCurrentConversationId, currentConversationId]);
 
-  const pollForResponse = async (threadId: string, runId: string, fileName: string) => {
+  const pollForResponse = async (conversationId: string, responseId: string, fileName: string) => {
     const maxAttempts = 90; // Maximum polling attempts (90 * 2 seconds = 3 minutes)
     let attempts = 0;
+    let activeConversationId = conversationId;
+    let activeResponseId = responseId;
 
     const poll = async () => {
       try {
-        const response = await fetch(`/api/run-status?threadId=${threadId}&runId=${runId}`);
+        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}`);
         
         if (!response.ok) {
           throw new Error('Failed to check analysis status');
         }
 
         const result = await response.json();
+        activeConversationId = result.conversationId || result.threadId || activeConversationId;
+        activeResponseId = result.responseId || result.runId || activeResponseId;
 
         if (result.completed) {
           if (result.status === 'completed') {

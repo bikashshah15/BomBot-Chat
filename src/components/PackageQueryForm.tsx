@@ -9,7 +9,7 @@ import { Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const PackageQueryForm = () => {
-  const { addMessage, setLoading, isLoading, currentThreadId, setCurrentThreadId, userEmail } = useChat();
+  const { addMessage, setLoading, isLoading, currentConversationId, setCurrentConversationId, userEmail } = useChat();
   const [formData, setFormData] = useState({
     packageName: '',
     ecosystem: '',
@@ -117,9 +117,9 @@ const PackageQueryForm = () => {
         }
       }
 
-      // Include threadId if available for AI assistant integration
-      if (currentThreadId) {
-        requestBody.threadId = currentThreadId;
+      // Include the Conversation ID if one is already active.
+      if (currentConversationId) {
+        requestBody.conversationId = currentConversationId;
       }
 
       // Include userEmail if available
@@ -213,9 +213,12 @@ const PackageQueryForm = () => {
         totalVulnerabilities: vulnerabilities.length > 0 ? vulnerabilities.length : undefined,
       });
 
-      // Set up thread for follow-up questions if we got data and have threadId/runId
-      if (result.runId && result.threadId) {
-        setCurrentThreadId(result.threadId);
+      // Keep the Conversation ID for follow-up questions when AI processing started.
+      const responseId = result.responseId || result.runId;
+      const conversationId = result.conversationId || result.threadId;
+      if (responseId && conversationId) {
+        setCurrentConversationId(conversationId);
+        pollForAIResponse(conversationId, responseId);
       }
 
       toast({
@@ -248,19 +251,23 @@ const PackageQueryForm = () => {
     });
   };
 
-  const pollForAIResponse = async (threadId: string, runId: string) => {
+  const pollForAIResponse = async (conversationId: string, responseId: string) => {
     const maxAttempts = 180; // Maximum polling attempts (180 * 1 second = 3 minutes)
     let attempts = 0;
+    let activeConversationId = conversationId;
+    let activeResponseId = responseId;
 
     const poll = async () => {
       try {
-        const response = await fetch(`/api/run-status?threadId=${threadId}&runId=${runId}`);
+        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}`);
         
         if (!response.ok) {
           throw new Error('Failed to check analysis status');
         }
 
         const result = await response.json();
+        activeConversationId = result.conversationId || result.threadId || activeConversationId;
+        activeResponseId = result.responseId || result.runId || activeResponseId;
 
         if (result.completed) {
           if (result.status === 'completed' && result.response) {

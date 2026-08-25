@@ -57,7 +57,7 @@ BOMbot implements a sophisticated hybrid response system that provides both inst
 - **Scalable Architecture**: Handles up to 50 packages per SBOM (serverless optimization)
 
 ### **Advanced Chat System**
-- **Persistent Threads**: OpenAI Assistant conversation continuity
+- **Persistent Conversations**: OpenAI Conversations API continuity
 - **Real-time Polling**: Non-blocking response delivery with status tracking
 - **Markdown Rendering**: Rich formatted responses with proper spacing
 - **File Upload Integration**: Drag-and-drop SBOM processing with progress tracking
@@ -151,7 +151,7 @@ interface UploadFlow {
   3. Package extraction with ecosystem mapping
   4. Batch OSV API queries (rate-limited)
   5. Vulnerability aggregation and severity normalization
-  6. OpenAI thread creation with structured prompt
+  6. OpenAI Conversation creation with structured prompt
   7. Quick summary generation for instant UI response
   8. Thread management for follow-up conversations
 }
@@ -206,7 +206,7 @@ interface PollingStrategy {
 }
 ```
 
-#### **OpenAI Assistant Integration**
+#### **OpenAI Responses Integration**
 
 ##### **Function Capabilities**
 ```typescript
@@ -239,13 +239,12 @@ interface AssistantFunctions {
 
 ##### **Response Quality Control**
 ```typescript
-interface AssistantConfig {
-  model: "gpt-4-turbo-preview";
-  temperature: 0.1;          // High consistency for security data
-  top_p: 0.2;               // Focused vocabulary selection
-  instructions: string;      // Comprehensive security expert prompt
-  tools: AssistantFunction[];
-  response_format: "markdown"; // Rich formatting with OSV.dev links
+interface ResponsesConfig {
+  model: "gpt-4o";            // Or the OPENAI_MODEL value
+  instructions: string;       // Comprehensive security expert prompt
+  tools: ResponseFunction[];
+  background: true;           // Preserve status polling
+  conversation: string;       // Durable multi-turn state
 }
 ```
 
@@ -255,20 +254,19 @@ interface AssistantConfig {
 ```bash
 # Required - OpenAI Integration
 OPENAI_API_KEY=sk-proj-xxxxx           # OpenAI API access
-ASSISTANT_ID=asst_xxxxx                # Pre-configured assistant
+OPENAI_MODEL=gpt-4o                    # Responses API model (compatibility default)
 
 # Optional - Development
 OSV_SCANNER_PATH=/usr/local/bin/osv-scanner  # Local binary path
 NODE_ENV=production                     # Runtime environment
 ```
 
-### OpenAI Assistant Configuration
+### OpenAI Responses Configuration
 ```yaml
-Assistant Setup:
-  name: "BOMbot Security Analyst"
-  model: "gpt-4-turbo-preview"
-  temperature: 0.1
-  top_p: 0.2
+Responses API:
+  model: "gpt-4o"
+  state: "Conversations API"
+  background: true
   
 Instructions: |
   You are BOMbot, an expert cybersecurity analyst specializing in SBOM analysis and vulnerability assessment. 
@@ -377,7 +375,7 @@ npm install
 
 # Environment setup
 cp .env.example .env
-# Configure OPENAI_API_KEY and ASSISTANT_ID
+# Configure OPENAI_API_KEY and OPENAI_MODEL
 
 # Optional: Install OSV Scanner locally
 brew install osv-scanner  # macOS
@@ -448,7 +446,7 @@ Security Measures:
 - **Frontend**: React 18 + TypeScript + Vite + TailwindCSS + Radix UI
 - **Backend**: Next.js 14 + TypeScript + OpenAI API + OSV.dev API
 - **Deployment**: Vercel Serverless with optimized build pipeline
-- **AI**: GPT-4 Turbo with custom security analyst assistant
+- **AI**: GPT-4o through the Responses and Conversations APIs
 - **State Management**: React Context with custom hooks
 - **File Processing**: Multi-format parsing with batch vulnerability scanning
 
@@ -457,7 +455,7 @@ Security Measures:
 ## Quick Start
 
 1. **Deploy**: [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/kakderishikesh/BomBot-Chat)
-2. **Configure**: Add `OPENAI_API_KEY` and `ASSISTANT_ID` to Vercel environment
+2. **Configure**: Add `OPENAI_API_KEY` and `OPENAI_MODEL` to the Vercel environment
 3. **Use**: Upload SBOM files and start chatting with your AI security expert!
 
 ---

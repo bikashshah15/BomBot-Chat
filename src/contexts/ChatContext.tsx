@@ -47,14 +47,14 @@ interface UploadedFile {
 interface ChatContextType {
   messages: Message[];
   uploadedFiles: UploadedFile[];
-  currentThreadId: string | null;
+  currentConversationId: string | null;
   sessionId: string;
   messageIndex: number;
   isLoading: boolean;
   userEmail: string | null;
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
   addUploadedFile: (file: UploadedFile) => void;
-  setCurrentThreadId: (threadId: string | null) => void;
+  setCurrentConversationId: (conversationId: string | null) => void;
   setLoading: (loading: boolean) => void;
   setUserEmail: (email: string) => void;
   clearChat: () => void;
@@ -73,7 +73,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [sessionId] = useState<string>(() => uuidv4());
   const [messageIndex, setMessageIndex] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -120,7 +120,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const clearChat = () => {
     setMessages([]);
     setUploadedFiles([]);
-    setCurrentThreadId(null);
+    setCurrentConversationId(null);
     setMessageIndex(0);
   };
 
@@ -135,7 +135,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     try {
       await ChatLogger.logMessage({
         sessionId,
-        threadId: currentThreadId,
+        conversationId: currentConversationId,
         messageIndex,
         messageType,
         userMessage,
@@ -154,14 +154,14 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     <ChatContext.Provider value={{
       messages,
       uploadedFiles,
-      currentThreadId,
+      currentConversationId,
       sessionId,
       messageIndex,
       isLoading,
       userEmail,
       addMessage,
       addUploadedFile,
-      setCurrentThreadId,
+      setCurrentConversationId,
       setLoading,
       setUserEmail,
       clearChat,

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Shield, Send, Paperclip, Plus, MessageSquare } from 'lucide-react';
 
 const ChatInterface = () => {
-  const { messages, isLoading, addMessage, clearChat, currentThreadId, sessionId, messageIndex, setLoading, setCurrentThreadId, addUploadedFile, logChatMessage, userEmail, setUserEmail } = useChat();
+  const { messages, isLoading, addMessage, clearChat, currentConversationId, sessionId, messageIndex, setLoading, setCurrentConversationId, addUploadedFile, logChatMessage, userEmail, setUserEmail } = useChat();
   const [inputText, setInputText] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -95,9 +95,9 @@ const ChatInterface = () => {
       if (userEmail) {
         formData.append('userEmail', userEmail);
       }
-      // Include existing threadId if available to maintain conversation continuity
-      if (currentThreadId) {
-        formData.append('threadId', currentThreadId);
+      // Include the existing Conversation ID to maintain continuity.
+      if (currentConversationId) {
+        formData.append('conversationId', currentConversationId);
       }
 
       // Upload file to API
@@ -115,7 +115,7 @@ const ChatInterface = () => {
 
       // Add file to context
       const uploadedFile = {
-        id: uploadResult.threadId || Math.random().toString(36).substr(2, 9),
+        id: uploadResult.conversationId || uploadResult.threadId || Math.random().toString(36).substr(2, 9),
         name: file.name,
         size: file.size,
         type: file.type,
@@ -125,9 +125,11 @@ const ChatInterface = () => {
 
       addUploadedFile(uploadedFile);
 
-      // Set the thread ID for this conversation
-      if (uploadResult.threadId) {
-        setCurrentThreadId(uploadResult.threadId);
+      // Keep the Conversation ID for follow-up turns.
+      const uploadConversationId = uploadResult.conversationId || uploadResult.threadId;
+      const uploadResponseId = uploadResult.responseId || uploadResult.runId;
+      if (uploadConversationId) {
+        setCurrentConversationId(uploadConversationId);
       }
 
       // Show quick templated response first
@@ -181,7 +183,9 @@ const ChatInterface = () => {
         dependencyGraph: uploadResult.dependencyGraph || undefined,
       });
 
-      // Thread is already set up for follow-up questions via setCurrentThreadId above
+      if (uploadConversationId && uploadResponseId) {
+        pollForResponse(uploadConversationId, uploadResponseId, file.name);
+      }
 
     } catch (error) {
       console.error('Upload error:', error);
@@ -194,19 +198,23 @@ const ChatInterface = () => {
     }
   };
 
-  const pollForResponse = async (threadId: string, runId: string, fileName: string) => {
+  const pollForResponse = async (conversationId: string, responseId: string, fileName: string) => {
     const maxAttempts = 90; // Maximum polling attempts (90 * 2 seconds = 3 minutes)
     let attempts = 0;
+    let activeConversationId = conversationId;
+    let activeResponseId = responseId;
 
     const poll = async () => {
       try {
-        const response = await fetch(`/api/run-status?threadId=${threadId}&runId=${runId}`);
+        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}`);
         
         if (!response.ok) {
           throw new Error('Failed to check analysis status');
         }
 
         const result = await response.json();
+        activeConversationId = result.conversationId || result.threadId || activeConversationId;
+        activeResponseId = result.responseId || result.runId || activeResponseId;
 
         if (result.completed) {
           if (result.status === 'completed') {
@@ -267,7 +275,7 @@ const ChatInterface = () => {
 
   // Function to send message to OpenAI Assistant
   const sendToAssistant = async (message: string) => {
-    if (!currentThreadId) return false;
+    if (!currentConversationId) return false;
 
     try {
       setLoading(true);
@@ -279,7 +287,7 @@ const ChatInterface = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          threadId: currentThreadId,
+          conversationId: currentConversationId,
           message: message,
           sessionId,
           messageIndex,
@@ -293,9 +301,12 @@ const ChatInterface = () => {
 
       const result = await response.json();
 
-      if (result.runId) {
+      const responseId = result.responseId || result.runId;
+      const conversationId = result.conversationId || result.threadId || currentConversationId;
+      if (responseId && conversationId) {
+        setCurrentConversationId(conversationId);
         // Poll for the assistant's response
-        pollForAssistantResponse(currentThreadId, result.runId);
+        pollForAssistantResponse(conversationId, responseId);
         return true;
       }
     } catch (error) {
@@ -312,19 +323,23 @@ const ChatInterface = () => {
   };
 
   // Function to poll for assistant response
-  const pollForAssistantResponse = async (threadId: string, runId: string) => {
+  const pollForAssistantResponse = async (conversationId: string, responseId: string) => {
     const maxAttempts = 180; // Maximum polling attempts (180 * 1 second = 3 minutes)
     let attempts = 0;
+    let activeConversationId = conversationId;
+    let activeResponseId = responseId;
 
     const poll = async () => {
       try {
-        const response = await fetch(`/api/run-status?threadId=${threadId}&runId=${runId}&sessionId=${sessionId}&messageIndex=${messageIndex}`);
+        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}&sessionId=${sessionId}&messageIndex=${messageIndex}`);
         
         if (!response.ok) {
           throw new Error('Failed to check assistant response');
         }
 
         const result = await response.json();
+        activeConversationId = result.conversationId || result.threadId || activeConversationId;
+        activeResponseId = result.responseId || result.runId || activeResponseId;
 
         if (result.completed) {
           setLoading(false); // Turn off loading when response is complete
@@ -381,8 +396,8 @@ const ChatInterface = () => {
     const userMessage = inputText;
     setInputText('');
 
-    // If there's an active thread, send to the real AI assistant
-    if (currentThreadId) {
+    // If there's an active conversation, send to the real AI assistant.
+    if (currentConversationId) {
       const sent = await sendToAssistant(userMessage);
       if (sent) {
         return;
