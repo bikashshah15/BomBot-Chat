@@ -13,3 +13,9 @@ Columns: date · increment · what changed · why · effect on the study.
   unavailable (lib/openai-responses.ts:154). Effect: prompt differs from the
   evaluated system's prompt.
 - Tool-calling capped at 8 successor rounds. Effect: bounds a previously unbounded loop.
+
+## 2026-08-25 — post-INC-00 (deployment configuration documentation)
+- Added the three required Supabase variable placeholders to env.example and documented
+  the Vercel Production variable checklist. Effect: no participant-facing behavior
+  change; runtime code, model, prompt, tools, and scan coverage are unchanged. Vercel
+  console variables were not changed in this repository-only step.
