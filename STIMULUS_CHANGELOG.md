@@ -19,3 +19,8 @@ Columns: date · increment · what changed · why · effect on the study.
   the Vercel Production variable checklist. Effect: no participant-facing behavior
   change; runtime code, model, prompt, tools, and scan coverage are unchanged. Vercel
   console variables were not changed in this repository-only step.
+
+## 2026-08-25 — post-INC-00 (build reproducibility)
+- Changed Vercel dependency installation from npm install to npm ci so deployments use
+  the exact package-lock.json captured by the baseline. Effect: no participant-facing
+  behavior change; application runtime behavior and experimental stimulus are unchanged.
