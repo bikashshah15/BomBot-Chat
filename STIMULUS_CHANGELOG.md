@@ -43,3 +43,26 @@ Columns: date · increment · what changed · why · effect on the study.
 - Temperature 0 reduces variance but does not guarantee determinism. Floating-point
   non-associativity and backend routing can still produce run-to-run differences; the
   instrument must be described as variance-reduced, not deterministic.
+
+## 2026-08-26 — INC-03 Part B step 1 (initial LLM gateway routing)
+- Routed upload, chat, and direct OSV-query model requests through the LLM gateway, so
+  the declared sampling parameters now reach those participant-facing requests.
+- This is the first increment to alter participant-facing behavior: temperature moves
+  from the vendor default 1.0 to the declared value 0; top-p is pinned to 1 and maximum
+  output tokens to 4096.
+- The disclosure ledger is unchanged by design because the same inventory-derived bytes
+  still reach the same hosts. A green ledger is not evidence of stimulus preservation;
+  the stimulus changed even though the disclosure boundary did not.
+- Tool-continuation requests from `run-status.ts` are not yet routed through the gateway
+  and therefore are not yet pinned at this step. The following step completes that path.
+
+## 2026-08-26 — INC-03 Part B step 2 (tool-continuation gateway routing)
+- Routed `run-status.ts` retrieval and tool-continuation successors through the LLM
+  gateway. Every model request path, including continuation requests after tool output,
+  now applies temperature 0, top-p 1, and maximum output tokens 4096.
+- This completes the participant-facing sampling change begun in step 1. The disclosure
+  boundary remains unchanged by design: the same hosts receive the same data classes,
+  while request bodies grow because the pinned fields are now present on continuations.
+- Failed, cancelled, and incomplete Responses remain terminal with no retry, including a
+  rate-limit failure returned inside a Response. Their distinct status and structured
+  error details remain available for the later R-8 fix; this step adds no retry behavior.

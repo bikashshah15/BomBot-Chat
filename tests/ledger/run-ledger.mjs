@@ -207,8 +207,8 @@ Automated result: **${ledger.destinations.filter(item => item.carriesInventory).
 
 | ID | Destination | Operator | Carries SBOM-derived content? | Observation | Code site |
 |---|---|---|---|---|---|
-| D1 | \`api.openai.com/v1/responses\` | OpenAI | **Yes** | ${requestCount(record => record.host === 'api.openai.com' && record.url.includes('/v1/responses'))} intercepted requests; package/version/ID markers observed | \`upload.ts\`, \`chat.ts\`, \`osv-query.ts\`, \`openai-responses.ts\` |
-| D2 | \`api.openai.com/v1/conversations\` | OpenAI | **Yes (indirectly)** | ${requestCount(record => record.host === 'api.openai.com' && record.url.includes('/v1/conversations'))} intercepted conversation creations; subsequent Responses carry the conversation content | \`openai-responses.ts\` |
+| D1 | \`api.openai.com/v1/responses\` | OpenAI | **Yes** | ${requestCount(record => record.host === 'api.openai.com' && record.url.includes('/v1/responses'))} intercepted requests; package/version/ID markers observed | four API routes via \`lib/llm/gateway.ts\`; \`lib/llm/providers/openai.ts\` |
+| D2 | \`api.openai.com/v1/conversations\` | OpenAI | **Yes (indirectly)** | ${requestCount(record => record.host === 'api.openai.com' && record.url.includes('/v1/conversations'))} intercepted conversation creations; subsequent Responses carry the conversation content | \`lib/llm/providers/openai.ts\` |
 | D3 | \`api.osv.dev/v1/query\` | Google | **Yes** | ${requestCount(record => record.host === 'api.osv.dev' && record.url.includes('/v1/query'))} intercepted package queries with inventory markers | \`upload.ts\`, \`osv-query.ts\`, \`openai-responses.ts\` |
 | D4 | \`api.osv.dev/v1/vulns/{id}\` | Google | Partially | ${requestCount(record => record.host === 'api.osv.dev' && record.url.includes('/v1/vulns/'))} intercepted CVE lookup; identifier is in the URL rather than the request body | \`osv-query.ts\`, \`openai-responses.ts\` |
 | D5 | Supabase (\`NEXT_PUBLIC_SUPABASE_URL\`) | Supabase + AWS | **Yes** | ${supabase?.requestCount || 0} intercepted requests; chat package markers observed | \`upload.ts\`, \`chat.ts\`, \`run-status.ts\`, \`chatLogger.ts\` |
@@ -275,11 +275,19 @@ const child = spawn(process.execPath, [nextBinary, 'dev', '-H', '127.0.0.1', '-p
     DEBUG: '',
     NODE_OPTIONS: nodeOptions,
     NEXT_TELEMETRY_DISABLED: '1',
+    PROFILE: 'hosted',
     OPENAI_API_KEY: 'synthetic-ledger-openai-key',
     LLM_API_KEY: 'synthetic-ledger-llm-key',
     OPENAI_MODEL: 'gpt-4o',
     LLM_BASE_URL: `${sink.origin}/proxy/api.openai.com/v1`,
+    LLM_MODEL: 'gpt-4o',
+    LLM_TEMPERATURE: '0',
+    LLM_TOP_P: '1',
+    LLM_MAX_OUTPUT_TOKENS: '4096',
+    LLM_SEED: 'null',
+    OSV_MODE: 'api',
     OSV_BASE_URL: `${sink.origin}/proxy/api.osv.dev`,
+    RETENTION: 'study',
     NEXT_PUBLIC_SUPABASE_URL: `${sink.origin}/proxy/synthetic-project.supabase.co`,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: 'synthetic-ledger-browser-key',
     SUPABASE_SERVICE_ROLE_KEY: 'synthetic-ledger-server-key',
@@ -356,6 +364,27 @@ try {
   assert.equal(oversize.packagesScanned, 150);
   assert.equal(oversize.totalPackages, 200);
   assert.equal(oversizeSpdxOsvQueries, 150);
+
+  const modelRequests = sink.requests.filter(request => (
+    request.host === 'api.openai.com'
+    && request.path === '/v1/responses'
+    && request.method === 'POST'
+  ));
+  assert.equal(modelRequests.length, 10);
+  const modelRequestBodies = modelRequests.map(request => JSON.parse(request.body));
+  for (const body of modelRequestBodies) {
+    assert.equal(body.temperature, 0);
+    assert.equal(body.top_p, 1);
+    assert.equal(body.max_output_tokens, 4096);
+  }
+  const continuationRequests = modelRequestBodies.filter(body => (
+    body.metadata?.bombot_tool_round === '1'
+  ));
+  assert.equal(continuationRequests.length, 1);
+  assert.ok(continuationRequests[0].input.some(item => (
+    item.type === 'function_call_output'
+    && item.call_id?.startsWith('call_resp_ledger_')
+  )));
 } catch (error) {
   const details = error instanceof Error ? error.stack || error.message : String(error);
   throw new Error(`${details}\n\nNext.js ledger process output:\n${readLogs()}`);

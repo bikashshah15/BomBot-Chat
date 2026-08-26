@@ -49,6 +49,7 @@ function openAIResponse(id, conversationId, metadata = {}) {
     instructions: null,
     metadata,
     model: 'gpt-4o',
+    output_text: 'Synthetic ledger assistant response.',
     output: [{
       id: `msg_${id}`,
       type: 'message',
@@ -73,6 +74,25 @@ function openAIResponse(id, conversationId, metadata = {}) {
       output_tokens_details: { reasoning_tokens: 0 },
       total_tokens: 2,
     },
+  };
+}
+
+function openAIToolResponse(id, conversationId, metadata = {}) {
+  return {
+    ...openAIResponse(id, conversationId, metadata),
+    output_text: '',
+    output: [{
+      id: `fc_${id}`,
+      type: 'function_call',
+      status: 'completed',
+      call_id: `call_${id}`,
+      name: 'query_package_vulnerabilities',
+      arguments: JSON.stringify({
+        name: 'lodash',
+        ecosystem: 'npm',
+        version: '4.17.20',
+      }),
+    }],
   };
 }
 
@@ -115,7 +135,14 @@ export async function startLedgerSink() {
         const requestBody = body ? JSON.parse(body) : {};
         responseCounter += 1;
         const id = `resp_ledger_${responseCounter}`;
-        const value = openAIResponse(id, requestBody.conversation, requestBody.metadata || {});
+        const requestsLodashTool = requestBody.metadata?.bombot_tool_round === '0'
+          && requestBody.input?.some(item => (
+            item.role === 'user'
+            && item.content === 'What vulnerabilities affect lodash 4.17.20?'
+          ));
+        const value = requestsLodashTool
+          ? openAIToolResponse(id, requestBody.conversation, requestBody.metadata || {})
+          : openAIResponse(id, requestBody.conversation, requestBody.metadata || {});
         responses.set(id, value);
         return sendJson(response, 200, value);
       }

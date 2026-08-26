@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import type {
   LlmChunk,
   LlmMessage,
+  LlmOperation,
   LlmProvider,
   LlmRequest,
   LlmResult,
@@ -19,25 +20,46 @@ export interface OpenAIProviderOptions {
   useServerState?: boolean;
 }
 
+export interface OpenAIProvider extends LlmProvider {
+  resolve(operation: LlmOperation): Promise<LlmResult>; // INC-06: remove
+}
+
 function toOpenAIInput(messages: LlmMessage[]): OpenAI.Responses.ResponseInput {
-  return messages.map((message) => {
+  const input: OpenAI.Responses.ResponseInput = [];
+
+  for (const message of messages) {
+    if (message.role === 'assistant' && message.toolCalls?.length) {
+      if (message.content) {
+        input.push({ role: 'assistant', content: message.content });
+      }
+      for (const toolCall of message.toolCalls) {
+        input.push({
+          type: 'function_call',
+          call_id: toolCall.id,
+          name: toolCall.name,
+          arguments: toolCall.arguments,
+        });
+      }
+      continue;
+    }
+
     if (message.role !== 'tool') {
-      return {
-        role: message.role,
-        content: message.content,
-      };
+      input.push({ role: message.role, content: message.content });
+      continue;
     }
 
     if (!message.toolCallId) {
       throw new Error('A tool message requires toolCallId');
     }
 
-    return {
+    input.push({
       type: 'function_call_output',
       call_id: message.toolCallId,
       output: message.content,
-    };
-  });
+    });
+  }
+
+  return input;
 }
 
 function toOpenAITools(tools: LlmToolDef[] | undefined): OpenAI.Responses.FunctionTool[] | undefined {
@@ -100,22 +122,30 @@ function toLlmResult(
     done: terminalStatuses.has(response.status),
     responseId: response.id,
     status: response.status,
+    createdAt: response.created_at,
+    completedAt: response.completed_at,
+    model: response.model,
   };
 
   if (conversationId) result.conversationId = conversationId;
-  if (response.error?.message) result.error = response.error.message;
+  if (response.error) result.error = { ...response.error };
+  if (response.incomplete_details) {
+    result.incompleteDetails = { ...response.incomplete_details };
+  }
+  if (response.metadata) result.metadata = { ...response.metadata };
   if (response.usage) {
     result.usage = {
       inputTokens: response.usage.input_tokens,
       outputTokens: response.usage.output_tokens,
       totalTokens: response.usage.total_tokens,
     };
+    result.rawUsage = response.usage;
   }
 
   return result;
 }
 
-export function createOpenAIProvider(options: OpenAIProviderOptions): LlmProvider {
+export function createOpenAIProvider(options: OpenAIProviderOptions): OpenAIProvider {
   if (!options.client && !options.apiKey) {
     throw new Error('An OpenAI API key is required when no client is supplied');
   }
@@ -154,6 +184,10 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LlmProvide
       request.instructions = getInstructions(req.messages);
       request.conversation = await resolveConversationId(); // INC-05: remove
       request.store = true; // INC-05: remove
+      request.parallel_tool_calls = true;
+      request.metadata = {
+        bombot_tool_round: String(req.continuation?.round ?? 0),
+      }; // INC-05: remove
     } else {
       request.store = false;
     }
@@ -167,14 +201,38 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): LlmProvide
   return {
     async complete(req) {
       const request = await baseRequest(req);
+      const continuationIdentity = req.continuation?.idempotencyKey;
       const response = useServerState
         ? await client.responses.create({
           ...request,
           background: true, // INC-05: remove
-        })
+        }, continuationIdentity ? {
+          idempotencyKey: continuationIdentity,
+          headers: { 'Idempotency-Key': continuationIdentity },
+        } : undefined)
         : await client.responses.create(request);
 
       return toLlmResult(response, conversationId);
+    },
+
+    // INC-06: remove — hosted Responses polling is temporary provider state.
+    async resolve(operation: LlmOperation) {
+      if (!useServerState) {
+        if (!operation.result) {
+          throw new Error('A local LLM operation must carry its completed result');
+        }
+        return operation.result;
+      }
+
+      if (!operation.responseId) {
+        throw new Error('A hosted LLM operation requires responseId');
+      }
+
+      const response = await client.responses.retrieve(operation.responseId);
+      const resolvedConversationId = response.conversation?.id
+        ?? operation.conversationId
+        ?? conversationId;
+      return toLlmResult(response, resolvedConversationId);
     },
 
     async *stream(req): AsyncIterable<LlmChunk> {

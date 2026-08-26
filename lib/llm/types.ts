@@ -2,6 +2,7 @@ export interface LlmMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
   toolCallId?: string;
+  toolCalls?: LlmToolCall[];
 }
 
 export interface LlmToolDef {
@@ -14,6 +15,7 @@ export interface LlmToolDef {
 export interface LlmRequest {
   messages: LlmMessage[];
   tools?: LlmToolDef[];
+  continuation?: LlmContinuation;
   temperature: number;
   topP: number;
   maxOutputTokens: number;
@@ -26,10 +28,33 @@ export interface LlmToolCall {
   arguments: string;
 }
 
+export interface LlmContinuation {
+  round: number;
+  predecessorResponseId: string;
+  idempotencyKey: string;
+}
+
 export interface LlmUsage {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+}
+
+export type LlmResultStatus =
+  | 'completed'
+  | 'failed'
+  | 'in_progress'
+  | 'cancelled'
+  | 'queued'
+  | 'incomplete';
+
+export interface LlmError {
+  code?: string;
+  message: string;
+}
+
+export interface LlmIncompleteDetails {
+  reason?: string;
 }
 
 export interface LlmResult {
@@ -38,9 +63,22 @@ export interface LlmResult {
   done: boolean;
   responseId?: string;
   conversationId?: string;
-  status?: string;
-  error?: string;
+  status: LlmResultStatus;
+  error?: LlmError;
+  incompleteDetails?: LlmIncompleteDetails;
+  createdAt?: number;
+  completedAt?: number | null;
+  model?: string;
+  metadata?: Record<string, string>;
   usage?: LlmUsage;
+  rawUsage?: unknown;
+}
+
+// INC-06: remove — local completion has no hosted operation to resolve.
+export interface LlmOperation {
+  responseId?: string;
+  conversationId?: string;
+  result?: LlmResult;
 }
 
 export interface LlmChunk {

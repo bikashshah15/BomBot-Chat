@@ -2,8 +2,40 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import {
+const CONFIGURATION_VARIABLES = [
+  'PROFILE',
+  'LLM_BASE_URL',
+  'LLM_MODEL',
+  'LLM_API_KEY',
+  'OSV_MODE',
+  'OSV_BASE_URL',
+  'RETENTION',
+  'LLM_TEMPERATURE',
+  'LLM_TOP_P',
+  'LLM_MAX_OUTPUT_TOKENS',
+  'LLM_SEED',
+];
+const previousValues = new Map(
+  CONFIGURATION_VARIABLES.map(name => [name, process.env[name]]),
+);
+
+Object.assign(process.env, {
+  PROFILE: 'hosted',
+  LLM_BASE_URL: 'https://api.openai.test/v1',
+  LLM_MODEL: 'gpt-4o',
+  LLM_API_KEY: 'synthetic-test-key',
+  OSV_MODE: 'api',
+  RETENTION: 'study',
+  LLM_TEMPERATURE: '0',
+  LLM_TOP_P: '1',
+  LLM_MAX_OUTPUT_TOKENS: '4096',
+  LLM_SEED: 'null',
+});
+delete process.env.OSV_BASE_URL;
+
+const {
   BOMBOT_INSTRUCTIONS,
+  BOMBOT_LLM_TOOLS,
   BOMBOT_TOOLS,
   MAX_FUNCTION_CALL_ROUNDS,
   TOOL_ROUND_METADATA_KEY,
@@ -14,7 +46,13 @@ import {
   extractResponseText,
   getToolContinuationIdempotencyKey,
   parseToolArguments,
-} from '../lib/openai-responses.ts';
+} = await import('../lib/openai-responses.ts');
+
+for (const name of CONFIGURATION_VARIABLES) {
+  const previousValue = previousValues.get(name);
+  if (previousValue === undefined) delete process.env[name];
+  else process.env[name] = previousValue;
+}
 
 function syntheticResponse(overrides = {}) {
   return {
@@ -65,6 +103,10 @@ test('instructions faithfully include Instruction Prompt.md and all four tools',
       'analyze_sbom_package',
       'query_package_dependencies',
     ],
+  );
+  assert.deepEqual(
+    BOMBOT_LLM_TOOLS.map(tool => tool.name),
+    BOMBOT_TOOLS.map(tool => tool.name),
   );
 });
 
@@ -272,7 +314,7 @@ test('a ninth function-calling round is rejected without creating a Response', a
   assert.equal(createAttempts, 0);
 });
 
-test('duplicate continuation attempts share one idempotency identity and cannot branch', async () => {
+test('duplicate continuation attempts carry the same idempotency identity', async () => {
   const createAttempts = [];
   const responsesByIdempotencyKey = new Map();
   const client = {
@@ -283,6 +325,8 @@ test('duplicate continuation attempts share one idempotency identity and cannot 
         createAttempts.push({ params, sdkKey, headerKey });
         assert.equal(sdkKey, headerKey);
 
+        // This fake models server-side deduplication; it is not evidence that the
+        // deployed provider returns one successor for concurrent duplicate requests.
         if (!responsesByIdempotencyKey.has(sdkKey)) {
           responsesByIdempotencyKey.set(sdkKey, syntheticResponse({
             id: 'resp_single_successor',

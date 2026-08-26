@@ -1,6 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseServer } from '@/lib/supabase-server';
-import { createBackgroundResponse, formatOpenAIError } from '../../lib/openai-responses';
+import { createLlmGateway } from '../../lib/llm/gateway.ts';
+import {
+  BOMBOT_INSTRUCTIONS,
+  BOMBOT_LLM_TOOLS,
+  formatOpenAIError,
+} from '../../lib/openai-responses';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ChatRequest {
@@ -51,17 +56,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Continue with the chat even if logging fails
     }
 
-    const response = await createBackgroundResponse(conversationId, [{
-      role: 'user',
-      content: message,
-    }]);
+    const gateway = createLlmGateway({ openAI: { conversationId } });
+    const response = await gateway.complete({
+      messages: [
+        { role: 'system', content: BOMBOT_INSTRUCTIONS },
+        { role: 'user', content: message },
+      ],
+      tools: BOMBOT_LLM_TOOLS,
+    });
+
+    if (!response.responseId) {
+      throw new Error('LLM provider did not return a response ID');
+    }
 
     return res.status(200).json({ 
       success: true,
       conversationId,
-      responseId: response.id,
+      responseId: response.responseId,
       threadId: conversationId,
-      runId: response.id,
+      runId: response.responseId,
       message: message,
       sessionId: sessionId,
       messageIndex: messageIndex

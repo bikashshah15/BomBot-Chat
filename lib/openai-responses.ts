@@ -1,9 +1,10 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
+import { config } from './config.ts';
+import type { LlmToolDef } from './llm/types.ts';
 
 export const OPENAI_MODEL = process.env.OPENAI_MODEL?.trim() || 'gpt-4o';
 export const LLM_BASE_URL = process.env.LLM_BASE_URL?.trim() || undefined;
-export const OSV_BASE_URL = (process.env.OSV_BASE_URL?.trim() || 'https://api.osv.dev').replace(/\/+$/, '');
 export const MAX_FUNCTION_CALL_ROUNDS = 8;
 export const TOOL_ROUND_METADATA_KEY = 'bombot_tool_round';
 
@@ -259,6 +260,13 @@ export const BOMBOT_TOOLS: OpenAI.Responses.FunctionTool[] = [
   },
 ];
 
+export const BOMBOT_LLM_TOOLS: LlmToolDef[] = BOMBOT_TOOLS.map(tool => ({
+  name: tool.name,
+  description: tool.description ?? undefined,
+  parameters: tool.parameters ?? {},
+  strict: tool.strict ?? false,
+}));
+
 const packageQuerySchema = z.object({
   name: z.string().trim().min(1),
   ecosystem: z.enum(ecosystems),
@@ -473,7 +481,7 @@ export async function executeFunctionCall(
         queryBody.version = packageArgs.version;
       }
 
-      const data = await getOSVJson(`${OSV_BASE_URL}/v1/query`, {
+      const data = await getOSVJson(`${config.OSV_BASE_URL}/v1/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -487,7 +495,7 @@ export async function executeFunctionCall(
     case 'query_cve_details': {
       const cveArgs = args as z.infer<typeof cveQuerySchema>;
       const data = await getOSVJson(
-        `${OSV_BASE_URL}/v1/vulns/${encodeURIComponent(cveArgs.cve_id.toUpperCase())}`,
+        `${config.OSV_BASE_URL}/v1/vulns/${encodeURIComponent(cveArgs.cve_id.toUpperCase())}`,
         {
           method: 'GET',
           headers: {

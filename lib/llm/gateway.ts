@@ -1,10 +1,12 @@
 import { config, type Config } from '../config.ts';
 import {
   createOpenAIProvider,
+  type OpenAIProvider,
   type OpenAIProviderOptions,
 } from './providers/openai.ts';
 import type {
   LlmChunk,
+  LlmOperation,
   LlmProvider,
   LlmRequest,
   LlmResult,
@@ -30,18 +32,25 @@ export type LlmGatewayConfig = Pick<
 export interface LlmGateway {
   complete(req: LlmGatewayRequest): Promise<LlmResult>;
   stream(req: LlmGatewayRequest): AsyncIterable<LlmChunk>;
+  resolve(operation: LlmOperation): Promise<LlmResult>; // INC-06: remove
+}
+
+// INC-06: remove — gateway-only operation resolution must not enter LlmProvider.
+export interface LlmOperationResolver {
+  resolve(operation: LlmOperation): Promise<LlmResult>; // INC-06: remove
 }
 
 export interface CreateLlmGatewayOptions {
   settings?: LlmGatewayConfig;
   provider?: LlmProvider;
+  resolver?: LlmOperationResolver; // INC-06: remove
   openAI?: Pick<OpenAIProviderOptions, 'client' | 'conversationId'>;
 }
 
 export function selectLlmProvider(
   settings: LlmGatewayConfig,
   openAI: Pick<OpenAIProviderOptions, 'client' | 'conversationId'> = {},
-): LlmProvider {
+): OpenAIProvider {
   if (settings.PROFILE === 'hosted' && !settings.LLM_API_KEY && !openAI.client) {
     throw new Error('LLM_API_KEY is required for the hosted LLM provider');
   }
@@ -73,7 +82,19 @@ function applyPinnedDecoding(
 
 export function createLlmGateway(options: CreateLlmGatewayOptions = {}): LlmGateway {
   const settings = options.settings ?? config;
-  const provider = options.provider ?? selectLlmProvider(settings, options.openAI);
+  const selectedProvider = options.provider
+    ? undefined
+    : selectLlmProvider(settings, options.openAI);
+  const provider = options.provider ?? selectedProvider as LlmProvider;
+  const resolver = options.resolver ?? selectedProvider ?? {
+    // INC-06: remove — injected local providers resolve their terminal result by identity.
+    async resolve(operation: LlmOperation) {
+      if (!operation.result) {
+        throw new Error('An injected provider requires a resolver for a pending operation');
+      }
+      return operation.result;
+    },
+  };
 
   return Object.freeze({
     complete(req: LlmGatewayRequest) {
@@ -81,6 +102,10 @@ export function createLlmGateway(options: CreateLlmGatewayOptions = {}): LlmGate
     },
     stream(req: LlmGatewayRequest) {
       return provider.stream(applyPinnedDecoding(req, settings));
+    },
+    // INC-06: remove — hosted polling disappears with app-owned execution.
+    resolve(operation: LlmOperation) {
+      return resolver.resolve(operation);
     },
   });
 }

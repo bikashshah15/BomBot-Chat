@@ -4,10 +4,14 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import tmp from 'tmp';
 import path from 'path';
 import { supabaseServer } from '@/lib/supabase-server';
-import { createBackgroundResponse, createConversation, formatOpenAIError } from '../../lib/openai-responses';
+import { config as environmentConfig } from '../../lib/config.ts';
+import { createLlmGateway } from '../../lib/llm/gateway.ts';
+import {
+  BOMBOT_INSTRUCTIONS,
+  BOMBOT_LLM_TOOLS,
+  formatOpenAIError,
+} from '../../lib/openai-responses';
 import { v4 as uuidv4 } from 'uuid';
-
-const OSV_BASE_URL = (process.env.OSV_BASE_URL?.trim() || 'https://api.osv.dev').replace(/\/+$/, '');
 
 export const config = {
   api: {
@@ -317,7 +321,7 @@ async function queryOSVForPackage(pkg: SBOMPackage): Promise<OSVVulnerability[]>
       queryBody.version = pkg.version;
     }
 
-    const response = await fetch(`${OSV_BASE_URL}/v1/query`, {
+    const response = await fetch(`${environmentConfig.OSV_BASE_URL}/v1/query`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -457,17 +461,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }]
     };
 
-    // Use the current conversation if available, otherwise create a new one.
-    let conversationId: string;
-    if (existingConversationId) {
-      conversationId = existingConversationId;
-      console.log(`Reusing existing conversation: ${conversationId} for SBOM upload`);
-    } else {
-      const conversation = await createConversation();
-      conversationId = conversation.id;
-      console.log(`Created new conversation: ${conversationId} for SBOM upload`);
-    }
-
     // Send the scan results to the assistant
     const totalVulns = vulnerabilityResults.reduce((sum, result) => sum + result.vulnerabilities.length, 0);
     const vulnPackages = vulnerabilityResults.filter(result => result.vulnerabilities.length > 0).length;
@@ -519,10 +512,27 @@ ${existingConversationId ?
   'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Since this is an additional SBOM, you can also compare it with previously uploaded SBOMs. Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", "dependency analysis", or "SBOM comparison" for comprehensive information.' :
   'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", or "dependency analysis" for comprehensive information.'}`;
 
-    const response = await createBackgroundResponse(conversationId, [{
-      role: 'user',
-      content: responseInput,
-    }]);
+    const gateway = createLlmGateway({
+      ...(existingConversationId ? { openAI: { conversationId: existingConversationId } } : {}),
+    });
+    const response = await gateway.complete({
+      messages: [
+        { role: 'system', content: BOMBOT_INSTRUCTIONS },
+        { role: 'user', content: responseInput },
+      ],
+      tools: BOMBOT_LLM_TOOLS,
+    });
+    const conversationId = response.conversationId ?? existingConversationId;
+
+    if (!conversationId || !response.responseId) {
+      throw new Error('LLM provider did not return conversation and response IDs');
+    }
+
+    if (existingConversationId) {
+      console.log(`Reusing existing conversation: ${conversationId} for SBOM upload`);
+    } else {
+      console.log(`Created new conversation: ${conversationId} for SBOM upload`);
+    }
 
     // Log file upload to Supabase if session info is provided
     if (sessionId && messageIndex !== undefined) {
@@ -560,9 +570,9 @@ ${existingConversationId ?
     res.status(200).json({ 
       success: true,
       conversationId,
-      responseId: response.id,
+      responseId: response.responseId,
       threadId: conversationId,
-      runId: response.id,
+      runId: response.responseId,
       fileName: fileName,
       packagesScanned: packagesToScan.length,
       totalPackages: packages.length,

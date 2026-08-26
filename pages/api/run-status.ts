@@ -1,13 +1,69 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseServer } from '@/lib/supabase-server';
+import { createLlmGateway } from '../../lib/llm/gateway.ts';
+import type { LlmMessage, LlmResult, LlmToolCall } from '../../lib/llm/types.ts';
 import {
-  continueFunctionCallingLoop,
-  extractResponseText,
+  BOMBOT_INSTRUCTIONS,
+  BOMBOT_LLM_TOOLS,
+  executeFunctionCall,
   formatOpenAIError,
-  getResponseErrorMessage,
-  getResponseUsage,
-  retrieveResponse,
+  getToolContinuationIdempotencyKey,
+  MAX_FUNCTION_CALL_ROUNDS,
+  TOOL_ROUND_METADATA_KEY,
 } from '../../lib/openai-responses';
+
+function getFunctionCallingRound(response: LlmResult): number {
+  const value = response.metadata?.[TOOL_ROUND_METADATA_KEY];
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    return 0;
+  }
+
+  const round = Number.parseInt(value, 10);
+  return Number.isSafeInteger(round) ? round : 0;
+}
+
+function getResponseErrorMessage(response: LlmResult): string {
+  if (response.error?.message) {
+    return response.error.message;
+  }
+
+  if (response.incompleteDetails?.reason) {
+    return `Response incomplete: ${response.incompleteDetails.reason}`;
+  }
+
+  if (response.status === 'cancelled') {
+    return 'Response was cancelled';
+  }
+
+  return 'Response failed with an unknown error';
+}
+
+async function buildToolResultMessages(toolCalls: LlmToolCall[]): Promise<LlmMessage[]> {
+  const messages: LlmMessage[] = [];
+
+  for (const toolCall of toolCalls) {
+    try {
+      console.log(`Executing function: ${toolCall.name}`);
+      messages.push({
+        role: 'tool',
+        toolCallId: toolCall.id,
+        content: await executeFunctionCall(toolCall.name, toolCall.arguments),
+      });
+    } catch (error) {
+      console.error(`Function execution error for ${toolCall.name}:`, error);
+      messages.push({
+        role: 'tool',
+        toolCallId: toolCall.id,
+        content: JSON.stringify({
+          error: error instanceof Error ? error.message : 'Function execution failed',
+          success: false,
+        }),
+      });
+    }
+  }
+
+  return messages;
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate');
@@ -44,41 +100,79 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const retrievedResponse = await retrieveResponse(responseId);
-    const effectiveConversationId = retrievedResponse.conversation?.id || conversationId;
-    const loopResult = await continueFunctionCallingLoop(
-      retrievedResponse,
-      effectiveConversationId,
-    );
-    const response = loopResult.response;
-    const responseWasReplaced = response.id !== responseId;
+    const gateway = createLlmGateway({ openAI: { conversationId } });
+    // INC-06: remove — local completion returns the result without hosted polling.
+    let response = await gateway.resolve({ responseId, conversationId });
+    const effectiveConversationId = response.conversationId || conversationId;
+    const successorResponseIds: string[] = [];
+    let toolCallsProcessed = 0;
+
+    while (response.status === 'completed' && response.toolCalls.length > 0) {
+      const currentRound = getFunctionCallingRound(response);
+      if (currentRound >= MAX_FUNCTION_CALL_ROUNDS) {
+        throw new Error(`Function calling exceeded the maximum of ${MAX_FUNCTION_CALL_ROUNDS} consecutive rounds`);
+      }
+      if (!response.responseId) {
+        throw new Error('LLM provider did not return a predecessor response ID');
+      }
+
+      const predecessorResponseId = response.responseId;
+      const toolResultMessages = await buildToolResultMessages(response.toolCalls);
+      toolCallsProcessed += response.toolCalls.length;
+      response = await gateway.complete({
+        messages: [
+          { role: 'system', content: BOMBOT_INSTRUCTIONS },
+          {
+            role: 'assistant',
+            content: response.content,
+            toolCalls: response.toolCalls,
+          },
+          ...toolResultMessages,
+        ],
+        tools: BOMBOT_LLM_TOOLS,
+        continuation: {
+          round: currentRound + 1,
+          predecessorResponseId,
+          idempotencyKey: getToolContinuationIdempotencyKey(predecessorResponseId),
+        },
+      });
+      if (!response.responseId) {
+        throw new Error('LLM provider did not return a successor response ID');
+      }
+      successorResponseIds.push(response.responseId);
+    }
+
+    if (!response.responseId) {
+      throw new Error('LLM provider did not return a response ID');
+    }
+    const responseWasReplaced = response.responseId !== responseId;
 
     const ids = {
       conversationId: effectiveConversationId,
-      responseId: response.id,
+      responseId: response.responseId,
       threadId: effectiveConversationId,
-      runId: response.id,
+      runId: response.responseId,
     };
 
-    if (loopResult.toolCallsProcessed > 0 && response.status !== 'completed') {
+    if (toolCallsProcessed > 0 && response.status !== 'completed') {
       return res.status(200).json({
         ...ids,
         status: 'requires_action',
         responseStatus: response.status,
         completed: false,
         action: 'tool_outputs_submitted',
-        tool_calls: loopResult.toolCallsProcessed,
+        tool_calls: toolCallsProcessed,
         previousResponseId: responseWasReplaced ? responseId : undefined,
-        successorResponseIds: loopResult.successorResponseIds,
+        successorResponseIds,
         run: {
-          id: response.id,
-          created_at: response.created_at,
+          id: response.responseId,
+          created_at: response.createdAt,
         },
       });
     }
 
     if (response.status === 'completed') {
-      const responseText = extractResponseText(response);
+      const responseText = response.content;
 
       // Log AI response to Supabase if sessionId and messageIndex are provided.
       if (sessionId && messageIndex && responseText) {
@@ -103,13 +197,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         completed: true,
         response: responseText,
         previousResponseId: responseWasReplaced ? responseId : undefined,
-        successorResponseIds: loopResult.successorResponseIds,
+        successorResponseIds,
         run: {
-          id: response.id,
-          created_at: response.created_at,
-          completed_at: response.completed_at,
+          id: response.responseId,
+          created_at: response.createdAt,
+          completed_at: response.completedAt,
           model: response.model,
-          usage: getResponseUsage(response),
+          usage: response.rawUsage ?? response.usage ?? null,
         },
       });
     }
@@ -122,12 +216,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         completed: true,
         error: getResponseErrorMessage(response),
         previousResponseId: responseWasReplaced ? responseId : undefined,
-        successorResponseIds: loopResult.successorResponseIds,
+        successorResponseIds,
         run: {
-          id: response.id,
-          created_at: response.created_at,
-          failed_at: response.completed_at || null,
-          last_error: response.error || response.incomplete_details,
+          id: response.responseId,
+          created_at: response.createdAt,
+          failed_at: response.completedAt || null,
+          last_error: response.error ?? response.incompleteDetails,
         },
       });
     }
@@ -137,10 +231,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       status: response.status,
       completed: false,
       previousResponseId: responseWasReplaced ? responseId : undefined,
-      successorResponseIds: loopResult.successorResponseIds,
+      successorResponseIds,
       run: {
-        id: response.id,
-        created_at: response.created_at,
+        id: response.responseId,
+        created_at: response.createdAt,
         started_at: null,
       },
     });

@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createBackgroundResponse } from '../../lib/openai-responses';
-
-const OSV_BASE_URL = (process.env.OSV_BASE_URL?.trim() || 'https://api.osv.dev').replace(/\/+$/, '');
+import { config as environmentConfig } from '../../lib/config.ts';
+import { createLlmGateway } from '../../lib/llm/gateway.ts';
+import { BOMBOT_INSTRUCTIONS, BOMBOT_LLM_TOOLS } from '../../lib/openai-responses';
 
 interface OSVQueryRequest {
   version?: string;
@@ -70,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (cve) {
       // Query specific CVE
-      response = await fetch(`${OSV_BASE_URL}/v1/vulns/${cve}`, {
+      response = await fetch(`${environmentConfig.OSV_BASE_URL}/v1/vulns/${cve}`, {
         method: 'GET',
         headers: { 
           'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         queryBody.version = version;
       }
 
-      response = await fetch(`${OSV_BASE_URL}/v1/query`, {
+      response = await fetch(`${environmentConfig.OSV_BASE_URL}/v1/query`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -133,18 +133,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
 
-        const aiResponse = await createBackgroundResponse(conversationId, [{
-          role: 'user',
-          content: messageContent,
-        }]);
+        const gateway = createLlmGateway({ openAI: { conversationId } });
+        const aiResponse = await gateway.complete({
+          messages: [
+            { role: 'system', content: BOMBOT_INSTRUCTIONS },
+            { role: 'user', content: messageContent },
+          ],
+          tools: BOMBOT_LLM_TOOLS,
+        });
+
+        if (!aiResponse.responseId) {
+          throw new Error('LLM provider did not return a response ID');
+        }
 
         return res.status(200).json({ 
           success: true,
           result: data,
           conversationId,
-          responseId: aiResponse.id,
+          responseId: aiResponse.responseId,
           threadId: conversationId,
-          runId: aiResponse.id,
+          runId: aiResponse.responseId,
           query: cve ? { cve } : { name, ecosystem, version }
         });
       } catch (assistantError) {
