@@ -276,6 +276,7 @@ const child = spawn(process.execPath, [nextBinary, 'dev', '-H', '127.0.0.1', '-p
     NODE_OPTIONS: nodeOptions,
     NEXT_TELEMETRY_DISABLED: '1',
     OPENAI_API_KEY: 'synthetic-ledger-openai-key',
+    LLM_API_KEY: 'synthetic-ledger-llm-key',
     OPENAI_MODEL: 'gpt-4o',
     LLM_BASE_URL: `${sink.origin}/proxy/api.openai.com/v1`,
     OSV_BASE_URL: `${sink.origin}/proxy/api.osv.dev`,
