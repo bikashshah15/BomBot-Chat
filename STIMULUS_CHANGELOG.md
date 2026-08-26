@@ -30,3 +30,16 @@ Columns: date · increment · what changed · why · effect on the study.
   queries, making the existing upload scan cap observable as a regression guard. This
   is not evidence that the cap fired on a live or study input, and INC-01 does not change
   the cap, scan behavior, or participant-facing stimulus.
+
+## 2026-08-26 — INC-02 (declared LLM sampling configuration)
+- Declared `LLM_MODEL=gpt-4o`, `LLM_TEMPERATURE=0`, `LLM_TOP_P=1`, and
+  `LLM_MAX_OUTPUT_TOKENS=4096`; `LLM_SEED` remains unset/null.
+- The evaluated system ran at the vendor default temperature of 1.0. Temperature 0 is a
+  deliberate declared deviation, not a bug fix, and belongs in the methods section beside
+  the gpt-4-turbo-preview to gpt-4o model change.
+- No application code reads the validated config yet. These values first reach requests
+  through the INC-03 gateway, so participant-facing behavior remains unchanged in INC-02
+  and the disclosure ledger must remain unchanged.
+- Temperature 0 reduces variance but does not guarantee determinism. Floating-point
+  non-associativity and backend routing can still produce run-to-run differences; the
+  instrument must be described as variance-reduced, not deterministic.
