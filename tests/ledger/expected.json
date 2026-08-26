@@ -1,0 +1,69 @@
+{
+  "profile": "hosted",
+  "allowed": [
+    {
+      "host": "api.openai.com",
+      "carriesInventory": true
+    },
+    {
+      "host": "api.osv.dev",
+      "carriesInventory": true
+    },
+    {
+      "host": "*.supabase.co",
+      "carriesInventory": true
+    }
+  ],
+  "maxInventoryCarryingHosts": 3,
+  "disclosureRows": [
+    {
+      "id": "D1",
+      "destination": "api.openai.com/v1/responses",
+      "operator": "OpenAI",
+      "carriesInventory": true,
+      "observable": true
+    },
+    {
+      "id": "D2",
+      "destination": "api.openai.com/v1/conversations",
+      "operator": "OpenAI",
+      "carriesInventory": true,
+      "observable": true
+    },
+    {
+      "id": "D3",
+      "destination": "api.osv.dev/v1/query",
+      "operator": "Google",
+      "carriesInventory": true,
+      "observable": true
+    },
+    {
+      "id": "D4",
+      "destination": "api.osv.dev/v1/vulns/{id}",
+      "operator": "Google",
+      "carriesInventory": false,
+      "observable": true
+    },
+    {
+      "id": "D5",
+      "destination": "*.supabase.co",
+      "operator": "Supabase + AWS",
+      "carriesInventory": true,
+      "observable": true
+    },
+    {
+      "id": "D6",
+      "destination": "Vercel edge + runtime",
+      "operator": "Vercel",
+      "carriesInventory": true,
+      "observable": false
+    },
+    {
+      "id": "D7",
+      "destination": "Vercel Analytics",
+      "operator": "Vercel",
+      "carriesInventory": false,
+      "observable": false
+    }
+  ]
+}

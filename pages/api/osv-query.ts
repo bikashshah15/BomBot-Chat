@@ -1,6 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createBackgroundResponse } from '../../lib/openai-responses';
 
+const OSV_BASE_URL = (process.env.OSV_BASE_URL?.trim() || 'https://api.osv.dev').replace(/\/+$/, '');
+
 interface OSVQueryRequest {
   version?: string;
   name?: string;
@@ -68,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (cve) {
       // Query specific CVE
-      response = await fetch(`https://api.osv.dev/v1/vulns/${cve}`, {
+      response = await fetch(`${OSV_BASE_URL}/v1/vulns/${cve}`, {
         method: 'GET',
         headers: { 
           'Content-Type': 'application/json',
@@ -96,7 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         queryBody.version = version;
       }
 
-      response = await fetch('https://api.osv.dev/v1/query', {
+      response = await fetch(`${OSV_BASE_URL}/v1/query`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

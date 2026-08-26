@@ -7,6 +7,8 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { createBackgroundResponse, createConversation, formatOpenAIError } from '../../lib/openai-responses';
 import { v4 as uuidv4 } from 'uuid';
 
+const OSV_BASE_URL = (process.env.OSV_BASE_URL?.trim() || 'https://api.osv.dev').replace(/\/+$/, '');
+
 export const config = {
   api: {
     bodyParser: false, // Required for formidable
@@ -315,7 +317,7 @@ async function queryOSVForPackage(pkg: SBOMPackage): Promise<OSVVulnerability[]>
       queryBody.version = pkg.version;
     }
 
-    const response = await fetch('https://api.osv.dev/v1/query', {
+    const response = await fetch(`${OSV_BASE_URL}/v1/query`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',

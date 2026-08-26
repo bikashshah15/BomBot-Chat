@@ -14,7 +14,10 @@
     "build:dev": "vite build --mode development",
     "start": "next start",
     "preview": "vite preview",
+    "test": "node --test",
     "type-check": "tsc --noEmit",
+    "ledger:build": "node tests/ledger/run-ledger.mjs",
+    "ledger:check": "node tests/ledger/check.mjs",
     "lint": "eslint .",
     "deploy": "vercel --prod",
     "load-test:light": "artillery run tests/load/light-load.yml",
@@ -116,6 +119,6 @@
     "vite": "^5.4.1"
   },
   "engines": {
-    "node": ">=18.x"
+    "node": ">=22.18"
   }
 }

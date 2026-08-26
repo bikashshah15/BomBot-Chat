@@ -24,3 +24,9 @@ Columns: date · increment · what changed · why · effect on the study.
 - Changed Vercel dependency installation from npm install to npm ci so deployments use
   the exact package-lock.json captured by the baseline. Effect: no participant-facing
   behavior change; application runtime behavior and experimental stimulus are unchanged.
+
+## 2026-08-26 — INC-01 (egress ledger regression guard)
+- The synthetic 200-package oversize SPDX fixture produced exactly 150 OSV package
+  queries, making the existing upload scan cap observable as a regression guard. This
+  is not evidence that the cap fired on a live or study input, and INC-01 does not change
+  the cap, scan behavior, or participant-facing stimulus.

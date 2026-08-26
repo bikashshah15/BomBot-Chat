@@ -1,0 +1,132 @@
+{
+  "profile": "hosted",
+  "generatedAt": "2026-08-26T14:51:03.930Z",
+  "fixture": "tests/fixtures/small-spdx.json",
+  "destinations": [
+    {
+      "host": "api.openai.com",
+      "requestCount": 19,
+      "totalRequestBodySize": 135775,
+      "maxRequestBodySize": 44152,
+      "carriesInventory": true,
+      "matchedMarkers": [
+        "0.21.1",
+        "1.0.1",
+        "1.2.5",
+        "11.1.0",
+        "18.3.1",
+        "3.1.3",
+        "3.23.8",
+        "4.1.5",
+        "4.17.20",
+        "5.0.7",
+        "7.0.0",
+        "9.0.1",
+        "SPDXRef-Package-axios",
+        "SPDXRef-Package-commander",
+        "SPDXRef-Package-fast-deep-equal",
+        "SPDXRef-Package-is-number",
+        "SPDXRef-Package-kleur",
+        "SPDXRef-Package-lodash",
+        "SPDXRef-Package-minimist",
+        "SPDXRef-Package-nanoid",
+        "SPDXRef-Package-picocolors",
+        "SPDXRef-Package-react",
+        "SPDXRef-Package-uuid",
+        "SPDXRef-Package-zod",
+        "axios",
+        "commander",
+        "fast-deep-equal",
+        "is-number",
+        "kleur",
+        "lodash",
+        "minimist",
+        "nanoid",
+        "picocolors",
+        "react",
+        "uuid",
+        "zod"
+      ],
+      "classification": "CARRIES_INVENTORY"
+    },
+    {
+      "host": "api.osv.dev",
+      "requestCount": 164,
+      "totalRequestBodySize": 14039,
+      "maxRequestBodySize": 88,
+      "carriesInventory": true,
+      "matchedMarkers": [
+        "0.21.1",
+        "1.0.1",
+        "1.2.5",
+        "11.1.0",
+        "18.3.1",
+        "3.1.3",
+        "3.23.8",
+        "4.1.5",
+        "4.17.20",
+        "5.0.7",
+        "7.0.0",
+        "9.0.1",
+        "axios",
+        "commander",
+        "fast-deep-equal",
+        "is-number",
+        "kleur",
+        "lodash",
+        "minimist",
+        "nanoid",
+        "picocolors",
+        "react",
+        "uuid",
+        "zod"
+      ],
+      "classification": "CARRIES_INVENTORY"
+    },
+    {
+      "host": "synthetic-project.supabase.co",
+      "requestCount": 14,
+      "totalRequestBodySize": 2982,
+      "maxRequestBodySize": 385,
+      "carriesInventory": true,
+      "matchedMarkers": [
+        "0.21.1",
+        "1.2.5",
+        "4.17.20",
+        "SPDXRef-Package-lodash",
+        "axios",
+        "lodash",
+        "minimist"
+      ],
+      "classification": "CARRIES_INVENTORY"
+    }
+  ],
+  "instrumentation": {
+    "sinkRequestCount": 197,
+    "interceptorRequestCount": 197,
+    "sinkCapturedExpectedHosts": true,
+    "interceptorCapturedExpectedHosts": true,
+    "unexpectedTransportHosts": []
+  },
+  "regressionGuards": {
+    "oversizeSpdxPackages": 200,
+    "oversizeSpdxOsvQueries": 150,
+    "observedUploadCap": 150
+  },
+  "manualDeploymentRows": [
+    {
+      "id": "D6",
+      "destination": "Vercel edge + runtime",
+      "operator": "Vercel",
+      "carriesInventory": true,
+      "observable": false
+    },
+    {
+      "id": "D7",
+      "destination": "Vercel Analytics",
+      "operator": "Vercel",
+      "carriesInventory": false,
+      "observable": false
+    }
+  ]
+}
