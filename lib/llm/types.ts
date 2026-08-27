@@ -74,16 +74,10 @@ export interface LlmResult {
   rawUsage?: unknown;
 }
 
-// INC-06: remove — local completion has no hosted operation to resolve.
-export interface LlmOperation {
-  responseId?: string;
-  conversationId?: string;
-  result?: LlmResult;
-}
-
 export interface LlmChunk {
   delta?: string;
   toolCalls?: LlmToolCall[];
+  result?: LlmResult;
   done: boolean;
 }
 

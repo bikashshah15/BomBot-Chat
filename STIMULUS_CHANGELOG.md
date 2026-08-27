@@ -100,3 +100,11 @@ Columns: date · increment · what changed · why · effect on the study.
 ## 2026-08-27 — INC-06 Part A (Vercel Analytics removal)
 - Removed the participant-facing Vercel Analytics client beacon. A beacon stops firing.
   No visible behavior changes.
+
+## 2026-08-27 — INC-06 Part B (SSE transport and unified timeout)
+- Replaced the post-request polling handshake with one long-lived SSE connection and one
+  shared 3-minute client timeout. The package-query path previously tolerated up to 6
+  minutes while both chat paths tolerated 3; all three now use the same limit.
+- The server emits incremental deltas, but the client buffers them and renders the assistant
+  message once, complete, at `done`. Message rendering, visible status text, spinner
+  placement, prompt content, and decoding parameters did not change.

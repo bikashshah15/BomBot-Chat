@@ -1,13 +1,13 @@
 {
   "profile": "hosted",
-  "generatedAt": "2026-08-27T22:01:30.252Z",
+  "generatedAt": "2026-08-27T22:27:53.593Z",
   "fixture": "tests/fixtures/small-spdx.json",
   "destinations": [
     {
       "host": "api.openai.com",
       "requestCount": 10,
-      "totalRequestBodySize": 219344,
-      "maxRequestBodySize": 44118,
+      "totalRequestBodySize": 219484,
+      "maxRequestBodySize": 44132,
       "carriesInventory": true,
       "matchedMarkers": [
         "0.21.1",

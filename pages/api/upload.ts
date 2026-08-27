@@ -10,10 +10,8 @@ import {
   createConversation,
   getConversationSessionId,
 } from '../../lib/db/conversations.ts';
-import { completeConversationMessages } from '../../lib/llm/conversationHistory.ts';
+import { appendConversationMessages } from '../../lib/llm/conversationHistory.ts';
 import {
-  BOMBOT_INSTRUCTIONS,
-  BOMBOT_LLM_TOOLS,
   formatOpenAIError,
 } from '../../lib/openai-responses.ts';
 import { v4 as uuidv4 } from 'uuid';
@@ -531,16 +529,10 @@ ${existingConversationId ?
 
     const conversationId = existingConversationId
       ?? (await createConversation(sessionId)).id;
-    const response = await completeConversationMessages({
+    await appendConversationMessages({
       conversationId,
-      instructions: BOMBOT_INSTRUCTIONS,
       messages: [{ role: 'user', content: responseInput }],
-      tools: BOMBOT_LLM_TOOLS,
     });
-
-    if (!response.responseId) {
-      throw new Error('LLM provider did not return a response ID');
-    }
 
     if (existingConversationId) {
       console.log(`Reusing existing conversation: ${conversationId} for SBOM upload`);
@@ -583,9 +575,7 @@ ${existingConversationId ?
     res.status(200).json({ 
       success: true,
       conversationId,
-      responseId: response.responseId,
       threadId: conversationId,
-      runId: response.responseId,
       fileName: fileName,
       packagesScanned: packagesToScan.length,
       totalPackages: packages.length,

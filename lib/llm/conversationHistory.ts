@@ -6,11 +6,32 @@ import {
 import type { ConversationMessage } from '../db/types.ts';
 import { createLlmGateway } from './gateway.ts';
 import type {
+  LlmChunk,
   LlmContinuation,
   LlmMessage,
   LlmResult,
   LlmToolDef,
 } from './types.ts';
+
+async function appendMessages(
+  conversationId: string,
+  messages: LlmMessage[],
+  nextSeq: number,
+): Promise<number> {
+  for (const message of messages) {
+    await appendConversationMessageOrThrow({
+      conversation_id: conversationId,
+      seq: nextSeq,
+      role: message.role,
+      content: message.content,
+      tool_call_id: message.toolCallId ?? null,
+      tool_calls: message.toolCalls ?? null,
+    });
+    nextSeq += 1;
+  }
+
+  return nextSeq;
+}
 
 function toLlmMessage(message: ConversationMessage): LlmMessage {
   return {
@@ -42,19 +63,11 @@ export async function completeConversationMessages(options: {
   continuation?: LlmContinuation;
 }): Promise<LlmResult> {
   const history = await loadConversationHistory(options.conversationId);
-  let nextSeq = history.nextSeq;
-
-  for (const message of options.messages) {
-    await appendConversationMessageOrThrow({
-      conversation_id: options.conversationId,
-      seq: nextSeq,
-      role: message.role,
-      content: message.content,
-      tool_call_id: message.toolCallId ?? null,
-      tool_calls: message.toolCalls ?? null,
-    });
-    nextSeq += 1;
-  }
+  const nextSeq = await appendMessages(
+    options.conversationId,
+    options.messages,
+    history.nextSeq,
+  );
 
   const gateway = createLlmGateway();
   const response = await gateway.complete({
@@ -66,6 +79,71 @@ export async function completeConversationMessages(options: {
     tools: options.tools,
     ...(options.continuation ? { continuation: options.continuation } : {}),
   });
+
+  await appendConversationMessageOrThrow({
+    conversation_id: options.conversationId,
+    seq: nextSeq,
+    role: 'assistant',
+    content: response.content,
+    tool_call_id: null,
+    tool_calls: response.toolCalls.length > 0 ? response.toolCalls : null,
+  });
+
+  return response;
+}
+
+export async function appendConversationMessages(options: {
+  conversationId: string;
+  messages: LlmMessage[];
+}): Promise<void> {
+  const history = await loadConversationHistory(options.conversationId);
+  await appendMessages(options.conversationId, options.messages, history.nextSeq);
+}
+
+export async function streamConversationMessages(options: {
+  conversationId: string;
+  instructions: string;
+  messages: LlmMessage[];
+  tools: LlmToolDef[];
+  continuation?: LlmContinuation;
+  onChunk?: (chunk: LlmChunk) => void | Promise<void>;
+}): Promise<LlmResult> {
+  const history = await loadConversationHistory(options.conversationId);
+  const nextSeq = await appendMessages(
+    options.conversationId,
+    options.messages,
+    history.nextSeq,
+  );
+  const gateway = createLlmGateway();
+  let streamedContent = '';
+  const streamedToolCalls = [] as LlmResult['toolCalls'];
+  let response: LlmResult | undefined;
+
+  for await (const chunk of gateway.stream({
+    messages: [
+      { role: 'system', content: options.instructions },
+      ...history.messages,
+      ...options.messages,
+    ],
+    tools: options.tools,
+    ...(options.continuation ? { continuation: options.continuation } : {}),
+  })) {
+    if (chunk.delta) streamedContent += chunk.delta;
+    if (chunk.toolCalls) streamedToolCalls.push(...chunk.toolCalls);
+    if (chunk.result) response = chunk.result;
+    await options.onChunk?.(chunk);
+  }
+
+  response ??= {
+    content: streamedContent,
+    toolCalls: streamedToolCalls,
+    done: true,
+    status: 'completed',
+  };
+  if (!response.content && streamedContent) response.content = streamedContent;
+  if (response.toolCalls.length === 0 && streamedToolCalls.length > 0) {
+    response.toolCalls = streamedToolCalls;
+  }
 
   await appendConversationMessageOrThrow({
     conversation_id: options.conversationId,

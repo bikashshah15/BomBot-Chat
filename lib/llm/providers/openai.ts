@@ -3,7 +3,6 @@ import OpenAI from 'openai';
 import type {
   LlmChunk,
   LlmMessage,
-  LlmOperation,
   LlmProvider,
   LlmRequest,
   LlmResult,
@@ -18,9 +17,7 @@ export interface OpenAIProviderOptions {
   client?: OpenAI;
 }
 
-export interface OpenAIProvider extends LlmProvider {
-  resolve(operation: LlmOperation): Promise<LlmResult>; // INC-06: remove
-}
+export type OpenAIProvider = LlmProvider;
 
 function toOpenAIInput(messages: LlmMessage[]): OpenAI.Responses.ResponseInput {
   const input: OpenAI.Responses.ResponseInput = [];
@@ -161,36 +158,37 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): OpenAIProv
       return toLlmResult(response);
     },
 
-    // INC-06: remove — hosted Responses polling is temporary provider state.
-    async resolve(operation: LlmOperation) {
-      if (!operation.result) {
-        throw new Error('An app-owned LLM operation must carry its completed result');
-      }
-      return operation.result;
-    },
-
     async *stream(req): AsyncIterable<LlmChunk> {
       const request = await baseRequest(req);
       const streamingRequest: OpenAI.Responses.ResponseCreateParamsStreaming = {
         ...request,
         stream: true,
       };
-      const stream = await client.responses.create(streamingRequest);
+      const continuationIdentity = req.continuation?.idempotencyKey;
+      const stream = await client.responses.create(streamingRequest, continuationIdentity ? {
+        idempotencyKey: continuationIdentity,
+        headers: { 'Idempotency-Key': continuationIdentity },
+      } : undefined);
       let emittedDone = false;
+      let streamedContent = '';
+      const streamedToolCalls: LlmToolCall[] = [];
 
       for await (const event of stream) {
         if (event.type === 'response.output_text.delta') {
+          streamedContent += event.delta;
           yield { delta: event.delta, done: false };
           continue;
         }
 
         if (event.type === 'response.output_item.done' && event.item.type === 'function_call') {
+          const toolCall = {
+            id: event.item.call_id,
+            name: event.item.name,
+            arguments: event.item.arguments,
+          };
+          streamedToolCalls.push(toolCall);
           yield {
-            toolCalls: [{
-              id: event.item.call_id,
-              name: event.item.name,
-              arguments: event.item.arguments,
-            }],
+            toolCalls: [toolCall],
             done: false,
           };
           continue;
@@ -200,14 +198,42 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): OpenAIProv
           event.type === 'response.completed'
           || event.type === 'response.failed'
           || event.type === 'response.incomplete'
-          || event.type === 'error'
         ) {
           emittedDone = true;
-          yield { done: true };
+          yield { result: toLlmResult(event.response), done: true };
+          continue;
+        }
+
+        if (event.type === 'error') {
+          emittedDone = true;
+          yield {
+            result: {
+              content: streamedContent,
+              toolCalls: streamedToolCalls,
+              done: true,
+              status: 'failed',
+              error: {
+                message: 'message' in event && typeof event.message === 'string'
+                  ? event.message
+                  : 'LLM streaming failed',
+              },
+            },
+            done: true,
+          };
         }
       }
 
-      if (!emittedDone) yield { done: true };
+      if (!emittedDone) {
+        yield {
+          result: {
+            content: streamedContent,
+            toolCalls: streamedToolCalls,
+            done: true,
+            status: 'completed',
+          },
+          done: true,
+        };
+      }
     },
   };
 }

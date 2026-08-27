@@ -7,6 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import {
+  AssistantStreamTimeoutError,
+  useAssistantStream,
+} from '@/hooks/useAssistantStream';
 
 const PackageQueryForm = () => {
   const { addMessage, setLoading, isLoading, currentConversationId, setCurrentConversationId, sessionId, userEmail } = useChat();
@@ -16,6 +20,7 @@ const PackageQueryForm = () => {
     version: '',
     cve: ''
   });
+  const { startStream } = useAssistantStream();
 
   const ecosystems = [
     { value: 'npm', label: 'npm (Node.js)' },
@@ -205,8 +210,7 @@ const PackageQueryForm = () => {
         }
       }
 
-      // Add quick templated response
-      addMessage({
+      const addQuickQueryResponse = () => addMessage({
         type: 'assistant',
         content: responseContent,
         vulnerabilities: vulnerabilities.length > 0 ? vulnerabilities : undefined,
@@ -214,11 +218,38 @@ const PackageQueryForm = () => {
       });
 
       // Keep the Conversation ID for follow-up questions when AI processing started.
-      const responseId = result.responseId || result.runId;
       const conversationId = result.conversationId || result.threadId;
-      if (responseId && conversationId) {
+      if (conversationId) {
         setCurrentConversationId(conversationId);
-        pollForAIResponse(conversationId, responseId);
+        try {
+          await startStream({
+            conversationId,
+            sessionId,
+            onDone(responseText) {
+              addQuickQueryResponse();
+              if (responseText) {
+                addMessage({
+                  type: 'assistant',
+                  content: responseText,
+                  useMarkdown: true,
+                });
+              }
+            },
+          });
+        } catch (error) {
+          addQuickQueryResponse();
+          if (error instanceof AssistantStreamTimeoutError) {
+            console.log('AI stream timed out, but continuing to wait...');
+          } else {
+            console.error('AI stream error:', error);
+            addMessage({
+              type: 'assistant',
+              content: '⚠️ There was an issue getting the AI analysis, but the vulnerability data has been retrieved successfully.',
+            });
+          }
+        }
+      } else {
+        addQuickQueryResponse();
       }
 
       toast({
@@ -249,62 +280,6 @@ const PackageQueryForm = () => {
       version: '',
       cve: ''
     });
-  };
-
-  const pollForAIResponse = async (conversationId: string, responseId: string) => {
-    const maxAttempts = 180; // Maximum polling attempts (180 * 1 second = 3 minutes)
-    let attempts = 0;
-    let activeConversationId = conversationId;
-    let activeResponseId = responseId;
-
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}&sessionId=${sessionId}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to check analysis status');
-        }
-
-        const result = await response.json();
-        activeConversationId = result.conversationId || result.threadId || activeConversationId;
-        activeResponseId = result.responseId || result.runId || activeResponseId;
-
-        if (result.completed) {
-          if (result.status === 'completed' && result.response) {
-            // Add the AI assistant's analysis response
-            addMessage({
-              type: 'assistant',
-              content: result.response,
-              useMarkdown: true,
-            });
-          } else if (result.status === 'failed') {
-            addMessage({
-              type: 'assistant',
-              content: `❌ AI analysis failed: ${result.error || 'Unknown error occurred during analysis.'}`,
-            });
-          }
-          return;
-        }
-
-        // Continue polling if not completed and under max attempts
-        attempts++;
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 2000); // Poll every 2 seconds
-        } else {
-          // Just stop polling silently - no timeout message
-          console.log('AI polling timed out, but continuing to wait...');
-        }
-      } catch (error) {
-        console.error('AI polling error:', error);
-        addMessage({
-          type: 'assistant',
-          content: `⚠️ There was an issue getting the AI analysis, but the vulnerability data has been retrieved successfully.`,
-        });
-      }
-    };
-
-    // Start polling after a short delay
-    setTimeout(poll, 1000);
   };
 
   return (

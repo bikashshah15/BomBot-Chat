@@ -41,7 +41,7 @@ function responseRecorder() {
   };
 }
 
-test('chat, osv-query, and run-status reject a cross-session conversation capability', async (context) => {
+test('chat, osv-query, and stream reject a cross-session conversation capability', async (context) => {
   if (!process.env.DATABASE_URL) {
     context.skip('DATABASE_URL is not configured; skipping Postgres binding test');
     return;
@@ -68,7 +68,7 @@ test('chat, osv-query, and run-status reject a cross-session conversation capabi
     try {
       const { default: chatHandler } = await import('../pages/api/chat.ts');
       const { default: osvQueryHandler } = await import('../pages/api/osv-query.ts');
-      const { default: runStatusHandler } = await import('../pages/api/run-status.ts');
+      const { default: streamHandler } = await import('../pages/api/stream.ts');
 
       const requests = [
         {
@@ -95,12 +95,11 @@ test('chat, osv-query, and run-status reject a cross-session conversation capabi
           },
         },
         {
-          handler: runStatusHandler,
+          handler: streamHandler,
           request: {
             method: 'GET',
             query: {
               conversationId: conversation.id,
-              responseId: 'resp_synthetic',
               sessionId: otherSessionId,
             },
           },

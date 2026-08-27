@@ -4,12 +4,8 @@ import {
   ConversationSequenceConflictError,
   getConversationSessionId,
 } from '../../lib/db/conversations.ts';
-import { completeConversationMessages } from '../../lib/llm/conversationHistory.ts';
-import {
-  BOMBOT_INSTRUCTIONS,
-  BOMBOT_LLM_TOOLS,
-  formatOpenAIError,
-} from '../../lib/openai-responses.ts';
+import { appendConversationMessages } from '../../lib/llm/conversationHistory.ts';
+import { formatOpenAIError } from '../../lib/openai-responses.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ChatRequest {
@@ -65,23 +61,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Continue with the chat even if logging fails
     }
 
-    const response = await completeConversationMessages({
+    await appendConversationMessages({
       conversationId,
-      instructions: BOMBOT_INSTRUCTIONS,
       messages: [{ role: 'user', content: message }],
-      tools: BOMBOT_LLM_TOOLS,
     });
-
-    if (!response.responseId) {
-      throw new Error('LLM provider did not return a response ID');
-    }
 
     return res.status(200).json({ 
       success: true,
       conversationId,
-      responseId: response.responseId,
       threadId: conversationId,
-      runId: response.responseId,
       message: message,
       sessionId: sessionId,
       messageIndex: messageIndex

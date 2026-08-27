@@ -3,14 +3,15 @@ import { useState, useEffect } from 'react';
 
 const StatusIndicator = () => {
   const [currentStatus, setCurrentStatus] = useState(0);
-  
+
   const statuses = [
     { icon: '🤔', text: 'Thinking...' },
     { icon: '🔍', text: 'Analyzing your request...' },
     { icon: '📦', text: 'Querying package database...' },
     { icon: '🛡️', text: 'Checking for vulnerabilities...' },
   ];
-
+  // Keep this latency affordance profile-neutral: elapsed time alone drives it in
+  // both hosted and local study arms, never the configured provider/profile.
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentStatus((prev) => (prev + 1) % statuses.length);

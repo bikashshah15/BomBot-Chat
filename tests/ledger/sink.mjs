@@ -19,6 +19,38 @@ function sendJson(response, statusCode, value) {
   response.end(body);
 }
 
+function sendOpenAIStream(response, value) {
+  response.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-store',
+    'Connection': 'close',
+  });
+  const events = value.output[0]?.type === 'function_call'
+    ? [{
+      type: 'response.output_item.done',
+      output_index: 0,
+      item: value.output[0],
+      sequence_number: 1,
+    }]
+    : [{
+      type: 'response.output_text.delta',
+      content_index: 0,
+      delta: value.output_text,
+      item_id: value.output[0]?.id,
+      output_index: 0,
+      sequence_number: 1,
+    }];
+  events.push({
+    type: 'response.completed',
+    response: value,
+    sequence_number: 2,
+  });
+  for (const event of events) {
+    response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+  }
+  response.end();
+}
+
 function syntheticVulnerability(name, ecosystem, id = 'GHSA-ledger-0000-0000') {
   return {
     id,
@@ -130,6 +162,7 @@ export async function startLedgerSink() {
         const value = requestsLodashTool
           ? openAIToolResponse(id)
           : openAIResponse(id);
+        if (requestBody.stream) return sendOpenAIStream(response, value);
         return sendJson(response, 200, value);
       }
 

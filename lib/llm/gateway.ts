@@ -6,7 +6,6 @@ import {
 } from './providers/openai.ts';
 import type {
   LlmChunk,
-  LlmOperation,
   LlmProvider,
   LlmRequest,
   LlmResult,
@@ -32,18 +31,11 @@ export type LlmGatewayConfig = Pick<
 export interface LlmGateway {
   complete(req: LlmGatewayRequest): Promise<LlmResult>;
   stream(req: LlmGatewayRequest): AsyncIterable<LlmChunk>;
-  resolve(operation: LlmOperation): Promise<LlmResult>; // INC-06: remove
-}
-
-// INC-06: remove — gateway-only operation resolution must not enter LlmProvider.
-export interface LlmOperationResolver {
-  resolve(operation: LlmOperation): Promise<LlmResult>; // INC-06: remove
 }
 
 export interface CreateLlmGatewayOptions {
   settings?: LlmGatewayConfig;
   provider?: LlmProvider;
-  resolver?: LlmOperationResolver; // INC-06: remove
   openAI?: Pick<OpenAIProviderOptions, 'client'>;
 }
 
@@ -84,15 +76,6 @@ export function createLlmGateway(options: CreateLlmGatewayOptions = {}): LlmGate
     ? undefined
     : selectLlmProvider(settings, options.openAI);
   const provider = options.provider ?? selectedProvider as LlmProvider;
-  const resolver = options.resolver ?? selectedProvider ?? {
-    // INC-06: remove — injected local providers resolve their terminal result by identity.
-    async resolve(operation: LlmOperation) {
-      if (!operation.result) {
-        throw new Error('An injected provider requires a resolver for a pending operation');
-      }
-      return operation.result;
-    },
-  };
 
   return Object.freeze({
     complete(req: LlmGatewayRequest) {
@@ -100,10 +83,6 @@ export function createLlmGateway(options: CreateLlmGatewayOptions = {}): LlmGate
     },
     stream(req: LlmGatewayRequest) {
       return provider.stream(applyPinnedDecoding(req, settings));
-    },
-    // INC-06: remove — hosted polling disappears with app-owned execution.
-    resolve(operation: LlmOperation) {
-      return resolver.resolve(operation);
     },
   });
 }

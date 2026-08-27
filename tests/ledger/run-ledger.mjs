@@ -44,7 +44,7 @@ async function waitForApplication(origin, child, readLogs) {
       throw new Error(`Next.js ledger process exited early (${child.exitCode})\n${readLogs()}`);
     }
     try {
-      const response = await fetch(`${origin}/api/run-status`);
+      const response = await fetch(`${origin}/api/stream`);
       if (response.status === 400) return;
     } catch {
       // The dev server has not bound the port yet.
@@ -99,32 +99,29 @@ async function postJson(appOrigin, route, body, label) {
   return parseJsonResponse(response, label);
 }
 
-async function pollToCompletion(appOrigin, conversationId, responseId, sessionId, messageIndex) {
-  let currentResponseId = responseId;
-
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const params = new URLSearchParams({
-      conversationId,
-      responseId: currentResponseId,
-      sessionId,
-      messageIndex: String(messageIndex),
-    });
-    const response = await fetch(`${appOrigin}/api/run-status?${params}`);
-    const body = await parseJsonResponse(response, `poll ${currentResponseId}`);
-    currentResponseId = body.responseId || currentResponseId;
-
-    if (body.status === 'failed' || (body.completed && body.error)) {
-      throw new Error(`Synthetic Response failed: ${JSON.stringify(body)}`);
-    }
-    if (body.completed) {
-      assert.equal(typeof body.response, 'string');
-      assert.ok(body.response.length > 0);
-      return body;
-    }
-    await delay(50);
-  }
-
-  throw new Error(`Synthetic Response did not complete: ${currentResponseId}`);
+async function streamToCompletion(appOrigin, conversationId, sessionId, messageIndex) {
+  const params = new URLSearchParams({
+    conversationId,
+    sessionId,
+    messageIndex: String(messageIndex),
+  });
+  const response = await fetch(`${appOrigin}/api/stream?${params}`);
+  assert.equal(response.ok, true);
+  assert.match(response.headers.get('content-type') || '', /^text\/event-stream/);
+  const frames = (await response.text()).split(/\r?\n\r?\n/).filter(Boolean);
+  const events = frames.flatMap(frame => {
+    if (frame.startsWith(':')) return [];
+    const event = frame.split(/\r?\n/).find(line => line.startsWith('event:'))?.slice(6).trim();
+    const dataText = frame.split(/\r?\n/).find(line => line.startsWith('data:'))?.slice(5).trim();
+    return event && dataText ? [{ event, data: JSON.parse(dataText) }] : [];
+  });
+  const error = events.find(event => event.event === 'error');
+  if (error) throw new Error(`Synthetic Response failed: ${JSON.stringify(error.data)}`);
+  const done = events.find(event => event.event === 'done');
+  assert.ok(done);
+  assert.equal(typeof done.data.response, 'string');
+  assert.ok(done.data.response.length > 0);
+  return done.data;
 }
 
 function countSinkRequests(requests, host, requestPath, method = null) {
@@ -350,7 +347,7 @@ try {
   });
   assert.equal(upload.packagesScanned, 12);
   assert.equal(upload.totalPackages, 12);
-  await pollToCompletion(appOrigin, upload.conversationId, upload.responseId, sessionId, 1);
+  await streamToCompletion(appOrigin, upload.conversationId, sessionId, 1);
 
   const rejectedUploadReuse = await uploadFixture(appOrigin, 'small-spdx.json', {
     sessionId: 'ledger-other-session',
@@ -374,7 +371,7 @@ try {
       sessionId,
       messageIndex,
     }, `chat ${messageIndex}`);
-    await pollToCompletion(appOrigin, chat.conversationId, chat.responseId, sessionId, messageIndex);
+    await streamToCompletion(appOrigin, chat.conversationId, sessionId, messageIndex);
   }
 
   const packageQuery = await postJson(appOrigin, '/api/osv-query', {
@@ -384,14 +381,14 @@ try {
     conversationId: upload.conversationId,
     sessionId,
   }, 'package query');
-  await pollToCompletion(appOrigin, packageQuery.conversationId, packageQuery.responseId, sessionId, 7);
+  await streamToCompletion(appOrigin, packageQuery.conversationId, sessionId, 7);
 
   const cveQuery = await postJson(appOrigin, '/api/osv-query', {
     cve: 'CVE-2021-23337',
     conversationId: upload.conversationId,
     sessionId,
   }, 'CVE query');
-  await pollToCompletion(appOrigin, cveQuery.conversationId, cveQuery.responseId, sessionId, 8);
+  await streamToCompletion(appOrigin, cveQuery.conversationId, sessionId, 8);
 
   const beforeOversize = countSinkRequests(sink.requests, 'api.osv.dev', '/v1/query', 'POST');
   const oversize = await uploadFixture(appOrigin, 'oversize-spdx.json', {
@@ -402,6 +399,7 @@ try {
   assert.equal(oversize.packagesScanned, 150);
   assert.equal(oversize.totalPackages, 200);
   assert.equal(oversizeSpdxOsvQueries, 150);
+  await streamToCompletion(appOrigin, oversize.conversationId, oversizeSessionId, 1);
 
   const modelRequests = sink.requests.filter(request => (
     request.host === 'api.openai.com'
@@ -416,6 +414,7 @@ try {
     assert.equal(body.max_output_tokens, 4096);
     assert.equal(body.store, false);
     assert.equal(body.background, undefined);
+    assert.equal(body.stream, true);
     assert.equal(body.conversation, undefined);
     assert.equal(body.instructions, BOMBOT_INSTRUCTIONS);
     assert.equal(body.input.some(item => item.role === 'system'), false);

@@ -4,8 +4,7 @@ import {
   ConversationSequenceConflictError,
   getConversationSessionId,
 } from '../../lib/db/conversations.ts';
-import { completeConversationMessages } from '../../lib/llm/conversationHistory.ts';
-import { BOMBOT_INSTRUCTIONS, BOMBOT_LLM_TOOLS } from '../../lib/openai-responses.ts';
+import { appendConversationMessages } from '../../lib/llm/conversationHistory.ts';
 
 interface OSVQueryRequest {
   version?: string;
@@ -150,24 +149,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
 
-        const aiResponse = await completeConversationMessages({
+        await appendConversationMessages({
           conversationId,
-          instructions: BOMBOT_INSTRUCTIONS,
           messages: [{ role: 'user', content: messageContent }],
-          tools: BOMBOT_LLM_TOOLS,
         });
-
-        if (!aiResponse.responseId) {
-          throw new Error('LLM provider did not return a response ID');
-        }
 
         return res.status(200).json({ 
           success: true,
           result: data,
           conversationId,
-          responseId: aiResponse.responseId,
           threadId: conversationId,
-          runId: aiResponse.responseId,
           query: cve ? { cve } : { name, ecosystem, version }
         });
       } catch (assistantError) {

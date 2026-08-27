@@ -4,6 +4,10 @@ import ChatMessage from '@/components/ChatMessage';
 import FileUploadOverlay from '@/components/FileUploadOverlay';
 import StatusIndicator from '@/components/StatusIndicator';
 import EmailCollectionDialog from '@/components/EmailCollectionDialog';
+import {
+  AssistantStreamTimeoutError,
+  useAssistantStream,
+} from '@/hooks/useAssistantStream';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Shield, Send, Paperclip, Plus, MessageSquare } from 'lucide-react';
@@ -14,6 +18,7 @@ const ChatInterface = () => {
   const [isDragOver, setIsDragOver] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { startStream } = useAssistantStream();
 
   // Check if Email dialog should be shown
   const shouldShowEmailDialog = !userEmail;
@@ -127,7 +132,6 @@ const ChatInterface = () => {
 
       // Keep the Conversation ID for follow-up turns.
       const uploadConversationId = uploadResult.conversationId || uploadResult.threadId;
-      const uploadResponseId = uploadResult.responseId || uploadResult.runId;
       if (uploadConversationId) {
         setCurrentConversationId(uploadConversationId);
       }
@@ -174,8 +178,7 @@ const ChatInterface = () => {
         responseContent += `💡 *You can ask me questions about specific packages or security recommendations*`;
       }
 
-      // Add quick templated response
-      addMessage({
+      const addQuickUploadResponse = () => addMessage({
         type: 'assistant',
         content: responseContent,
         vulnerabilities: vulnerabilities.length > 0 ? vulnerabilities : undefined,
@@ -183,8 +186,36 @@ const ChatInterface = () => {
         dependencyGraph: uploadResult.dependencyGraph || undefined,
       });
 
-      if (uploadConversationId && uploadResponseId) {
-        pollForResponse(uploadConversationId, uploadResponseId, file.name);
+      if (uploadConversationId) {
+        try {
+          await startStream({
+            conversationId: uploadConversationId,
+            sessionId,
+            onDone(response) {
+              addQuickUploadResponse();
+              addMessage({
+                type: 'assistant',
+                content: response || `🔍 Analysis complete for "${file.name}"! The scan has been processed. You can ask me questions about the vulnerabilities found or request specific package information.`,
+              });
+            },
+          });
+        } catch (error) {
+          addQuickUploadResponse();
+          if (error instanceof AssistantStreamTimeoutError) {
+            addMessage({
+              type: 'assistant',
+              content: `⏱️ Analysis for "${file.name}" is taking longer than expected. The scan is still running in the background. You can ask me questions or try uploading the file again.`,
+            });
+          } else {
+            console.error('Upload stream error:', error);
+            addMessage({
+              type: 'assistant',
+              content: `⚠️ There was an issue getting the analysis results for "${file.name}".`,
+            });
+          }
+        }
+      } else {
+        addQuickUploadResponse();
       }
 
     } catch (error) {
@@ -196,63 +227,6 @@ const ChatInterface = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const pollForResponse = async (conversationId: string, responseId: string, fileName: string) => {
-    const maxAttempts = 90; // Maximum polling attempts (90 * 2 seconds = 3 minutes)
-    let attempts = 0;
-    let activeConversationId = conversationId;
-    let activeResponseId = responseId;
-
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}&sessionId=${sessionId}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to check analysis status');
-        }
-
-        const result = await response.json();
-        activeConversationId = result.conversationId || result.threadId || activeConversationId;
-        activeResponseId = result.responseId || result.runId || activeResponseId;
-
-        if (result.completed) {
-          if (result.status === 'completed') {
-            // Add the assistant's analysis response
-            addMessage({
-              type: 'assistant',
-              content: result.response || `🔍 Analysis complete for "${fileName}"! The scan has been processed. You can ask me questions about the vulnerabilities found or request specific package information.`,
-            });
-          } else if (result.status === 'failed') {
-            addMessage({
-              type: 'assistant',
-              content: `❌ Analysis failed for "${fileName}". Error: ${result.error || 'Unknown error occurred during analysis.'}`,
-            });
-          }
-          return;
-        }
-
-        // Continue polling if not completed and under max attempts
-        attempts++;
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 2000); // Poll every 2 seconds
-        } else {
-          addMessage({
-            type: 'assistant',
-            content: `⏱️ Analysis for "${fileName}" is taking longer than expected. The scan is still running in the background. You can ask me questions or try uploading the file again.`,
-          });
-        }
-      } catch (error) {
-        console.error('Upload polling error:', error);
-        addMessage({
-          type: 'assistant',
-          content: `⚠️ There was an issue getting the analysis results for "${fileName}".`,
-        });
-      }
-    };
-
-    // Start polling after a short delay
-    setTimeout(poll, 2000);
   };
 
   // Auto-detect packages and CVEs in messages
@@ -301,12 +275,37 @@ const ChatInterface = () => {
 
       const result = await response.json();
 
-      const responseId = result.responseId || result.runId;
       const conversationId = result.conversationId || result.threadId || currentConversationId;
-      if (responseId && conversationId) {
+      if (conversationId) {
         setCurrentConversationId(conversationId);
-        // Poll for the assistant's response
-        pollForAssistantResponse(conversationId, responseId);
+        try {
+          await startStream({
+            conversationId,
+            sessionId,
+            messageIndex,
+            onDone(responseText) {
+              if (responseText) {
+                addMessage({
+                  type: 'assistant',
+                  content: responseText,
+                  useMarkdown: true,
+                });
+              }
+            },
+          });
+        } catch (error) {
+          if (error instanceof AssistantStreamTimeoutError) {
+            console.log('Chat stream timed out, but continuing to wait...');
+          } else {
+            console.error('Chat stream error:', error);
+            addMessage({
+              type: 'assistant',
+              content: '⚠️ There was an issue getting my response. Please try again.',
+              useMarkdown: true,
+            });
+          }
+        }
+        setLoading(false);
         return true;
       }
     } catch (error) {
@@ -320,68 +319,6 @@ const ChatInterface = () => {
     }
     
     return false;
-  };
-
-  // Function to poll for assistant response
-  const pollForAssistantResponse = async (conversationId: string, responseId: string) => {
-    const maxAttempts = 180; // Maximum polling attempts (180 * 1 second = 3 minutes)
-    let attempts = 0;
-    let activeConversationId = conversationId;
-    let activeResponseId = responseId;
-
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}&sessionId=${sessionId}&messageIndex=${messageIndex}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to check assistant response');
-        }
-
-        const result = await response.json();
-        activeConversationId = result.conversationId || result.threadId || activeConversationId;
-        activeResponseId = result.responseId || result.runId || activeResponseId;
-
-        if (result.completed) {
-          setLoading(false); // Turn off loading when response is complete
-          
-          if (result.status === 'completed' && result.response) {
-            addMessage({
-              type: 'assistant',
-              content: result.response,
-              useMarkdown: true,
-            });
-          } else if (result.status === 'failed') {
-            addMessage({
-              type: 'assistant',
-              content: `❌ I encountered an issue processing your message: ${result.error || 'Unknown error occurred.'}`,
-              useMarkdown: true,
-            });
-          }
-          return;
-        }
-
-        // Continue polling if not completed
-        attempts++;
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 1000); // Poll every 1 second for chat responses
-        } else {
-          setLoading(false); // Turn off loading on timeout
-          // Just stop polling silently - no timeout message
-          console.log('Chat polling timed out, but continuing to wait...');
-        }
-      } catch (error) {
-        setLoading(false); // Turn off loading on error
-        console.error('Chat polling error:', error);
-        addMessage({
-          type: 'assistant',
-          content: '⚠️ There was an issue getting my response. Please try again.',
-          useMarkdown: true,
-        });
-      }
-    };
-
-    // Start polling immediately for chat responses
-    poll();
   };
 
   const handleSendMessage = async () => {
