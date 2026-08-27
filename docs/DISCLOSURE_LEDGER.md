@@ -13,11 +13,10 @@ markers present in every request. No live OpenAI credits or live external endpoi
 |---|---:|---|---:|
 | `api.openai.com` | 20 | **Yes** | 44203 |
 | `api.osv.dev` | 165 | **Yes** | 88 |
-| `synthetic-project.supabase.co` | 14 | **Yes** | 385 |
 
-Automated result: **3 inventory-carrying hosts** out of the allowed maximum of **3**.
+Automated result: **2 inventory-carrying hosts** out of the allowed maximum of **2**.
 
-## Seven-row current-state disclosure ledger
+## 6-row current-state disclosure ledger
 
 | ID | Destination | Operator | Carries SBOM-derived content? | Observation | Code site |
 |---|---|---|---|---|---|
@@ -25,7 +24,6 @@ Automated result: **3 inventory-carrying hosts** out of the allowed maximum of *
 | D2 | `api.openai.com/v1/conversations` | OpenAI | **Yes (indirectly)** | 2 intercepted conversation creations; subsequent Responses carry the conversation content | `lib/llm/providers/openai.ts` |
 | D3 | `api.osv.dev/v1/query` | Google | **Yes** | 164 intercepted package queries with inventory markers | `upload.ts`, `osv-query.ts`, `openai-responses.ts` |
 | D4 | `api.osv.dev/v1/vulns/{id}` | Google | Partially | 1 intercepted CVE lookup; identifier is in the URL rather than the request body | `osv-query.ts`, `openai-responses.ts` |
-| D5 | Supabase (`NEXT_PUBLIC_SUPABASE_URL`) | Supabase + AWS | **Yes** | 14 intercepted requests; chat package markers observed | `upload.ts`, `chat.ts`, `run-status.ts`, `chatLogger.ts` |
 | D6 | Vercel edge + runtime | Vercel | **Yes** | **Manual deployment property; not observable from in-process interception** | deployment property; `vercel.json` |
 | D7 | Vercel Analytics | Vercel | No (page telemetry) | **Manual deployment property; not observable from in-process interception** | `src/App.tsx` |
 
@@ -57,10 +55,14 @@ This harness instruments `next dev`, not a production execution using `next buil
 bounded to this measurement mode. The V2 before/after delta is unaffected because both
 sides are measured identically. A production-build ledger run remains future work.
 
+The harness measures server-side egress from an instrumented `next dev`; it never runs a
+browser. Browser-originated egress is identified by static code and bundle inspection, not
+measured by this instrument. Those two evidence types must not be presented as equivalent.
+
 ## Instrumentation cross-check
 
 - Local sink captured every expected automated host: **true**
 - Global fetch interceptor captured every expected automated host: **true**
 - Unexpected transport hosts: **none, given the development-mode suppressions documented above**
 - On its first run, the interceptor caught `registry.npmjs.org`, which was unpredicted by the audit, absent from `expected.json`, and originated in framework rather than application code—evidence that the interceptor observes the running system rather than only the author's model of it.
-- Current automated host classifications: OpenAI=CARRIES_INVENTORY, OSV=CARRIES_INVENTORY, Supabase=CARRIES_INVENTORY
+- Current automated host classifications: OpenAI=CARRIES_INVENTORY, OSV=CARRIES_INVENTORY

@@ -1,6 +1,6 @@
 {
   "profile": "hosted",
-  "generatedAt": "2026-08-27T16:33:17.625Z",
+  "generatedAt": "2026-08-27T17:33:52.416Z",
   "fixture": "tests/fixtures/small-spdx.json",
   "destinations": [
     {
@@ -82,28 +82,11 @@
         "zod"
       ],
       "classification": "CARRIES_INVENTORY"
-    },
-    {
-      "host": "synthetic-project.supabase.co",
-      "requestCount": 14,
-      "totalRequestBodySize": 2982,
-      "maxRequestBodySize": 385,
-      "carriesInventory": true,
-      "matchedMarkers": [
-        "0.21.1",
-        "1.2.5",
-        "4.17.20",
-        "SPDXRef-Package-lodash",
-        "axios",
-        "lodash",
-        "minimist"
-      ],
-      "classification": "CARRIES_INVENTORY"
     }
   ],
   "instrumentation": {
-    "sinkRequestCount": 199,
-    "interceptorRequestCount": 199,
+    "sinkRequestCount": 185,
+    "interceptorRequestCount": 185,
     "sinkCapturedExpectedHosts": true,
     "interceptorCapturedExpectedHosts": true,
     "unexpectedTransportHosts": []

@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseServer } from '@/lib/supabase-server';
+import { updateAiResponse } from '../../lib/db/chatLogs.ts';
 import { createLlmGateway } from '../../lib/llm/gateway.ts';
 import type { LlmMessage, LlmResult, LlmToolCall } from '../../lib/llm/types.ts';
 import {
@@ -174,17 +174,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (response.status === 'completed') {
       const responseText = response.content;
 
-      // Log AI response to Supabase if sessionId and messageIndex are provided.
+      // Log AI response to the application-owned datastore when row identity is present.
       if (sessionId && messageIndex && responseText) {
         try {
-          await supabaseServer
-            .from('chat_logs')
-            .update({
-              ai_response: responseText,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('session_id', sessionId)
-            .eq('message_index', parseInt(messageIndex));
+          const updatedRows = await updateAiResponse(
+            sessionId,
+            Number.parseInt(messageIndex, 10),
+            responseText,
+          );
+          if (updatedRows.length === 0) {
+            throw new Error('No chat log row matched the AI response update');
+          }
         } catch (logError) {
           console.error('Error logging AI response:', logError);
           // Continue even if logging fails.

@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseServer } from '@/lib/supabase-server';
+import { insertLog } from '../../lib/db/chatLogs.ts';
 import { createLlmGateway } from '../../lib/llm/gateway.ts';
 import {
   BOMBOT_INSTRUCTIONS,
@@ -32,25 +32,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Log user message to Supabase
+    // Log user message to the application-owned datastore.
     try {
-              await supabaseServer
-        .from('chat_logs')
-        .insert([{
-          id: uuidv4(),
-          session_id: sessionId,
-          thread_id: conversationId,
-          message_index: messageIndex,
-          message_type: 'user',
-          user_message: message,
-          ai_response: null,
-          file_name: null,
-          file_size: null,
-          vulnerability_count: null,
-          user_email: userEmail,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }]);
+      const now = new Date().toISOString();
+      await insertLog({
+        id: uuidv4(),
+        session_id: sessionId,
+        conversation_id: conversationId,
+        message_index: messageIndex,
+        message_type: 'user',
+        user_message: message,
+        ai_response: null,
+        file_name: null,
+        file_size: null,
+        vulnerability_count: null,
+        user_email: userEmail ?? null,
+        created_at: now,
+        updated_at: now,
+      });
     } catch (logError) {
       console.error('Error logging user message:', logError);
       // Continue with the chat even if logging fails

@@ -1,3 +1,5 @@
+> **Historical:** Supabase is no longer used by the application. This guide is retained only as migration history.
+
 # Supabase Chat Logging Setup Guide
 
 This guide explains how to set up Supabase for chat logging in the BOMbot application.

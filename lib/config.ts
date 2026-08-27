@@ -41,6 +41,8 @@ const environmentSchema = z.object({
   OSV_MODE: z.enum(['api', 'offline']).default('api'),
   OSV_BASE_URL: outboundHttpUrl.optional(),
   RETENTION: z.enum(['study', 'ephemeral']).default('study'),
+  PARTICIPANT_ID_MODE: z.enum(['email', 'pseudonymous']).default('email'),
+  PARTICIPANT_ID_SALT: z.string().trim().min(32).optional(),
   LLM_TEMPERATURE: numericEnvironmentVariable(z.number().finite().min(0).max(2)),
   LLM_TOP_P: numericEnvironmentVariable(z.number().finite().min(0).max(1)),
   LLM_MAX_OUTPUT_TOKENS: numericEnvironmentVariable(z.number().finite().int().positive()),
@@ -59,6 +61,14 @@ const environmentSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['OSV_BASE_URL'],
       message: 'must be unset when OSV_MODE=offline',
+    });
+  }
+
+  if (value.PARTICIPANT_ID_MODE === 'pseudonymous' && !value.PARTICIPANT_ID_SALT) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['PARTICIPANT_ID_SALT'],
+      message: 'is required when PARTICIPANT_ID_MODE=pseudonymous',
     });
   }
 }).transform(value => ({

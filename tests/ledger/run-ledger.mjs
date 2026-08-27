@@ -6,6 +6,8 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import 'dotenv/config';
+import { Pool } from 'pg';
 
 import { startLedgerSink } from './sink.mjs';
 
@@ -183,7 +185,6 @@ function aggregateDestinations(records) {
 function markdownDocument(ledger, expected, records) {
   const requestCount = predicate => records.filter(predicate).length;
   const destinationMap = new Map(ledger.destinations.map(item => [item.host, item]));
-  const supabase = ledger.destinations.find(item => item.host.endsWith('.supabase.co'));
   const yesNo = value => value ? '**Yes**' : 'No';
 
   return `# Disclosure Ledger — Hosted Baseline
@@ -203,7 +204,7 @@ ${ledger.destinations.map(item => `| \`${item.host}\` | ${item.requestCount} | $
 
 Automated result: **${ledger.destinations.filter(item => item.carriesInventory).length} inventory-carrying hosts** out of the allowed maximum of **${expected.maxInventoryCarryingHosts}**.
 
-## Seven-row current-state disclosure ledger
+## ${expected.disclosureRows.length}-row current-state disclosure ledger
 
 | ID | Destination | Operator | Carries SBOM-derived content? | Observation | Code site |
 |---|---|---|---|---|---|
@@ -211,7 +212,6 @@ Automated result: **${ledger.destinations.filter(item => item.carriesInventory).
 | D2 | \`api.openai.com/v1/conversations\` | OpenAI | **Yes (indirectly)** | ${requestCount(record => record.host === 'api.openai.com' && record.url.includes('/v1/conversations'))} intercepted conversation creations; subsequent Responses carry the conversation content | \`lib/llm/providers/openai.ts\` |
 | D3 | \`api.osv.dev/v1/query\` | Google | **Yes** | ${requestCount(record => record.host === 'api.osv.dev' && record.url.includes('/v1/query'))} intercepted package queries with inventory markers | \`upload.ts\`, \`osv-query.ts\`, \`openai-responses.ts\` |
 | D4 | \`api.osv.dev/v1/vulns/{id}\` | Google | Partially | ${requestCount(record => record.host === 'api.osv.dev' && record.url.includes('/v1/vulns/'))} intercepted CVE lookup; identifier is in the URL rather than the request body | \`osv-query.ts\`, \`openai-responses.ts\` |
-| D5 | Supabase (\`NEXT_PUBLIC_SUPABASE_URL\`) | Supabase + AWS | **Yes** | ${supabase?.requestCount || 0} intercepted requests; chat package markers observed | \`upload.ts\`, \`chat.ts\`, \`run-status.ts\`, \`chatLogger.ts\` |
 | D6 | Vercel edge + runtime | Vercel | **Yes** | **Manual deployment property; not observable from in-process interception** | deployment property; \`vercel.json\` |
 | D7 | Vercel Analytics | Vercel | No (page telemetry) | **Manual deployment property; not observable from in-process interception** | \`src/App.tsx\` |
 
@@ -243,17 +243,29 @@ This harness instruments \`next dev\`, not a production execution using \`next b
 bounded to this measurement mode. The V2 before/after delta is unaffected because both
 sides are measured identically. A production-build ledger run remains future work.
 
+The harness measures server-side egress from an instrumented \`next dev\`; it never runs a
+browser. Browser-originated egress is identified by static code and bundle inspection, not
+measured by this instrument. Those two evidence types must not be presented as equivalent.
+
 ## Instrumentation cross-check
 
 - Local sink captured every expected automated host: **${ledger.instrumentation.sinkCapturedExpectedHosts}**
 - Global fetch interceptor captured every expected automated host: **${ledger.instrumentation.interceptorCapturedExpectedHosts}**
 - Unexpected transport hosts: **${ledger.instrumentation.unexpectedTransportHosts.length === 0 ? 'none, given the development-mode suppressions documented above' : ledger.instrumentation.unexpectedTransportHosts.join(', ')}**
 - On its first run, the interceptor caught \`registry.npmjs.org\`, which was unpredicted by the audit, absent from \`expected.json\`, and originated in framework rather than application code—evidence that the interceptor observes the running system rather than only the author's model of it.
-- Current automated host classifications: OpenAI=${destinationMap.get('api.openai.com')?.classification}, OSV=${destinationMap.get('api.osv.dev')?.classification}, Supabase=${supabase?.classification}
+- Current automated host classifications: OpenAI=${destinationMap.get('api.openai.com')?.classification}, OSV=${destinationMap.get('api.osv.dev')?.classification}
 `;
 }
 
 const expected = JSON.parse(await readFile(expectedPath, 'utf8'));
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL must be configured for the ledger harness');
+}
+const database = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 1,
+  connectionTimeoutMillis: 2_000,
+});
 const tempDir = await mkdtemp(path.join(os.tmpdir(), 'bombot-ledger-'));
 const interceptLog = path.join(tempDir, 'intercept.ndjson');
 await writeFile(interceptLog, '');
@@ -267,13 +279,21 @@ const nodeOptions = [
   process.env.NODE_OPTIONS,
   `--import=${pathToFileURL(interceptPath).href}`,
 ].filter(Boolean).join(' ');
+const retiredSupabaseVariables = new Set([
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
+]);
+const childEnvironment = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !retiredSupabaseVariables.has(name)),
+);
 
 const child = spawn(process.execPath, [nextBinary, 'dev', '-H', '127.0.0.1', '-p', String(appPort)], {
   cwd: repoRoot,
   env: {
-    ...process.env,
+    ...childEnvironment,
     DEBUG: '',
-    DATABASE_URL: 'postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic',
+    DATABASE_URL: process.env.DATABASE_URL,
     NODE_OPTIONS: nodeOptions,
     NEXT_TELEMETRY_DISABLED: '1',
     PROFILE: 'hosted',
@@ -289,9 +309,7 @@ const child = spawn(process.execPath, [nextBinary, 'dev', '-H', '127.0.0.1', '-p
     OSV_MODE: 'api',
     OSV_BASE_URL: `${sink.origin}/proxy/api.osv.dev`,
     RETENTION: 'study',
-    NEXT_PUBLIC_SUPABASE_URL: `${sink.origin}/proxy/synthetic-project.supabase.co`,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'synthetic-ledger-browser-key',
-    SUPABASE_SERVICE_ROLE_KEY: 'synthetic-ledger-server-key',
+    PARTICIPANT_ID_MODE: 'email',
     LEDGER_FIXTURE_PATH: path.join(fixturesDir, 'small-spdx.json'),
     LEDGER_INTERCEPT_LOG: interceptLog,
     LEDGER_SINK_ORIGIN: sink.origin,
@@ -309,14 +327,17 @@ child.stderr.on('data', collectLog);
 const readLogs = () => childLogs.join('');
 
 let oversizeSpdxOsvQueries;
+const sessionId = 'ledger-synthetic-session';
+let databaseReady = false;
 
 try {
+  await database.query('DELETE FROM chat_logs WHERE session_id = $1', [sessionId]);
+  databaseReady = true;
   await waitForApplication(appOrigin, child, readLogs);
 
   const malformed = await uploadFixture(appOrigin, 'malformed.json', {}, [400]);
   assert.match(malformed.error, /No packages found/);
 
-  const sessionId = 'ledger-synthetic-session';
   const upload = await uploadFixture(appOrigin, 'small-spdx.json', {
     sessionId,
     messageIndex: 1,
@@ -386,12 +407,36 @@ try {
     item.type === 'function_call_output'
     && item.call_id?.startsWith('call_resp_ledger_')
   )));
+
+  const persistedLogs = await database.query(
+    `SELECT
+      COUNT(*)::int AS total_logs,
+      COUNT(*) FILTER (WHERE message_type = 'file_upload')::int AS file_upload_logs,
+      COUNT(*) FILTER (WHERE message_type = 'user')::int AS user_logs,
+      COUNT(*) FILTER (WHERE ai_response IS NOT NULL)::int AS completed_logs
+    FROM chat_logs
+    WHERE session_id = $1`,
+    [sessionId],
+  );
+  assert.deepEqual(persistedLogs.rows[0], {
+    total_logs: 6,
+    file_upload_logs: 1,
+    user_logs: 5,
+    completed_logs: 6,
+  });
 } catch (error) {
   const details = error instanceof Error ? error.stack || error.message : String(error);
   throw new Error(`${details}\n\nNext.js ledger process output:\n${readLogs()}`);
 } finally {
   await stopChild(child);
-  await sink.close();
+  try {
+    if (databaseReady) {
+      await database.query('DELETE FROM chat_logs WHERE session_id = $1', [sessionId]);
+    }
+  } finally {
+    await database.end();
+    await sink.close();
+  }
 }
 
 const interceptRecords = parseInterceptLog(interceptLog);

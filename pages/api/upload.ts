@@ -3,8 +3,8 @@ import fs from 'fs';
 import { NextApiRequest, NextApiResponse } from 'next';
 import tmp from 'tmp';
 import path from 'path';
-import { supabaseServer } from '@/lib/supabase-server';
 import { config as environmentConfig } from '../../lib/config.ts';
+import { insertLog } from '../../lib/db/chatLogs.ts';
 import { createLlmGateway } from '../../lib/llm/gateway.ts';
 import {
   BOMBOT_INSTRUCTIONS,
@@ -534,26 +534,25 @@ ${existingConversationId ?
       console.log(`Created new conversation: ${conversationId} for SBOM upload`);
     }
 
-    // Log file upload to Supabase if session info is provided
+    // Log file upload to the application-owned datastore if session info is provided.
     if (sessionId && messageIndex !== undefined) {
       try {
-        await supabaseServer
-          .from('chat_logs')
-          .insert([{
-            id: uuidv4(),
-            session_id: sessionId,
-            thread_id: conversationId,
-            message_index: messageIndex,
-            message_type: 'file_upload',
-            user_message: `Uploaded SBOM file: ${fileName}`,
-            ai_response: null,
-            file_name: fileName,
-            file_size: file.size,
-            vulnerability_count: totalVulns,
-            user_email: userEmail,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }]);
+        const now = new Date().toISOString();
+        await insertLog({
+          id: uuidv4(),
+          session_id: sessionId,
+          conversation_id: conversationId,
+          message_index: messageIndex,
+          message_type: 'file_upload',
+          user_message: `Uploaded SBOM file: ${fileName}`,
+          ai_response: null,
+          file_name: fileName,
+          file_size: file.size,
+          vulnerability_count: totalVulns,
+          user_email: userEmail ?? null,
+          created_at: now,
+          updated_at: now,
+        });
       } catch (logError) {
         console.error('Error logging file upload:', logError);
         // Continue even if logging fails

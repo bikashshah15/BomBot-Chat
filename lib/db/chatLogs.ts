@@ -1,3 +1,6 @@
+import { createHmac } from 'node:crypto';
+
+import { config } from '../config.ts';
 import { dbPool } from './client.ts';
 import type { ChatLog, NewChatLog } from './types.ts';
 
@@ -22,6 +25,24 @@ function toChatLog(row: ChatLogRow): ChatLog {
     created_at: timestampToString(row.created_at),
     updated_at: timestampToString(row.updated_at),
   };
+}
+
+export function pseudonymizeParticipantId(userEmail: string, salt: string): string {
+  return createHmac('sha256', salt)
+    .update(userEmail.trim().toLowerCase(), 'utf8')
+    .digest('hex');
+}
+
+function participantIdForStorage(userEmail: string | null): string | null {
+  if (userEmail === null || config.PARTICIPANT_ID_MODE === 'email') {
+    return userEmail;
+  }
+
+  if (!config.PARTICIPANT_ID_SALT) {
+    throw new Error('PARTICIPANT_ID_SALT is unavailable in pseudonymous mode');
+  }
+
+  return pseudonymizeParticipantId(userEmail, config.PARTICIPANT_ID_SALT);
 }
 
 export async function insertLog(log: NewChatLog): Promise<ChatLog> {
@@ -53,7 +74,7 @@ export async function insertLog(log: NewChatLog): Promise<ChatLog> {
       log.file_name,
       log.file_size,
       log.vulnerability_count,
-      log.user_email,
+      participantIdForStorage(log.user_email),
       log.created_at,
       log.updated_at,
     ],

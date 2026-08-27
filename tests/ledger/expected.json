@@ -8,13 +8,9 @@
     {
       "host": "api.osv.dev",
       "carriesInventory": true
-    },
-    {
-      "host": "*.supabase.co",
-      "carriesInventory": true
     }
   ],
-  "maxInventoryCarryingHosts": 3,
+  "maxInventoryCarryingHosts": 2,
   "disclosureRows": [
     {
       "id": "D1",
@@ -42,13 +38,6 @@
       "destination": "api.osv.dev/v1/vulns/{id}",
       "operator": "Google",
       "carriesInventory": false,
-      "observable": true
-    },
-    {
-      "id": "D5",
-      "destination": "*.supabase.co",
-      "operator": "Supabase + AWS",
-      "carriesInventory": true,
       "observable": true
     },
     {

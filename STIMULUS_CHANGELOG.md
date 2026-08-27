@@ -71,3 +71,13 @@ Columns: date · increment · what changed · why · effect on the study.
 - Added local Postgres infrastructure, schema, and data-access scaffolding without importing
   it from application code. Supabase remains the active logging path. Effect: no
   participant-facing change and no stimulus delta.
+
+## 2026-08-27 — INC-04 Part B (application-owned logging path)
+- Replaced browser and server writes to hosted Supabase with server-mediated writes to
+  self-hosted Postgres. This changes the participant-facing system surface and removes the
+  Supabase disclosure destination; model behavior, prompt, and scan coverage are unchanged.
+- Added `PARTICIPANT_ID_MODE`, defaulting to `email` to preserve current participant-ID
+  behavior. The `pseudonymous` salted-hash path is implemented but not selected because
+  open decision #3 remains unanswered and requires Bikash/IRB direction.
+- Session UUIDs are bearer capabilities that prevent practical enumeration, not identity
+  proof; disclosure of a UUID defeats the check and must be reflected in IRB materials.
