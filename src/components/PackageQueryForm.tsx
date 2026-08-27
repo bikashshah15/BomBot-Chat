@@ -9,7 +9,7 @@ import { Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const PackageQueryForm = () => {
-  const { addMessage, setLoading, isLoading, currentConversationId, setCurrentConversationId, userEmail } = useChat();
+  const { addMessage, setLoading, isLoading, currentConversationId, setCurrentConversationId, sessionId, userEmail } = useChat();
   const [formData, setFormData] = useState({
     packageName: '',
     ecosystem: '',
@@ -105,7 +105,7 @@ const PackageQueryForm = () => {
 
     try {
       // Prepare the request body
-      const requestBody: any = {};
+      const requestBody: any = { sessionId };
       
       if (formData.cve) {
         requestBody.cve = formData.cve;
@@ -259,7 +259,7 @@ const PackageQueryForm = () => {
 
     const poll = async () => {
       try {
-        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}`);
+        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}&sessionId=${sessionId}`);
         
         if (!response.ok) {
           throw new Error('Failed to check analysis status');

@@ -1,13 +1,13 @@
 {
   "profile": "hosted",
-  "generatedAt": "2026-08-27T17:33:52.416Z",
+  "generatedAt": "2026-08-27T21:25:03.766Z",
   "fixture": "tests/fixtures/small-spdx.json",
   "destinations": [
     {
       "host": "api.openai.com",
-      "requestCount": 20,
-      "totalRequestBodySize": 147078,
-      "maxRequestBodySize": 44203,
+      "requestCount": 10,
+      "totalRequestBodySize": 219344,
+      "maxRequestBodySize": 44118,
       "carriesInventory": true,
       "matchedMarkers": [
         "0.21.1",
@@ -85,8 +85,8 @@
     }
   ],
   "instrumentation": {
-    "sinkRequestCount": 185,
-    "interceptorRequestCount": 185,
+    "sinkRequestCount": 175,
+    "interceptorRequestCount": 175,
     "sinkCapturedExpectedHosts": true,
     "interceptorCapturedExpectedHosts": true,
     "unexpectedTransportHosts": []

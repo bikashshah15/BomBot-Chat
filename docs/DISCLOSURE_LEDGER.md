@@ -11,17 +11,16 @@ markers present in every request. No live OpenAI credits or live external endpoi
 
 | Host | Requests | Carries SBOM-derived content? | Maximum request body (bytes) |
 |---|---:|---|---:|
-| `api.openai.com` | 20 | **Yes** | 44203 |
+| `api.openai.com` | 10 | **Yes** | 44118 |
 | `api.osv.dev` | 165 | **Yes** | 88 |
 
 Automated result: **2 inventory-carrying hosts** out of the allowed maximum of **2**.
 
-## 6-row current-state disclosure ledger
+## 5-row current-state disclosure ledger
 
 | ID | Destination | Operator | Carries SBOM-derived content? | Observation | Code site |
 |---|---|---|---|---|---|
-| D1 | `api.openai.com/v1/responses` | OpenAI | **Yes** | 18 intercepted requests; package/version/ID markers observed | four API routes via `lib/llm/gateway.ts`; `lib/llm/providers/openai.ts` |
-| D2 | `api.openai.com/v1/conversations` | OpenAI | **Yes (indirectly)** | 2 intercepted conversation creations; subsequent Responses carry the conversation content | `lib/llm/providers/openai.ts` |
+| D1 | `api.openai.com/v1/responses` | OpenAI | **Yes** | 10 intercepted requests; package/version/ID markers observed | four API routes via `lib/llm/gateway.ts`; `lib/llm/providers/openai.ts` |
 | D3 | `api.osv.dev/v1/query` | Google | **Yes** | 164 intercepted package queries with inventory markers | `upload.ts`, `osv-query.ts`, `openai-responses.ts` |
 | D4 | `api.osv.dev/v1/vulns/{id}` | Google | Partially | 1 intercepted CVE lookup; identifier is in the URL rather than the request body | `osv-query.ts`, `openai-responses.ts` |
 | D6 | Vercel edge + runtime | Vercel | **Yes** | **Manual deployment property; not observable from in-process interception** | deployment property; `vercel.json` |
@@ -30,6 +29,11 @@ Automated result: **2 inventory-carrying hosts** out of the allowed maximum of *
 Vercel TLS termination/runtime handling (D6) and Vercel Analytics (D7) must remain
 manual rows. Their absence from automated interception must not be read as absence from
 the deployed system.
+
+INC-05 removes OpenAI-hosted conversation retention (former row D2), but **transit
+disclosure is unchanged**: the same inventory-derived content still crosses the same
+boundary to OpenAI through D1. This is a retention change, not a reduction in what OpenAI
+receives in transit.
 
 ## Regression guards
 

@@ -206,7 +206,7 @@ const ChatInterface = () => {
 
     const poll = async () => {
       try {
-        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}`);
+        const response = await fetch(`/api/run-status?conversationId=${activeConversationId}&responseId=${activeResponseId}&sessionId=${sessionId}`);
         
         if (!response.ok) {
           throw new Error('Failed to check analysis status');

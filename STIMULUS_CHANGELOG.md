@@ -86,3 +86,13 @@ Columns: date · increment · what changed · why · effect on the study.
 - Added the app-owned conversation schema, migration path, data-access module, and bounded
   history configuration without wiring them into any route or client code. Effect: zero
   participant-facing change; no request, prompt, decoding parameter, or UI behavior changes.
+
+## 2026-08-27 — INC-05 Part B (app-owned conversation history)
+- Replaced OpenAI-hosted Conversations with application-owned history that is replayed
+  explicitly on every model turn. OpenAI still receives the conversation content in transit,
+  but no longer receives requests to create a persistent Conversation object.
+- Removed background Responses. Existing client polling remains in place and now receives a
+  synchronously completed result on its first successful poll; the polling transport itself
+  is removed in INC-06.
+- Prompt content and prompt delivery through the `instructions` field are unchanged. Model,
+  temperature, top-p, maximum output tokens, and seed behavior are also unchanged.

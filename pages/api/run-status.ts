@@ -1,5 +1,7 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { ConversationSequenceConflictError, getConversationSessionId } from '../../lib/db/conversations.ts';
 import { updateAiResponse } from '../../lib/db/chatLogs.ts';
+import { completeConversationMessages, loadConversationHistory } from '../../lib/llm/conversationHistory.ts';
 import { createLlmGateway } from '../../lib/llm/gateway.ts';
 import type { LlmMessage, LlmResult, LlmToolCall } from '../../lib/llm/types.ts';
 import {
@@ -9,18 +11,7 @@ import {
   formatOpenAIError,
   getToolContinuationIdempotencyKey,
   MAX_FUNCTION_CALL_ROUNDS,
-  TOOL_ROUND_METADATA_KEY,
-} from '../../lib/openai-responses';
-
-function getFunctionCallingRound(response: LlmResult): number {
-  const value = response.metadata?.[TOOL_ROUND_METADATA_KEY];
-  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
-    return 0;
-  }
-
-  const round = Number.parseInt(value, 10);
-  return Number.isSafeInteger(round) ? round : 0;
-}
+} from '../../lib/openai-responses.ts';
 
 function getResponseErrorMessage(response: LlmResult): string {
   if (response.error?.message) {
@@ -93,22 +84,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const conversationId = requestedConversationId || threadId;
   const responseId = requestedResponseId || runId;
 
-  if (!conversationId || !responseId) {
+  if (!conversationId || !responseId || !sessionId) {
     return res.status(400).json({
-      error: 'Both conversationId and responseId are required',
+      error: 'conversationId, responseId, and sessionId are required',
     });
   }
 
   try {
-    const gateway = createLlmGateway({ openAI: { conversationId } });
+    // This session UUID is a bearer capability, not authentication. It limits practical
+    // conversation enumeration but does not protect a capability obtained by another party.
+    if (await getConversationSessionId(conversationId) !== sessionId) {
+      return res.status(403).json({ error: 'Conversation does not belong to this session' });
+    }
+
+    const history = await loadConversationHistory(conversationId);
+    const latestMessage = history.rows.at(-1);
+    if (!latestMessage || latestMessage.role !== 'assistant') {
+      throw new Error('Conversation has no assistant response to resolve');
+    }
+
+    const currentTurnStart = history.rows.map(message => message.role).lastIndexOf('user');
+    const storedToolCallResponses = history.rows
+      .slice(Math.max(currentTurnStart, 0))
+      .filter(message => message.role === 'assistant' && (message.tool_calls?.length ?? 0) > 0)
+      .length;
+    let currentRound = Math.max(storedToolCallResponses - 1, 0);
+
+    const gateway = createLlmGateway();
     // INC-06: remove — local completion returns the result without hosted polling.
-    let response = await gateway.resolve({ responseId, conversationId });
-    const effectiveConversationId = response.conversationId || conversationId;
+    let response = await gateway.resolve({
+      result: {
+        content: latestMessage.content,
+        toolCalls: latestMessage.tool_calls ?? [],
+        done: true,
+        responseId,
+        conversationId,
+        status: 'completed',
+      },
+    });
+    const effectiveConversationId = conversationId;
     const successorResponseIds: string[] = [];
     let toolCallsProcessed = 0;
 
     while (response.status === 'completed' && response.toolCalls.length > 0) {
-      const currentRound = getFunctionCallingRound(response);
       if (currentRound >= MAX_FUNCTION_CALL_ROUNDS) {
         throw new Error(`Function calling exceeded the maximum of ${MAX_FUNCTION_CALL_ROUNDS} consecutive rounds`);
       }
@@ -119,16 +137,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const predecessorResponseId = response.responseId;
       const toolResultMessages = await buildToolResultMessages(response.toolCalls);
       toolCallsProcessed += response.toolCalls.length;
-      response = await gateway.complete({
-        messages: [
-          { role: 'system', content: BOMBOT_INSTRUCTIONS },
-          {
-            role: 'assistant',
-            content: response.content,
-            toolCalls: response.toolCalls,
-          },
-          ...toolResultMessages,
-        ],
+      response = await completeConversationMessages({
+        conversationId,
+        instructions: BOMBOT_INSTRUCTIONS,
+        messages: toolResultMessages,
         tools: BOMBOT_LLM_TOOLS,
         continuation: {
           round: currentRound + 1,
@@ -139,6 +151,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!response.responseId) {
         throw new Error('LLM provider did not return a successor response ID');
       }
+      currentRound += 1;
       successorResponseIds.push(response.responseId);
     }
 
@@ -239,6 +252,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (error) {
+    if (error instanceof ConversationSequenceConflictError) {
+      return res.status(409).json({ error: 'Conversation changed while tool results were submitted' });
+    }
     console.error('Response status check error:', error);
     return res.status(500).json({
       error: 'Failed to check response status',

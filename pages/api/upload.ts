@@ -1,16 +1,21 @@
 import formidable from 'formidable';
 import fs from 'fs';
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import tmp from 'tmp';
 import path from 'path';
 import { config as environmentConfig } from '../../lib/config.ts';
 import { insertLog } from '../../lib/db/chatLogs.ts';
-import { createLlmGateway } from '../../lib/llm/gateway.ts';
+import {
+  ConversationSequenceConflictError,
+  createConversation,
+  getConversationSessionId,
+} from '../../lib/db/conversations.ts';
+import { completeConversationMessages } from '../../lib/llm/conversationHistory.ts';
 import {
   BOMBOT_INSTRUCTIONS,
   BOMBOT_LLM_TOOLS,
   formatOpenAIError,
-} from '../../lib/openai-responses';
+} from '../../lib/openai-responses.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 export const config = {
@@ -385,6 +390,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const conversationField = fields.conversationId || fields.threadId;
     const existingConversationId = Array.isArray(conversationField) ? conversationField[0] : conversationField;
 
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId is required' });
+    }
+
+    if (existingConversationId) {
+      // This session UUID is a bearer capability, not authentication. It limits practical
+      // conversation enumeration but does not protect a capability obtained by another party.
+      if (await getConversationSessionId(existingConversationId) !== sessionId) {
+        return res.status(403).json({ error: 'Conversation does not belong to this session' });
+      }
+    }
+
     // Validate file type (basic check for SBOM files)
     const validExtensions = ['.json', '.xml', '.spdx', '.cyclonedx'];
     const fileExt = path.extname(fileName).toLowerCase();
@@ -512,20 +529,17 @@ ${existingConversationId ?
   'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Since this is an additional SBOM, you can also compare it with previously uploaded SBOMs. Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", "dependency analysis", or "SBOM comparison" for comprehensive information.' :
   'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", or "dependency analysis" for comprehensive information.'}`;
 
-    const gateway = createLlmGateway({
-      ...(existingConversationId ? { openAI: { conversationId: existingConversationId } } : {}),
-    });
-    const response = await gateway.complete({
-      messages: [
-        { role: 'system', content: BOMBOT_INSTRUCTIONS },
-        { role: 'user', content: responseInput },
-      ],
+    const conversationId = existingConversationId
+      ?? (await createConversation(sessionId)).id;
+    const response = await completeConversationMessages({
+      conversationId,
+      instructions: BOMBOT_INSTRUCTIONS,
+      messages: [{ role: 'user', content: responseInput }],
       tools: BOMBOT_LLM_TOOLS,
     });
-    const conversationId = response.conversationId ?? existingConversationId;
 
-    if (!conversationId || !response.responseId) {
-      throw new Error('LLM provider did not return conversation and response IDs');
+    if (!response.responseId) {
+      throw new Error('LLM provider did not return a response ID');
     }
 
     if (existingConversationId) {
@@ -600,6 +614,9 @@ ${existingConversationId ?
     });
 
   } catch (error) {
+    if (error instanceof ConversationSequenceConflictError) {
+      return res.status(409).json({ error: 'Conversation changed while this upload was submitted' });
+    }
     console.error('Upload handler error:', error);
     res.status(500).json({ 
       error: 'Internal server error',

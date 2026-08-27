@@ -44,12 +44,12 @@ export interface CreateLlmGatewayOptions {
   settings?: LlmGatewayConfig;
   provider?: LlmProvider;
   resolver?: LlmOperationResolver; // INC-06: remove
-  openAI?: Pick<OpenAIProviderOptions, 'client' | 'conversationId'>;
+  openAI?: Pick<OpenAIProviderOptions, 'client'>;
 }
 
 export function selectLlmProvider(
   settings: LlmGatewayConfig,
-  openAI: Pick<OpenAIProviderOptions, 'client' | 'conversationId'> = {},
+  openAI: Pick<OpenAIProviderOptions, 'client'> = {},
 ): OpenAIProvider {
   if (settings.PROFILE === 'hosted' && !settings.LLM_API_KEY && !openAI.client) {
     throw new Error('LLM_API_KEY is required for the hosted LLM provider');
@@ -62,8 +62,6 @@ export function selectLlmProvider(
       : settings.LLM_API_KEY,
     baseURL: settings.LLM_BASE_URL,
     client: openAI.client,
-    conversationId: openAI.conversationId,
-    useServerState: settings.PROFILE === 'hosted',
   });
 }
 

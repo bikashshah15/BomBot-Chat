@@ -37,7 +37,7 @@ function syntheticVulnerability(name, ecosystem, id = 'GHSA-ledger-0000-0000') {
   };
 }
 
-function openAIResponse(id, conversationId, metadata = {}) {
+function openAIResponse(id) {
   return {
     id,
     object: 'response',
@@ -47,7 +47,7 @@ function openAIResponse(id, conversationId, metadata = {}) {
     error: null,
     incomplete_details: null,
     instructions: null,
-    metadata,
+    metadata: {},
     model: 'gpt-4o',
     output_text: 'Synthetic ledger assistant response.',
     output: [{
@@ -66,7 +66,7 @@ function openAIResponse(id, conversationId, metadata = {}) {
     tool_choice: 'auto',
     tools: [],
     top_p: 1,
-    conversation: { id: conversationId },
+    conversation: null,
     usage: {
       input_tokens: 1,
       input_tokens_details: { cached_tokens: 0 },
@@ -77,9 +77,9 @@ function openAIResponse(id, conversationId, metadata = {}) {
   };
 }
 
-function openAIToolResponse(id, conversationId, metadata = {}) {
+function openAIToolResponse(id) {
   return {
-    ...openAIResponse(id, conversationId, metadata),
+    ...openAIResponse(id),
     output_text: '',
     output: [{
       id: `fc_${id}`,
@@ -98,8 +98,6 @@ function openAIToolResponse(id, conversationId, metadata = {}) {
 
 export async function startLedgerSink() {
   const requests = [];
-  const responses = new Map();
-  let conversationCounter = 0;
   let responseCounter = 0;
 
   const server = http.createServer(async (request, response) => {
@@ -121,38 +119,18 @@ export async function startLedgerSink() {
         body,
       });
 
-      if (logicalHost === 'api.openai.com' && logicalPath === '/v1/conversations' && request.method === 'POST') {
-        conversationCounter += 1;
-        return sendJson(response, 200, {
-          id: `conv_ledger_${conversationCounter}`,
-          object: 'conversation',
-          created_at: 1787616000,
-          metadata: {},
-        });
-      }
-
       if (logicalHost === 'api.openai.com' && logicalPath === '/v1/responses' && request.method === 'POST') {
         const requestBody = body ? JSON.parse(body) : {};
         responseCounter += 1;
         const id = `resp_ledger_${responseCounter}`;
-        const requestsLodashTool = requestBody.metadata?.bombot_tool_round === '0'
-          && requestBody.input?.some(item => (
+        const requestsLodashTool = requestBody.input?.some(item => (
             item.role === 'user'
             && item.content === 'What vulnerabilities affect lodash 4.17.20?'
-          ));
+          )) && !requestBody.input?.some(item => item.type === 'function_call_output');
         const value = requestsLodashTool
-          ? openAIToolResponse(id, requestBody.conversation, requestBody.metadata || {})
-          : openAIResponse(id, requestBody.conversation, requestBody.metadata || {});
-        responses.set(id, value);
+          ? openAIToolResponse(id)
+          : openAIResponse(id);
         return sendJson(response, 200, value);
-      }
-
-      if (logicalHost === 'api.openai.com' && logicalPath.startsWith('/v1/responses/') && request.method === 'GET') {
-        const id = decodeURIComponent(logicalPath.slice('/v1/responses/'.length));
-        const value = responses.get(id);
-        return value
-          ? sendJson(response, 200, value)
-          : sendJson(response, 404, { error: { message: `Unknown synthetic Response ${id}` } });
       }
 
       if (logicalHost === 'api.osv.dev' && logicalPath === '/v1/query' && request.method === 'POST') {

@@ -1,7 +1,11 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { config as environmentConfig } from '../../lib/config.ts';
-import { createLlmGateway } from '../../lib/llm/gateway.ts';
-import { BOMBOT_INSTRUCTIONS, BOMBOT_LLM_TOOLS } from '../../lib/openai-responses';
+import {
+  ConversationSequenceConflictError,
+  getConversationSessionId,
+} from '../../lib/db/conversations.ts';
+import { completeConversationMessages } from '../../lib/llm/conversationHistory.ts';
+import { BOMBOT_INSTRUCTIONS, BOMBOT_LLM_TOOLS } from '../../lib/openai-responses.ts';
 
 interface OSVQueryRequest {
   version?: string;
@@ -10,6 +14,7 @@ interface OSVQueryRequest {
   cve?: string;
   conversationId?: string;
   threadId?: string;
+  sessionId: string;
   userEmail?: string;
 }
 
@@ -55,8 +60,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { version, name, ecosystem, cve, conversationId: requestedConversationId, threadId }: OSVQueryRequest = req.body;
+  const { version, name, ecosystem, cve, conversationId: requestedConversationId, threadId, sessionId }: OSVQueryRequest = req.body;
   const conversationId = requestedConversationId || threadId;
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'sessionId is required' });
+  }
 
   if (!cve && (!name || !ecosystem)) {
     return res.status(400).json({ 
@@ -65,6 +74,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    if (conversationId) {
+      // This session UUID is a bearer capability, not authentication. It limits practical
+      // conversation enumeration but does not protect a capability obtained by another party.
+      if (await getConversationSessionId(conversationId) !== sessionId) {
+        return res.status(403).json({ error: 'Conversation does not belong to this session' });
+      }
+    }
+
     let response: Response;
     let data: OSVVulnerability | OSVQueryResponse;
 
@@ -133,12 +150,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
 
-        const gateway = createLlmGateway({ openAI: { conversationId } });
-        const aiResponse = await gateway.complete({
-          messages: [
-            { role: 'system', content: BOMBOT_INSTRUCTIONS },
-            { role: 'user', content: messageContent },
-          ],
+        const aiResponse = await completeConversationMessages({
+          conversationId,
+          instructions: BOMBOT_INSTRUCTIONS,
+          messages: [{ role: 'user', content: messageContent }],
           tools: BOMBOT_LLM_TOOLS,
         });
 
@@ -156,6 +171,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           query: cve ? { cve } : { name, ecosystem, version }
         });
       } catch (assistantError) {
+        if (assistantError instanceof ConversationSequenceConflictError) {
+          return res.status(409).json({ error: 'Conversation changed while this query was submitted' });
+        }
         console.error('Failed to send to assistant:', assistantError);
         // Still return the OSV data even if assistant fails
         return res.status(200).json({ 

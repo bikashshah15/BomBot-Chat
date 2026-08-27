@@ -11,6 +11,8 @@ import { Pool } from 'pg';
 
 import { startLedgerSink } from './sink.mjs';
 
+const { BOMBOT_INSTRUCTIONS } = await import('../../lib/openai-responses.ts');
+
 const ledgerDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(ledgerDir, '../..');
 const fixturesDir = path.join(repoRoot, 'tests/fixtures');
@@ -209,7 +211,6 @@ Automated result: **${ledger.destinations.filter(item => item.carriesInventory).
 | ID | Destination | Operator | Carries SBOM-derived content? | Observation | Code site |
 |---|---|---|---|---|---|
 | D1 | \`api.openai.com/v1/responses\` | OpenAI | **Yes** | ${requestCount(record => record.host === 'api.openai.com' && record.url.includes('/v1/responses'))} intercepted requests; package/version/ID markers observed | four API routes via \`lib/llm/gateway.ts\`; \`lib/llm/providers/openai.ts\` |
-| D2 | \`api.openai.com/v1/conversations\` | OpenAI | **Yes (indirectly)** | ${requestCount(record => record.host === 'api.openai.com' && record.url.includes('/v1/conversations'))} intercepted conversation creations; subsequent Responses carry the conversation content | \`lib/llm/providers/openai.ts\` |
 | D3 | \`api.osv.dev/v1/query\` | Google | **Yes** | ${requestCount(record => record.host === 'api.osv.dev' && record.url.includes('/v1/query'))} intercepted package queries with inventory markers | \`upload.ts\`, \`osv-query.ts\`, \`openai-responses.ts\` |
 | D4 | \`api.osv.dev/v1/vulns/{id}\` | Google | Partially | ${requestCount(record => record.host === 'api.osv.dev' && record.url.includes('/v1/vulns/'))} intercepted CVE lookup; identifier is in the URL rather than the request body | \`osv-query.ts\`, \`openai-responses.ts\` |
 | D6 | Vercel edge + runtime | Vercel | **Yes** | **Manual deployment property; not observable from in-process interception** | deployment property; \`vercel.json\` |
@@ -218,6 +219,11 @@ Automated result: **${ledger.destinations.filter(item => item.carriesInventory).
 Vercel TLS termination/runtime handling (D6) and Vercel Analytics (D7) must remain
 manual rows. Their absence from automated interception must not be read as absence from
 the deployed system.
+
+INC-05 removes OpenAI-hosted conversation retention (former row D2), but **transit
+disclosure is unchanged**: the same inventory-derived content still crosses the same
+boundary to OpenAI through D1. This is a retention change, not a reduction in what OpenAI
+receives in transit.
 
 ## Regression guards
 
@@ -328,14 +334,18 @@ const readLogs = () => childLogs.join('');
 
 let oversizeSpdxOsvQueries;
 const sessionId = 'ledger-synthetic-session';
+const oversizeSessionId = 'ledger-oversize-session';
 let databaseReady = false;
 
 try {
   await database.query('DELETE FROM chat_logs WHERE session_id = $1', [sessionId]);
+  await database.query('DELETE FROM conversations WHERE session_id = $1', [sessionId]);
+  await database.query('DELETE FROM chat_logs WHERE session_id = $1', [oversizeSessionId]);
+  await database.query('DELETE FROM conversations WHERE session_id = $1', [oversizeSessionId]);
   databaseReady = true;
   await waitForApplication(appOrigin, child, readLogs);
 
-  const malformed = await uploadFixture(appOrigin, 'malformed.json', {}, [400]);
+  const malformed = await uploadFixture(appOrigin, 'malformed.json', { sessionId }, [400]);
   assert.match(malformed.error, /No packages found/);
 
   const upload = await uploadFixture(appOrigin, 'small-spdx.json', {
@@ -345,6 +355,12 @@ try {
   assert.equal(upload.packagesScanned, 12);
   assert.equal(upload.totalPackages, 12);
   await pollToCompletion(appOrigin, upload.conversationId, upload.responseId, sessionId, 1);
+
+  const rejectedUploadReuse = await uploadFixture(appOrigin, 'small-spdx.json', {
+    sessionId: 'ledger-other-session',
+    conversationId: upload.conversationId,
+  }, [403]);
+  assert.match(rejectedUploadReuse.error, /does not belong/);
 
   const questions = [
     'What vulnerabilities affect lodash 4.17.20?',
@@ -370,17 +386,21 @@ try {
     version: '4.17.20',
     ecosystem: 'npm',
     conversationId: upload.conversationId,
+    sessionId,
   }, 'package query');
   await pollToCompletion(appOrigin, packageQuery.conversationId, packageQuery.responseId, sessionId, 7);
 
   const cveQuery = await postJson(appOrigin, '/api/osv-query', {
     cve: 'CVE-2021-23337',
     conversationId: upload.conversationId,
+    sessionId,
   }, 'CVE query');
   await pollToCompletion(appOrigin, cveQuery.conversationId, cveQuery.responseId, sessionId, 8);
 
   const beforeOversize = countSinkRequests(sink.requests, 'api.osv.dev', '/v1/query', 'POST');
-  const oversize = await uploadFixture(appOrigin, 'oversize-spdx.json');
+  const oversize = await uploadFixture(appOrigin, 'oversize-spdx.json', {
+    sessionId: oversizeSessionId,
+  });
   const afterOversize = countSinkRequests(sink.requests, 'api.osv.dev', '/v1/query', 'POST');
   oversizeSpdxOsvQueries = afterOversize - beforeOversize;
   assert.equal(oversize.packagesScanned, 150);
@@ -398,9 +418,22 @@ try {
     assert.equal(body.temperature, 0);
     assert.equal(body.top_p, 1);
     assert.equal(body.max_output_tokens, 4096);
+    assert.equal(body.store, false);
+    assert.equal(body.background, undefined);
+    assert.equal(body.conversation, undefined);
+    assert.equal(body.instructions, BOMBOT_INSTRUCTIONS);
+    assert.equal(body.input.some(item => item.role === 'system'), false);
   }
+  const secondTurnRequest = modelRequestBodies.find(body => body.input.some(item => (
+    item.role === 'user' && item.content === questions[1]
+  )));
+  assert.ok(secondTurnRequest);
+  assert.ok(secondTurnRequest.input.some(item => (
+    item.role === 'user' && item.content === questions[0]
+  )));
+
   const continuationRequests = modelRequestBodies.filter(body => (
-    body.metadata?.bombot_tool_round === '1'
+    body.input.at(-1)?.type === 'function_call_output'
   ));
   assert.equal(continuationRequests.length, 1);
   assert.ok(continuationRequests[0].input.some(item => (
@@ -432,6 +465,9 @@ try {
   try {
     if (databaseReady) {
       await database.query('DELETE FROM chat_logs WHERE session_id = $1', [sessionId]);
+      await database.query('DELETE FROM conversations WHERE session_id = $1', [sessionId]);
+      await database.query('DELETE FROM chat_logs WHERE session_id = $1', [oversizeSessionId]);
+      await database.query('DELETE FROM conversations WHERE session_id = $1', [oversizeSessionId]);
     }
   } finally {
     await database.end();

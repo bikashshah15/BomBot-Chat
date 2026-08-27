@@ -5,6 +5,18 @@ import type {
   NewConversationMessage,
 } from './types.ts';
 
+export class ConversationSequenceConflictError extends Error {
+  readonly conversationId: string;
+  readonly seq: number;
+
+  constructor(conversationId: string, seq: number) {
+    super(`Conversation sequence ${seq} is already stored`);
+    this.name = 'ConversationSequenceConflictError';
+    this.conversationId = conversationId;
+    this.seq = seq;
+  }
+}
+
 interface ConversationRow extends Omit<Conversation, 'created_at'> {
   created_at: Date | string;
 }
@@ -69,6 +81,16 @@ export async function appendConversationMessage(
   return result.rows[0] ? toConversationMessage(result.rows[0]) : null;
 }
 
+export async function appendConversationMessageOrThrow(
+  message: NewConversationMessage,
+): Promise<ConversationMessage> {
+  const inserted = await appendConversationMessage(message);
+  if (!inserted) {
+    throw new ConversationSequenceConflictError(message.conversation_id, message.seq);
+  }
+  return inserted;
+}
+
 export async function getConversationMessages(
   conversationId: string,
   limit: number,
@@ -78,14 +100,37 @@ export async function getConversationMessages(
   }
 
   const result = await dbPool.query<ConversationMessageRow>(
-    `SELECT conversation_id, seq, role, content, tool_call_id, tool_calls, created_at
-    FROM (
+    `WITH recent_messages AS (
       SELECT conversation_id, seq, role, content, tool_call_id, tool_calls, created_at
       FROM conversation_messages
       WHERE conversation_id = $1
       ORDER BY seq DESC
       LIMIT $2
-    ) AS recent_messages
+    ), window_start AS (
+      SELECT seq, role
+      FROM recent_messages
+      ORDER BY seq ASC
+      LIMIT 1
+    ), replay_start AS (
+      SELECT CASE
+        WHEN window_start.role = 'tool' THEN COALESCE((
+          SELECT message.seq
+          FROM conversation_messages AS message
+          WHERE message.conversation_id = $1
+            AND message.seq < window_start.seq
+            AND message.role = 'assistant'
+            AND jsonb_array_length(COALESCE(message.tool_calls, '[]'::jsonb)) > 0
+          ORDER BY message.seq DESC
+          LIMIT 1
+        ), window_start.seq)
+        ELSE window_start.seq
+      END AS seq
+      FROM window_start
+    )
+    SELECT conversation_id, seq, role, content, tool_call_id, tool_calls, created_at
+    FROM conversation_messages
+    WHERE conversation_id = $1
+      AND seq >= (SELECT seq FROM replay_start)
     ORDER BY seq ASC`,
     [conversationId, limit],
   );

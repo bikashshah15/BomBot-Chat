@@ -20,13 +20,6 @@
       "observable": true
     },
     {
-      "id": "D2",
-      "destination": "api.openai.com/v1/conversations",
-      "operator": "OpenAI",
-      "carriesInventory": true,
-      "observable": true
-    },
-    {
       "id": "D3",
       "destination": "api.osv.dev/v1/query",
       "operator": "Google",

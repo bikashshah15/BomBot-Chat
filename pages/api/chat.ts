@@ -1,11 +1,15 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { insertLog } from '../../lib/db/chatLogs.ts';
-import { createLlmGateway } from '../../lib/llm/gateway.ts';
+import {
+  ConversationSequenceConflictError,
+  getConversationSessionId,
+} from '../../lib/db/conversations.ts';
+import { completeConversationMessages } from '../../lib/llm/conversationHistory.ts';
 import {
   BOMBOT_INSTRUCTIONS,
   BOMBOT_LLM_TOOLS,
   formatOpenAIError,
-} from '../../lib/openai-responses';
+} from '../../lib/openai-responses.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ChatRequest {
@@ -32,6 +36,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    // This session UUID is a bearer capability, not authentication. It limits practical
+    // conversation enumeration but does not protect a capability obtained by another party.
+    if (await getConversationSessionId(conversationId) !== sessionId) {
+      return res.status(403).json({ error: 'Conversation does not belong to this session' });
+    }
+
     // Log user message to the application-owned datastore.
     try {
       const now = new Date().toISOString();
@@ -55,12 +65,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Continue with the chat even if logging fails
     }
 
-    const gateway = createLlmGateway({ openAI: { conversationId } });
-    const response = await gateway.complete({
-      messages: [
-        { role: 'system', content: BOMBOT_INSTRUCTIONS },
-        { role: 'user', content: message },
-      ],
+    const response = await completeConversationMessages({
+      conversationId,
+      instructions: BOMBOT_INSTRUCTIONS,
+      messages: [{ role: 'user', content: message }],
       tools: BOMBOT_LLM_TOOLS,
     });
 
@@ -80,6 +88,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error) {
+    if (error instanceof ConversationSequenceConflictError) {
+      return res.status(409).json({ error: 'Conversation changed while this message was submitted' });
+    }
     console.error('Chat API error:', error);
     res.status(500).json({ 
       error: 'Failed to send message to assistant',
