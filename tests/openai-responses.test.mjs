@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const CONFIGURATION_VARIABLES = [
+  'DATABASE_URL',
   'PROFILE',
   'LLM_BASE_URL',
   'LLM_MODEL',
@@ -20,6 +21,7 @@ const previousValues = new Map(
 );
 
 Object.assign(process.env, {
+  DATABASE_URL: 'postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic',
   PROFILE: 'hosted',
   LLM_BASE_URL: 'https://api.openai.test/v1',
   LLM_MODEL: 'gpt-4o',

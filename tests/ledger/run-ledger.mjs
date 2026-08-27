@@ -273,6 +273,7 @@ const child = spawn(process.execPath, [nextBinary, 'dev', '-H', '127.0.0.1', '-p
   env: {
     ...process.env,
     DEBUG: '',
+    DATABASE_URL: 'postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic',
     NODE_OPTIONS: nodeOptions,
     NEXT_TELEMETRY_DISABLED: '1',
     PROFILE: 'hosted',

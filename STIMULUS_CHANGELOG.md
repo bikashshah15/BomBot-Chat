@@ -66,3 +66,8 @@ Columns: date · increment · what changed · why · effect on the study.
 - Failed, cancelled, and incomplete Responses remain terminal with no retry, including a
   rate-limit failure returned inside a Response. Their distinct status and structured
   error details remain available for the later R-8 fix; this step adds no retry behavior.
+
+## 2026-08-27 — INC-04 Part A (unwired self-hosted Postgres scaffold)
+- Added local Postgres infrastructure, schema, and data-access scaffolding without importing
+  it from application code. Supabase remains the active logging path. Effect: no
+  participant-facing change and no stimulus delta.

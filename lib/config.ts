@@ -30,6 +30,10 @@ const outboundHttpUrl = z.string().trim().url().refine((value) => {
 }, 'must use http or https').transform(value => value.replace(/\/+$/, ''));
 
 const environmentSchema = z.object({
+  DATABASE_URL: z.string().trim().url().refine((value) => {
+    const protocol = new URL(value).protocol;
+    return protocol === 'postgres:' || protocol === 'postgresql:';
+  }, 'must use postgres or postgresql'),
   PROFILE: z.enum(['hosted', 'local']).default('hosted'),
   LLM_BASE_URL: z.string().trim().url().default('https://api.openai.com/v1'),
   LLM_MODEL: z.string().trim().min(1),
