@@ -81,3 +81,8 @@ Columns: date · increment · what changed · why · effect on the study.
   open decision #3 remains unanswered and requires Bikash/IRB direction.
 - Session UUIDs are bearer capabilities that prevent practical enumeration, not identity
   proof; disclosure of a UUID defeats the check and must be reflected in IRB materials.
+
+## 2026-08-27 — INC-05 Part A (unwired conversation-store scaffolding)
+- Added the app-owned conversation schema, migration path, data-access module, and bounded
+  history configuration without wiring them into any route or client code. Effect: zero
+  participant-facing change; no request, prompt, decoding parameter, or UI behavior changes.

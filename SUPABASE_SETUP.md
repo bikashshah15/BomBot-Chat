@@ -1,4 +1,20 @@
-> **Historical:** Supabase is no longer used by the application. This guide is retained only as migration history.
+> **Historical Supabase content:** Supabase is no longer used by the application. The
+> Supabase instructions below are retained only as migration history; current self-hosted
+> PostgreSQL migration instructions appear first.
+
+## Current self-hosted PostgreSQL schema migration
+
+Fresh Docker volumes receive `db/schema.sql` through the Postgres initialization mount.
+Postgres does not rerun that initialization for an existing volume. To apply additive
+schema changes without deleting existing `chat_logs` rows, configure `DATABASE_URL` and run:
+
+```bash
+npm run db:migrate
+```
+
+The command loads the local environment, applies the re-runnable schema to the current
+database, and preserves existing rows. Do not use `docker compose down -v` as a migration
+method because it deletes the database volume.
 
 # Supabase Chat Logging Setup Guide
 

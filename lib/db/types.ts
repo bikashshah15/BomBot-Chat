@@ -1,3 +1,5 @@
+import type { LlmToolCall } from '../llm/types.ts';
+
 export interface ChatLog {
   id: string;
   session_id: string;
@@ -45,4 +47,28 @@ export type NewChatLog = Pick<
   | 'user_email'
   | 'created_at'
   | 'updated_at'
+>;
+
+export type ConversationRole = 'system' | 'user' | 'assistant' | 'tool';
+
+export interface Conversation {
+  id: string;
+  session_id: string;
+  created_at: string;
+  retention_mode: string;
+}
+
+export interface ConversationMessage {
+  conversation_id: string;
+  seq: number;
+  role: ConversationRole;
+  content: string;
+  tool_call_id: string | null;
+  tool_calls: LlmToolCall[] | null;
+  created_at: string;
+}
+
+export type NewConversationMessage = Pick<
+  ConversationMessage,
+  'conversation_id' | 'seq' | 'role' | 'content' | 'tool_call_id' | 'tool_calls'
 >;

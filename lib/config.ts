@@ -1,8 +1,8 @@
-import { z, type ZodError, type ZodNumber } from 'zod';
+import { z, type ZodError } from 'zod';
 
 const DEFAULT_OSV_BASE_URL = 'https://api.osv.dev';
 
-function numericEnvironmentVariable(schema: ZodNumber) {
+function numericEnvironmentVariable(schema: z.ZodType<number>) {
   return z.preprocess((value) => {
     if (typeof value !== 'string') return value;
     const trimmed = value.trim();
@@ -43,6 +43,7 @@ const environmentSchema = z.object({
   RETENTION: z.enum(['study', 'ephemeral']).default('study'),
   PARTICIPANT_ID_MODE: z.enum(['email', 'pseudonymous']).default('email'),
   PARTICIPANT_ID_SALT: z.string().trim().min(32).optional(),
+  MAX_HISTORY_TURNS: numericEnvironmentVariable(z.number().finite().int().positive().default(20)),
   LLM_TEMPERATURE: numericEnvironmentVariable(z.number().finite().min(0).max(2)),
   LLM_TOP_P: numericEnvironmentVariable(z.number().finite().min(0).max(1)),
   LLM_MAX_OUTPUT_TOKENS: numericEnvironmentVariable(z.number().finite().int().positive()),

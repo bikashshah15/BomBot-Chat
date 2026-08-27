@@ -16,6 +16,7 @@
     "preview": "vite preview",
     "test": "node --test",
     "type-check": "tsc --noEmit",
+    "db:migrate": "node scripts/db-migrate.mjs",
     "ledger:build": "node tests/ledger/run-ledger.mjs",
     "ledger:check": "node tests/ledger/check.mjs",
     "lint": "eslint .",

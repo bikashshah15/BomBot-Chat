@@ -23,6 +23,26 @@ CREATE TABLE IF NOT EXISTS chat_logs (
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- App-owned conversation history. This is intentionally separate from chat_logs:
+-- chat_logs is the study log, while these rows reconstruct model context.
+CREATE TABLE IF NOT EXISTS conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    retention_mode TEXT NOT NULL DEFAULT 'standard'
+);
+
+CREATE TABLE IF NOT EXISTS conversation_messages (
+    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    seq INT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('system', 'user', 'assistant', 'tool')),
+    content TEXT NOT NULL,
+    tool_call_id TEXT,
+    tool_calls JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (conversation_id, seq)
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_chat_logs_session_id ON chat_logs(session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_logs_conversation_id ON chat_logs(conversation_id);
@@ -30,6 +50,9 @@ CREATE INDEX IF NOT EXISTS idx_chat_logs_message_index ON chat_logs(session_id, 
 CREATE INDEX IF NOT EXISTS idx_chat_logs_message_type ON chat_logs(message_type);
 CREATE INDEX IF NOT EXISTS idx_chat_logs_created_at ON chat_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_logs_session_activity ON chat_logs(session_last_activity DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_messages_conversation_seq
+    ON conversation_messages(conversation_id, seq);
 
 -- Create function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
