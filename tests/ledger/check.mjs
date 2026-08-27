@@ -71,4 +71,4 @@ for (const destination of ledger.destinations) {
 }
 console.log(`Inventory-carrying hosts: ${inventoryHosts.length}/${expected.maxInventoryCarryingHosts}`);
 console.log(`Oversize SPDX regression guard: ${ledger.regressionGuards.oversizeSpdxOsvQueries} OSV queries`);
-console.log('Manual deployment rows: Vercel edge/runtime and Vercel Analytics');
+console.log('Manual deployment rows: Vercel edge/runtime');

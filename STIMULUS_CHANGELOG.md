@@ -96,3 +96,7 @@ Columns: date · increment · what changed · why · effect on the study.
   is removed in INC-06.
 - Prompt content and prompt delivery through the `instructions` field are unchanged. Model,
   temperature, top-p, maximum output tokens, and seed behavior are also unchanged.
+
+## 2026-08-27 — INC-06 Part A (Vercel Analytics removal)
+- Removed the participant-facing Vercel Analytics client beacon. A beacon stops firing.
+  No visible behavior changes.

@@ -39,13 +39,6 @@
       "operator": "Vercel",
       "carriesInventory": true,
       "observable": false
-    },
-    {
-      "id": "D7",
-      "destination": "Vercel Analytics",
-      "operator": "Vercel",
-      "carriesInventory": false,
-      "observable": false
     }
   ]
 }

@@ -3,8 +3,6 @@ import { z } from 'zod';
 import { config } from './config.ts';
 import type { LlmToolDef } from './llm/types.ts';
 
-export const OPENAI_MODEL = process.env.OPENAI_MODEL?.trim() || 'gpt-4o';
-export const LLM_BASE_URL = process.env.LLM_BASE_URL?.trim() || undefined;
 export const MAX_FUNCTION_CALL_ROUNDS = 8;
 export const TOOL_ROUND_METADATA_KEY = 'bombot_tool_round';
 
@@ -296,70 +294,6 @@ const toolArgumentSchemas = {
 
 export type BombotToolName = keyof typeof toolArgumentSchemas;
 
-let openAIClient: OpenAI | null = null;
-
-export function getOpenAIClient(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not configured');
-  }
-
-  if (!openAIClient) {
-    openAIClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      ...(LLM_BASE_URL ? { baseURL: LLM_BASE_URL } : {}),
-    });
-  }
-
-  return openAIClient;
-}
-
-export async function createConversation(client: OpenAI = getOpenAIClient()) {
-  return client.conversations.create();
-}
-
-export async function createBackgroundResponse(
-  conversationId: string,
-  input: string | OpenAI.Responses.ResponseInput,
-  client: OpenAI = getOpenAIClient(),
-  options: {
-    toolRound?: number;
-    sourceResponseId?: string;
-  } = {},
-) {
-  const toolRound = options.toolRound ?? 0;
-  if (!Number.isInteger(toolRound) || toolRound < 0 || toolRound > MAX_FUNCTION_CALL_ROUNDS) {
-    throw new Error(`Invalid function-calling round: ${toolRound}`);
-  }
-
-  const request = {
-    model: OPENAI_MODEL,
-    conversation: conversationId,
-    instructions: BOMBOT_INSTRUCTIONS,
-    tools: BOMBOT_TOOLS,
-    input,
-    background: true,
-    store: true,
-    parallel_tool_calls: true,
-    metadata: {
-      [TOOL_ROUND_METADATA_KEY]: String(toolRound),
-    },
-  };
-
-  if (!options.sourceResponseId) {
-    return client.responses.create(request);
-  }
-
-  const idempotencyKey = getToolContinuationIdempotencyKey(options.sourceResponseId);
-  return client.responses.create(request, {
-    idempotencyKey,
-    // The base OpenAI client exposes idempotencyKey in RequestOptions but does not
-    // configure an automatic idempotency header, so send the standard header too.
-    headers: {
-      'Idempotency-Key': idempotencyKey,
-    },
-  });
-}
-
 export function getToolContinuationIdempotencyKey(sourceResponseId: string): string {
   return `bombot-tool-successor-${sourceResponseId}`;
 }
@@ -372,13 +306,6 @@ export function getFunctionCallingRound(response: OpenAI.Responses.Response): nu
 
   const round = Number.parseInt(value, 10);
   return Number.isSafeInteger(round) ? round : 0;
-}
-
-export async function retrieveResponse(
-  responseId: string,
-  client: OpenAI = getOpenAIClient(),
-) {
-  return client.responses.retrieve(responseId);
 }
 
 export function getFunctionCalls(response: OpenAI.Responses.Response) {
@@ -528,85 +455,4 @@ export async function executeFunctionCall(
       });
     }
   }
-}
-
-async function buildToolOutputs(
-  toolCalls: OpenAI.Responses.ResponseFunctionToolCall[],
-  fetchImplementation: typeof fetch,
-): Promise<OpenAI.Responses.ResponseInput> {
-  const outputs: OpenAI.Responses.ResponseInput = [];
-
-  for (const toolCall of toolCalls) {
-    try {
-      console.log(`Executing function: ${toolCall.name}`);
-      outputs.push({
-        type: 'function_call_output',
-        call_id: toolCall.call_id,
-        output: await executeFunctionCall(toolCall.name, toolCall.arguments, fetchImplementation),
-      });
-    } catch (error) {
-      console.error(`Function execution error for ${toolCall.name}:`, error);
-      outputs.push({
-        type: 'function_call_output',
-        call_id: toolCall.call_id,
-        output: JSON.stringify({
-          error: error instanceof Error ? error.message : 'Function execution failed',
-          success: false,
-        }),
-      });
-    }
-  }
-
-  return outputs;
-}
-
-export interface ToolLoopResult {
-  response: OpenAI.Responses.Response;
-  responseId: string;
-  successorResponseIds: string[];
-  toolCallsProcessed: number;
-}
-
-// A completed Response can contain function calls rather than final text. Execute
-// those calls, create the successor Response with function_call_output items, and
-// repeat only while Responses complete synchronously. Each successor persists the
-// chain-wide round number in Response metadata so queued/in_progress polling cannot
-// reset the limit. A source-derived idempotency key prevents duplicate polls from
-// branching the chain.
-export async function continueFunctionCallingLoop(
-  initialResponse: OpenAI.Responses.Response,
-  conversationId: string,
-  client: OpenAI = getOpenAIClient(),
-  fetchImplementation: typeof fetch = fetch,
-): Promise<ToolLoopResult> {
-  let response = initialResponse;
-  const successorResponseIds: string[] = [];
-  let toolCallsProcessed = 0;
-
-  while (response.status === 'completed') {
-    const toolCalls = getFunctionCalls(response);
-    if (toolCalls.length === 0) {
-      break;
-    }
-
-    const currentRound = getFunctionCallingRound(response);
-    if (currentRound >= MAX_FUNCTION_CALL_ROUNDS) {
-      throw new Error(`Function calling exceeded the maximum of ${MAX_FUNCTION_CALL_ROUNDS} consecutive rounds`);
-    }
-
-    const toolOutputs = await buildToolOutputs(toolCalls, fetchImplementation);
-    toolCallsProcessed += toolCalls.length;
-    response = await createBackgroundResponse(conversationId, toolOutputs, client, {
-      toolRound: currentRound + 1,
-      sourceResponseId: response.id,
-    });
-    successorResponseIds.push(response.id);
-  }
-
-  return {
-    response,
-    responseId: response.id,
-    successorResponseIds,
-    toolCallsProcessed,
-  };
 }

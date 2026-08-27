@@ -8,8 +8,14 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
+const publicDistDir = join(projectRoot, 'public', 'dist');
 
 console.log('🚀 Building full-stack BOMbot application...');
+
+// Remove the previous UI copy before Vite can copy public/ into dist/.
+if (existsSync(publicDistDir)) {
+  execSync(`rm -rf "${publicDistDir}"`, { cwd: projectRoot });
+}
 
 // Step 1: Build the UI with Vite
 console.log('📦 Building UI with Vite...');
@@ -27,7 +33,6 @@ try {
 // Step 2: Copy UI build contents to Next.js public/dist folder
 console.log('📁 Copying UI build to Next.js public folder...');
 const distDir = join(projectRoot, 'dist');
-const publicDistDir = join(projectRoot, 'public', 'dist');
 
 function copyRecursive(src, dest) {
   if (!existsSync(dest)) {
@@ -50,11 +55,6 @@ function copyRecursive(src, dest) {
 
 try {
   if (existsSync(distDir)) {
-    // Remove existing public/dist directory to avoid conflicts
-    if (existsSync(publicDistDir)) {
-      execSync(`rm -rf "${publicDistDir}"`, { cwd: projectRoot });
-    }
-    
     // Copy the CONTENTS of dist folder, not the dist folder itself
     copyRecursive(distDir, publicDistDir);
     console.log('✅ UI files copied to public/dist');
@@ -81,4 +81,4 @@ try {
 }
 
 console.log('🎉 Full-stack build completed successfully!');
-console.log('🌐 Ready for deployment with both UI and API integrated'); 
+console.log('🌐 Ready for deployment with both UI and API integrated');

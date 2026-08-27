@@ -1,6 +1,6 @@
 {
   "profile": "hosted",
-  "generatedAt": "2026-08-27T21:25:03.766Z",
+  "generatedAt": "2026-08-27T22:01:30.252Z",
   "fixture": "tests/fixtures/small-spdx.json",
   "destinations": [
     {
@@ -102,13 +102,6 @@
       "destination": "Vercel edge + runtime",
       "operator": "Vercel",
       "carriesInventory": true,
-      "observable": false
-    },
-    {
-      "id": "D7",
-      "destination": "Vercel Analytics",
-      "operator": "Vercel",
-      "carriesInventory": false,
       "observable": false
     }
   ]

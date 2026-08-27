@@ -214,11 +214,9 @@ Automated result: **${ledger.destinations.filter(item => item.carriesInventory).
 | D3 | \`api.osv.dev/v1/query\` | Google | **Yes** | ${requestCount(record => record.host === 'api.osv.dev' && record.url.includes('/v1/query'))} intercepted package queries with inventory markers | \`upload.ts\`, \`osv-query.ts\`, \`openai-responses.ts\` |
 | D4 | \`api.osv.dev/v1/vulns/{id}\` | Google | Partially | ${requestCount(record => record.host === 'api.osv.dev' && record.url.includes('/v1/vulns/'))} intercepted CVE lookup; identifier is in the URL rather than the request body | \`osv-query.ts\`, \`openai-responses.ts\` |
 | D6 | Vercel edge + runtime | Vercel | **Yes** | **Manual deployment property; not observable from in-process interception** | deployment property; \`vercel.json\` |
-| D7 | Vercel Analytics | Vercel | No (page telemetry) | **Manual deployment property; not observable from in-process interception** | \`src/App.tsx\` |
 
-Vercel TLS termination/runtime handling (D6) and Vercel Analytics (D7) must remain
-manual rows. Their absence from automated interception must not be read as absence from
-the deployed system.
+Vercel TLS termination/runtime handling (D6) must remain a manual row. Its absence from
+automated interception must not be read as absence from the deployed system.
 
 INC-05 removes OpenAI-hosted conversation retention (former row D2), but **transit
 disclosure is unchanged**: the same inventory-derived content still crosses the same
@@ -303,9 +301,7 @@ const child = spawn(process.execPath, [nextBinary, 'dev', '-H', '127.0.0.1', '-p
     NODE_OPTIONS: nodeOptions,
     NEXT_TELEMETRY_DISABLED: '1',
     PROFILE: 'hosted',
-    OPENAI_API_KEY: 'synthetic-ledger-openai-key',
     LLM_API_KEY: 'synthetic-ledger-llm-key',
-    OPENAI_MODEL: 'gpt-4o',
     LLM_BASE_URL: `${sink.origin}/proxy/api.openai.com/v1`,
     LLM_MODEL: 'gpt-4o',
     LLM_TEMPERATURE: '0',

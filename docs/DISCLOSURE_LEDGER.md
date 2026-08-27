@@ -16,7 +16,7 @@ markers present in every request. No live OpenAI credits or live external endpoi
 
 Automated result: **2 inventory-carrying hosts** out of the allowed maximum of **2**.
 
-## 5-row current-state disclosure ledger
+## 4-row current-state disclosure ledger
 
 | ID | Destination | Operator | Carries SBOM-derived content? | Observation | Code site |
 |---|---|---|---|---|---|
@@ -24,11 +24,9 @@ Automated result: **2 inventory-carrying hosts** out of the allowed maximum of *
 | D3 | `api.osv.dev/v1/query` | Google | **Yes** | 164 intercepted package queries with inventory markers | `upload.ts`, `osv-query.ts`, `openai-responses.ts` |
 | D4 | `api.osv.dev/v1/vulns/{id}` | Google | Partially | 1 intercepted CVE lookup; identifier is in the URL rather than the request body | `osv-query.ts`, `openai-responses.ts` |
 | D6 | Vercel edge + runtime | Vercel | **Yes** | **Manual deployment property; not observable from in-process interception** | deployment property; `vercel.json` |
-| D7 | Vercel Analytics | Vercel | No (page telemetry) | **Manual deployment property; not observable from in-process interception** | `src/App.tsx` |
 
-Vercel TLS termination/runtime handling (D6) and Vercel Analytics (D7) must remain
-manual rows. Their absence from automated interception must not be read as absence from
-the deployed system.
+Vercel TLS termination/runtime handling (D6) must remain a manual row. Its absence from
+automated interception must not be read as absence from the deployed system.
 
 INC-05 removes OpenAI-hosted conversation retention (former row D2), but **transit
 disclosure is unchanged**: the same inventory-derived content still crosses the same
