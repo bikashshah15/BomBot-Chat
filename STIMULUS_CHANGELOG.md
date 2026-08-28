@@ -119,3 +119,8 @@ Columns: date · increment · what changed · why · effect on the study.
   This context-composition change affects the default and tool-enabled arms identically.
 - Direct CVE-form input is now validated and URL-encoded before an OSV request. Letter casing
   is deliberately preserved, so lower-case identifiers do not gain new resolution behavior.
+
+## 2026-08-28 — INC-08 Part A (unwired context builder)
+- Added and tested the pure `SoftwareContext` builder without importing or calling it from any
+  application route. Effect: no participant-facing stimulus change; prompt content, model
+  parameters, tool availability, OSV scan coverage, and outbound request behavior are unchanged.
