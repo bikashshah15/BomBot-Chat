@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { config } from '../../lib/config.ts';
 import { updateAiResponse } from '../../lib/db/chatLogs.ts';
 import {
   ConversationSequenceConflictError,
@@ -27,6 +28,7 @@ interface AssistantTurnDependencies {
   streamMessages: typeof streamConversationMessages;
   executeTool: typeof executeFunctionCall;
   updateAiResponse: typeof updateAiResponse;
+  enableModelToolCalls: boolean;
 }
 
 const defaultTurnDependencies: AssistantTurnDependencies = {
@@ -34,6 +36,7 @@ const defaultTurnDependencies: AssistantTurnDependencies = {
   streamMessages: streamConversationMessages,
   executeTool: executeFunctionCall,
   updateAiResponse,
+  enableModelToolCalls: config.ENABLE_MODEL_TOOL_CALLS,
 };
 
 function getResponseErrorMessage(response: LlmResult): string {
@@ -105,7 +108,7 @@ export async function runAssistantTurn(
     conversationId: options.conversationId,
     instructions: BOMBOT_INSTRUCTIONS,
     messages,
-    tools: BOMBOT_LLM_TOOLS,
+    ...(dependencies.enableModelToolCalls ? { tools: BOMBOT_LLM_TOOLS } : {}),
     ...(continuation ? { continuation } : {}),
     onChunk(chunk) {
       if (chunk.delta) emit('delta', { delta: chunk.delta });

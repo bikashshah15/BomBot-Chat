@@ -5,6 +5,7 @@ import {
   getConversationSessionId,
 } from '../../lib/db/conversations.ts';
 import { appendConversationMessages } from '../../lib/llm/conversationHistory.ts';
+import { cveQuerySchema } from '../../lib/openai-responses.ts';
 
 interface OSVQueryRequest {
   version?: string;
@@ -72,6 +73,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
+  let cveId: string | undefined;
+  if (cve) {
+    const parsedCve = cveQuerySchema.safeParse({ cve_id: cve });
+    if (!parsedCve.success) {
+      return res.status(400).json({
+        error: 'Invalid CVE ID',
+        details: parsedCve.error.issues.map(issue => issue.message).join(', '),
+      });
+    }
+    cveId = parsedCve.data.cve_id;
+  }
+
   try {
     if (conversationId) {
       // This session UUID is a bearer capability, not authentication. It limits practical
@@ -84,9 +97,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let response: Response;
     let data: OSVVulnerability | OSVQueryResponse;
 
-    if (cve) {
+    if (cveId) {
       // Query specific CVE
-      response = await fetch(`${environmentConfig.OSV_BASE_URL}/v1/vulns/${cve}`, {
+      response = await fetch(`${environmentConfig.OSV_BASE_URL}/v1/vulns/${encodeURIComponent(cveId)}`, {
         method: 'GET',
         headers: { 
           'Content-Type': 'application/json',
@@ -97,7 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!response.ok) {
         if (response.status === 404) {
           return res.status(404).json({ 
-            error: `CVE ${cve} not found in OSV database` 
+            error: `CVE ${cveId} not found in OSV database`
           });
         }
         throw new Error(`OSV API error: ${response.status}`);
@@ -135,9 +148,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       try {
         let messageContent: string;
         
-        if (cve) {
+        if (cveId) {
           const vuln = data as OSVVulnerability;
-          messageContent = `Here are the details for CVE ${cve}:\n\n${JSON.stringify(vuln, null, 2)}\n\nPlease provide a QUICK summary with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and suggest I can ask for "detailed analysis" if needed.`;
+          messageContent = `Here are the details for CVE ${cveId}:\n\n${JSON.stringify(vuln, null, 2)}\n\nPlease provide a QUICK summary with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and suggest I can ask for "detailed analysis" if needed.`;
         } else {
           const queryResult = data as OSVQueryResponse;
           const vulnCount = queryResult.vulns?.length || 0;
@@ -159,7 +172,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           result: data,
           conversationId,
           threadId: conversationId,
-          query: cve ? { cve } : { name, ecosystem, version }
+          query: cveId ? { cve: cveId } : { name, ecosystem, version }
         });
       } catch (assistantError) {
         if (assistantError instanceof ConversationSequenceConflictError) {
@@ -170,7 +183,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ 
           result: data,
           assistantError: 'Failed to send to AI assistant',
-          query: cve ? { cve } : { name, ecosystem, version }
+          query: cveId ? { cve: cveId } : { name, ecosystem, version }
         });
       }
     }
@@ -179,7 +192,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json({ 
       success: true,
       result: data,
-      query: cve ? { cve } : { name, ecosystem, version }
+      query: cveId ? { cve: cveId } : { name, ecosystem, version }
     });
 
   } catch (error) {

@@ -158,7 +158,10 @@ export async function startLedgerSink() {
         const requestsLodashTool = requestBody.input?.some(item => (
             item.role === 'user'
             && item.content === 'What vulnerabilities affect lodash 4.17.20?'
-          )) && !requestBody.input?.some(item => item.type === 'function_call_output');
+          ))
+          && Array.isArray(requestBody.tools)
+          && requestBody.tools.length > 0
+          && !requestBody.input?.some(item => item.type === 'function_call_output');
         const value = requestsLodashTool
           ? openAIToolResponse(id)
           : openAIResponse(id);

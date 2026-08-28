@@ -64,10 +64,11 @@ export async function appendConversationMessage(
       role,
       content,
       tool_call_id,
-      tool_calls
-    ) VALUES ($1, $2, $3, $4, $5, $6)
+      tool_calls,
+      pinned
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
     ON CONFLICT (conversation_id, seq) DO NOTHING
-    RETURNING conversation_id, seq, role, content, tool_call_id, tool_calls, created_at`,
+    RETURNING conversation_id, seq, role, content, tool_call_id, tool_calls, pinned, created_at`,
     [
       message.conversation_id,
       message.seq,
@@ -75,6 +76,7 @@ export async function appendConversationMessage(
       message.content,
       message.tool_call_id,
       message.tool_calls === null ? null : JSON.stringify(message.tool_calls),
+      message.pinned ?? false,
     ],
   );
 
@@ -101,7 +103,7 @@ export async function getConversationMessages(
 
   const result = await dbPool.query<ConversationMessageRow>(
     `WITH recent_messages AS (
-      SELECT conversation_id, seq, role, content, tool_call_id, tool_calls, created_at
+      SELECT conversation_id, seq, role, content, tool_call_id, tool_calls, pinned, created_at
       FROM conversation_messages
       WHERE conversation_id = $1
       ORDER BY seq DESC
@@ -127,10 +129,10 @@ export async function getConversationMessages(
       END AS seq
       FROM window_start
     )
-    SELECT conversation_id, seq, role, content, tool_call_id, tool_calls, created_at
+    SELECT conversation_id, seq, role, content, tool_call_id, tool_calls, pinned, created_at
     FROM conversation_messages
     WHERE conversation_id = $1
-      AND seq >= (SELECT seq FROM replay_start)
+      AND (seq >= (SELECT seq FROM replay_start) OR pinned)
     ORDER BY seq ASC`,
     [conversationId, limit],
   );

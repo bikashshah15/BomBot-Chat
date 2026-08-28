@@ -39,9 +39,14 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
     content TEXT NOT NULL,
     tool_call_id TEXT,
     tool_calls JSONB,
+    pinned BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (conversation_id, seq)
 );
+
+-- CREATE TABLE IF NOT EXISTS does not update databases created before pinned existed.
+ALTER TABLE conversation_messages
+    ADD COLUMN IF NOT EXISTS pinned BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_chat_logs_session_id ON chat_logs(session_id);

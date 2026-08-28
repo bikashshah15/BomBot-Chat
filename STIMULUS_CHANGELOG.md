@@ -108,3 +108,14 @@ Columns: date · increment · what changed · why · effect on the study.
 - The server emits incremental deltas, but the client buffers them and renders the assistant
   message once, complete, at `done`. Message rendering, visible status text, spinner
   placement, prompt content, and decoding parameters did not change.
+
+## 2026-08-28 — INC-07 (deterministic pre-scan becomes authoritative)
+- Model-initiated tool calling now defaults off, so the upload-time OSV pre-scan is the only
+  vulnerability-data path used by default. The comparison arm remains available through
+  `ENABLE_MODEL_TOOL_CALLS=true`. This is the largest stimulus change since INC-03: the
+  pipeline that answers a participant's question is different by default.
+- The authoritative upload scan row is pinned into model context after it would otherwise
+  leave the 20-message replay window, previously at roughly the tenth subsequent question.
+  This context-composition change affects the default and tool-enabled arms identically.
+- Direct CVE-form input is now validated and URL-encoded before an OSV request. Letter casing
+  is deliberately preserved, so lower-case identifiers do not gain new resolution behavior.

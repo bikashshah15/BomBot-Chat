@@ -271,7 +271,7 @@ const packageQuerySchema = z.object({
   version: z.string().trim().min(1).optional(),
 }).strict();
 
-const cveQuerySchema = z.object({
+export const cveQuerySchema = z.object({
   cve_id: z.string().trim().regex(/^CVE-\d{4}-\d{4,}$/i, 'Expected a CVE identifier'),
 }).strict();
 

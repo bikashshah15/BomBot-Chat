@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 const expectedUrl = new URL('./expected.json', import.meta.url);
 const ledgerUrl = new URL('./ledger-current.json', import.meta.url);
+const smallSpdxFixtureUrl = new URL('../fixtures/small-spdx.json', import.meta.url);
 
 function hostMatches(pattern, host) {
   if (pattern.startsWith('*.')) {
@@ -14,6 +15,7 @@ function hostMatches(pattern, host) {
 
 const expected = JSON.parse(fs.readFileSync(expectedUrl, 'utf8'));
 const ledger = JSON.parse(fs.readFileSync(ledgerUrl, 'utf8'));
+const smallSpdxFixture = JSON.parse(fs.readFileSync(smallSpdxFixtureUrl, 'utf8'));
 const failures = [];
 
 if (ledger.profile !== expected.profile) {
@@ -61,6 +63,15 @@ if (ledger.regressionGuards?.oversizeSpdxOsvQueries !== 150) {
   );
 }
 
+const smallSpdxPackageCount = smallSpdxFixture.packages?.length;
+if (!Number.isInteger(smallSpdxPackageCount)) {
+  failures.push('Small SPDX fixture does not contain a packages array');
+} else if (ledger.runs?.smallSpdx?.osvRequestCount !== smallSpdxPackageCount) {
+  failures.push(
+    `Small SPDX run expected ${smallSpdxPackageCount} OSV queries, observed ${ledger.runs?.smallSpdx?.osvRequestCount}`,
+  );
+}
+
 assert.equal(failures.length, 0, failures.join('\n'));
 
 console.log(`Ledger check passed for profile: ${ledger.profile}`);
@@ -70,5 +81,6 @@ for (const destination of ledger.destinations) {
   );
 }
 console.log(`Inventory-carrying hosts: ${inventoryHosts.length}/${expected.maxInventoryCarryingHosts}`);
+console.log(`Small SPDX run: ${ledger.runs.smallSpdx.osvRequestCount} OSV queries for ${smallSpdxPackageCount} fixture packages`);
 console.log(`Oversize SPDX regression guard: ${ledger.regressionGuards.oversizeSpdxOsvQueries} OSV queries`);
 console.log('Manual deployment rows: Vercel edge/runtime');

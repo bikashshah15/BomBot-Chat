@@ -17,6 +17,7 @@ async function appendMessages(
   conversationId: string,
   messages: LlmMessage[],
   nextSeq: number,
+  pinned = false,
 ): Promise<number> {
   for (const message of messages) {
     await appendConversationMessageOrThrow({
@@ -26,6 +27,7 @@ async function appendMessages(
       content: message.content,
       tool_call_id: message.toolCallId ?? null,
       tool_calls: message.toolCalls ?? null,
+      pinned,
     });
     nextSeq += 1;
   }
@@ -47,7 +49,7 @@ export async function loadConversationHistory(conversationId: string): Promise<{
   messages: LlmMessage[];
   nextSeq: number;
 }> {
-  const rows = await getConversationMessages(conversationId, config.MAX_HISTORY_TURNS);
+  const rows = await getConversationMessages(conversationId, config.MAX_HISTORY_MESSAGES);
   return {
     rows,
     messages: rows.map(toLlmMessage),
@@ -59,7 +61,7 @@ export async function completeConversationMessages(options: {
   conversationId: string;
   instructions: string;
   messages: LlmMessage[];
-  tools: LlmToolDef[];
+  tools?: LlmToolDef[];
   continuation?: LlmContinuation;
 }): Promise<LlmResult> {
   const history = await loadConversationHistory(options.conversationId);
@@ -87,6 +89,7 @@ export async function completeConversationMessages(options: {
     content: response.content,
     tool_call_id: null,
     tool_calls: response.toolCalls.length > 0 ? response.toolCalls : null,
+    pinned: false,
   });
 
   return response;
@@ -95,16 +98,22 @@ export async function completeConversationMessages(options: {
 export async function appendConversationMessages(options: {
   conversationId: string;
   messages: LlmMessage[];
+  pinned?: boolean;
 }): Promise<void> {
   const history = await loadConversationHistory(options.conversationId);
-  await appendMessages(options.conversationId, options.messages, history.nextSeq);
+  await appendMessages(
+    options.conversationId,
+    options.messages,
+    history.nextSeq,
+    options.pinned ?? false,
+  );
 }
 
 export async function streamConversationMessages(options: {
   conversationId: string;
   instructions: string;
   messages: LlmMessage[];
-  tools: LlmToolDef[];
+  tools?: LlmToolDef[];
   continuation?: LlmContinuation;
   onChunk?: (chunk: LlmChunk) => void | Promise<void>;
 }): Promise<LlmResult> {
@@ -152,6 +161,7 @@ export async function streamConversationMessages(options: {
     content: response.content,
     tool_call_id: null,
     tool_calls: response.toolCalls.length > 0 ? response.toolCalls : null,
+    pinned: false,
   });
 
   return response;

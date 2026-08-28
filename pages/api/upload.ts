@@ -532,6 +532,7 @@ ${existingConversationId ?
     await appendConversationMessages({
       conversationId,
       messages: [{ role: 'user', content: responseInput }],
+      pinned: true,
     });
 
     if (existingConversationId) {

@@ -121,6 +121,7 @@ async function streamToCompletion(appOrigin, conversationId, sessionId, messageI
   assert.ok(done);
   assert.equal(typeof done.data.response, 'string');
   assert.ok(done.data.response.length > 0);
+  assert.equal(events.filter(event => event.event === 'tool_start').length, 0);
   return done.data;
 }
 
@@ -223,6 +224,7 @@ receives in transit.
 ## Regression guards
 
 - The synthetic 200-package SPDX fixture produced exactly **${ledger.regressionGuards.oversizeSpdxOsvQueries}** OSV package queries.
+- The synthetic small SPDX run produced exactly **${ledger.runs.smallSpdx.osvRequestCount}** OSV package queries for its fixture package set.
 - This makes the existing 150-package cap observable. It is a regression guard, not evidence that a live study input was truncated.
 - INC-01 changes observation only; it does not change the cap or application request behavior.
 
@@ -326,6 +328,7 @@ child.stderr.on('data', collectLog);
 const readLogs = () => childLogs.join('');
 
 let oversizeSpdxOsvQueries;
+let smallSpdxOsvQueries;
 const sessionId = 'ledger-synthetic-session';
 const oversizeSessionId = 'ledger-oversize-session';
 let databaseReady = false;
@@ -341,10 +344,13 @@ try {
   const malformed = await uploadFixture(appOrigin, 'malformed.json', { sessionId }, [400]);
   assert.match(malformed.error, /No packages found/);
 
+  const beforeSmallSpdx = countSinkRequests(sink.requests, 'api.osv.dev', '/v1/query', 'POST');
   const upload = await uploadFixture(appOrigin, 'small-spdx.json', {
     sessionId,
     messageIndex: 1,
   });
+  const afterSmallSpdx = countSinkRequests(sink.requests, 'api.osv.dev', '/v1/query', 'POST');
+  smallSpdxOsvQueries = afterSmallSpdx - beforeSmallSpdx;
   assert.equal(upload.packagesScanned, 12);
   assert.equal(upload.totalPackages, 12);
   await streamToCompletion(appOrigin, upload.conversationId, sessionId, 1);
@@ -406,7 +412,7 @@ try {
     && request.path === '/v1/responses'
     && request.method === 'POST'
   ));
-  assert.equal(modelRequests.length, 10);
+  assert.equal(modelRequests.length, 9);
   const modelRequestBodies = modelRequests.map(request => JSON.parse(request.body));
   for (const body of modelRequestBodies) {
     assert.equal(body.temperature, 0);
@@ -418,6 +424,7 @@ try {
     assert.equal(body.conversation, undefined);
     assert.equal(body.instructions, BOMBOT_INSTRUCTIONS);
     assert.equal(body.input.some(item => item.role === 'system'), false);
+    assert.equal(Object.hasOwn(body, 'tools'), false);
   }
   const secondTurnRequest = modelRequestBodies.find(body => body.input.some(item => (
     item.role === 'user' && item.content === questions[1]
@@ -430,11 +437,7 @@ try {
   const continuationRequests = modelRequestBodies.filter(body => (
     body.input.at(-1)?.type === 'function_call_output'
   ));
-  assert.equal(continuationRequests.length, 1);
-  assert.ok(continuationRequests[0].input.some(item => (
-    item.type === 'function_call_output'
-    && item.call_id?.startsWith('call_resp_ledger_')
-  )));
+  assert.equal(continuationRequests.length, 0);
 
   const persistedLogs = await database.query(
     `SELECT
@@ -492,6 +495,12 @@ const ledger = {
   profile: expected.profile,
   generatedAt: new Date().toISOString(),
   fixture: 'tests/fixtures/small-spdx.json',
+  runs: {
+    smallSpdx: {
+      fixture: 'tests/fixtures/small-spdx.json',
+      osvRequestCount: smallSpdxOsvQueries,
+    },
+  },
   destinations,
   instrumentation: {
     sinkRequestCount: sink.requests.length,
@@ -520,5 +529,6 @@ for (const destination of destinations) {
   );
 }
 console.log(`Sink/interceptor requests: ${sink.requests.length}/${interceptRecords.length}`);
+console.log(`Small SPDX run: ${smallSpdxOsvQueries} OSV queries`);
 console.log(`Oversize SPDX regression guard: ${oversizeSpdxOsvQueries} OSV queries for 200 packages`);
 console.log('Live OpenAI credits consumed: 0');

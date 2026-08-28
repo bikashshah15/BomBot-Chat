@@ -106,6 +106,46 @@ test('a simulated 60-second generation receives four 15-second heartbeats and co
   assert.equal(response.ended, true);
 });
 
+test('model tools are absent from every request when model tool calls are disabled', async () => {
+  const calls = [];
+  const events = [];
+
+  await runAssistantTurn(
+    { conversationId: 'conversation_synthetic', sessionId: 'session_synthetic' },
+    (event, data) => events.push({ event, data }),
+    {
+      async loadHistory() {
+        return {
+          rows: [{ role: 'user', tool_calls: null }],
+          messages: [{ role: 'user', content: 'synthetic turn' }],
+          nextSeq: 2,
+        };
+      },
+      async streamMessages(options) {
+        calls.push(options);
+        return {
+          content: 'deterministic pre-scan answer',
+          toolCalls: [],
+          done: true,
+          responseId: 'response_without_tools',
+          status: 'completed',
+        };
+      },
+      async executeTool() {
+        throw new Error('No tool should execute');
+      },
+      async updateAiResponse() {
+        return [];
+      },
+      enableModelToolCalls: false,
+    },
+  );
+
+  assert.equal(calls.length, 1);
+  assert.equal(Object.hasOwn(calls[0], 'tools'), false);
+  assert.equal(events.some(event => event.event === 'tool_start'), false);
+});
+
 test('tool continuation emits round events and returns the final streamed response', async () => {
   const calls = [];
   const events = [];
@@ -149,6 +189,7 @@ test('tool continuation emits round events and returns the final streamed respon
       async updateAiResponse() {
         return [];
       },
+      enableModelToolCalls: true,
     },
   );
 
@@ -205,6 +246,7 @@ test('tool continuation remains bounded by MAX_FUNCTION_CALL_ROUNDS', async () =
         async updateAiResponse() {
           return [];
         },
+        enableModelToolCalls: true,
       },
     ),
     /Function calling exceeded the maximum of 8 consecutive rounds/,

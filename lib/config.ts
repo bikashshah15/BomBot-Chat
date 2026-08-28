@@ -10,6 +10,16 @@ function numericEnvironmentVariable(schema: z.ZodType<number>) {
   }, schema);
 }
 
+function booleanEnvironmentVariable(schema: z.ZodType<boolean>) {
+  return z.preprocess((value) => {
+    if (typeof value !== 'string') return value;
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+    return value;
+  }, schema);
+}
+
 const nullableNumber = z.preprocess((value) => {
   if (value === undefined || value === null) return null;
   if (typeof value === 'string') {
@@ -43,7 +53,8 @@ const environmentSchema = z.object({
   RETENTION: z.enum(['study', 'ephemeral']).default('study'),
   PARTICIPANT_ID_MODE: z.enum(['email', 'pseudonymous']).default('email'),
   PARTICIPANT_ID_SALT: z.string().trim().min(32).optional(),
-  MAX_HISTORY_TURNS: numericEnvironmentVariable(z.number().finite().int().positive().default(20)),
+  MAX_HISTORY_MESSAGES: numericEnvironmentVariable(z.number().finite().int().positive().default(20)),
+  ENABLE_MODEL_TOOL_CALLS: booleanEnvironmentVariable(z.boolean().default(false)),
   LLM_TEMPERATURE: numericEnvironmentVariable(z.number().finite().min(0).max(2)),
   LLM_TOP_P: numericEnvironmentVariable(z.number().finite().min(0).max(1)),
   LLM_MAX_OUTPUT_TOKENS: numericEnvironmentVariable(z.number().finite().int().positive()),

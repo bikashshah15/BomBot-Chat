@@ -65,10 +65,11 @@ export interface ConversationMessage {
   content: string;
   tool_call_id: string | null;
   tool_calls: LlmToolCall[] | null;
+  pinned: boolean;
   created_at: string;
 }
 
 export type NewConversationMessage = Pick<
   ConversationMessage,
   'conversation_id' | 'seq' | 'role' | 'content' | 'tool_call_id' | 'tool_calls'
->;
+> & { pinned?: boolean };
