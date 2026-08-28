@@ -11,7 +11,7 @@ markers present in every request. No live OpenAI credits or live external endpoi
 
 | Host | Requests | Carries SBOM-derived content? | Maximum request body (bytes) |
 |---|---:|---|---:|
-| `api.openai.com` | 9 | **Yes** | 42091 |
+| `api.openai.com` | 9 | **Yes** | 34198 |
 | `api.osv.dev` | 164 | **Yes** | 88 |
 
 Automated result: **2 inventory-carrying hosts** out of the allowed maximum of **2**.

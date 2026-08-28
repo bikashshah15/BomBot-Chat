@@ -124,3 +124,11 @@ Columns: date · increment · what changed · why · effect on the study.
 - Added and tested the pure `SoftwareContext` builder without importing or calling it from any
   application route. Effect: no participant-facing stimulus change; prompt content, model
   parameters, tool availability, OSV scan coverage, and outbound request behavior are unchanged.
+
+## 2026-08-28 — INC-08 Part B (minimized upload context)
+- Replaced the upload prompt's three raw JSON data dumps with one minimized structured
+  `SoftwareContext`. Package inventory, versions, and normalized dependency edges remain, while
+  verbose vulnerability details, references, database metadata, and credits are omitted.
+- The participant-facing instruction text is unchanged; only its preceding data payload changed.
+  The payload now states total and scanned package counts, exposes truncation as a boolean, and
+  adds a prose warning when the 150-package scan cap leaves packages unscanned.

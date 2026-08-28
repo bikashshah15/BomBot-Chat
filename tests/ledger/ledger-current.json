@@ -1,6 +1,6 @@
 {
   "profile": "hosted",
-  "generatedAt": "2026-08-28T15:26:17.140Z",
+  "generatedAt": "2026-08-28T16:30:07.512Z",
   "fixture": "tests/fixtures/small-spdx.json",
   "runs": {
     "smallSpdx": {
@@ -12,8 +12,8 @@
     {
       "host": "api.openai.com",
       "requestCount": 9,
-      "totalRequestBodySize": 176959,
-      "maxRequestBodySize": 42091,
+      "totalRequestBodySize": 133578,
+      "maxRequestBodySize": 34198,
       "carriesInventory": true,
       "matchedMarkers": [
         "0.21.1",
@@ -28,18 +28,7 @@
         "5.0.7",
         "7.0.0",
         "9.0.1",
-        "SPDXRef-Package-axios",
-        "SPDXRef-Package-commander",
-        "SPDXRef-Package-fast-deep-equal",
-        "SPDXRef-Package-is-number",
-        "SPDXRef-Package-kleur",
         "SPDXRef-Package-lodash",
-        "SPDXRef-Package-minimist",
-        "SPDXRef-Package-nanoid",
-        "SPDXRef-Package-picocolors",
-        "SPDXRef-Package-react",
-        "SPDXRef-Package-uuid",
-        "SPDXRef-Package-zod",
         "axios",
         "commander",
         "fast-deep-equal",

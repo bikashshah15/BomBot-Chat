@@ -4,6 +4,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import tmp from 'tmp';
 import path from 'path';
 import { config as environmentConfig } from '../../lib/config.ts';
+import { buildSoftwareContext } from '../../lib/context/softwareContext.ts';
 import { insertLog } from '../../lib/db/chatLogs.ts';
 import {
   ConversationSequenceConflictError,
@@ -81,23 +82,6 @@ interface OSVVulnerability {
   references: Array<{
     type: string;
     url: string;
-  }>;
-}
-
-interface ScanResult {
-  results: Array<{
-    source: {
-      path: string;
-      type: string;
-    };
-    packages: Array<{
-      package: {
-        name: string;
-        version: string;
-        ecosystem: string;
-      };
-      vulnerabilities: OSVVulnerability[];
-    }>;
   }>;
 }
 
@@ -346,7 +330,48 @@ async function queryOSVForPackage(pkg: SBOMPackage): Promise<OSVVulnerability[]>
   }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+interface UploadHandlerDependencies {
+  parseForm: (
+    req: NextApiRequest,
+    uploadDir: string,
+  ) => Promise<{ fields: any; files: any }>;
+  queryOSVForPackage: typeof queryOSVForPackage;
+  createConversation: typeof createConversation;
+  getConversationSessionId: typeof getConversationSessionId;
+  appendConversationMessages: typeof appendConversationMessages;
+  insertLog: typeof insertLog;
+  wait: (milliseconds: number) => Promise<void>;
+}
+
+async function parseUploadForm(req: NextApiRequest, uploadDir: string) {
+  const form = formidable({
+    uploadDir,
+    keepExtensions: true,
+    maxFileSize: 10 * 1024 * 1024,
+  });
+  return new Promise<{ fields: any; files: any }>((resolve, reject) => {
+    form.parse(req, (err, fields, files) => {
+      if (err) reject(err);
+      else resolve({ fields, files });
+    });
+  });
+}
+
+export function createUploadHandler(
+  overrides: Partial<UploadHandlerDependencies> = {},
+) {
+  const handlerDependencies: UploadHandlerDependencies = {
+    parseForm: parseUploadForm,
+    queryOSVForPackage,
+    createConversation,
+    getConversationSessionId,
+    appendConversationMessages,
+    insertLog,
+    wait: milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
+    ...overrides,
+  };
+
+  return async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
@@ -355,21 +380,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const tmpDir = tmp.dirSync({ unsafeCleanup: true });
   
   try {
-    const form = formidable({ 
-      uploadDir: tmpDir.name, 
-      keepExtensions: true,
-      maxFileSize: 10 * 1024 * 1024, // 10MB limit
-    });
-
-    const { fields, files } = await new Promise<{
-      fields: any;
-      files: any;
-    }>((resolve, reject) => {
-      form.parse(req, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve({ fields, files });
-      });
-    });
+    const { fields, files } = await handlerDependencies.parseForm(req, tmpDir.name);
 
     const file = Array.isArray(files.file) ? files.file[0] : files.file;
     if (!file) {
@@ -395,7 +406,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (existingConversationId) {
       // This session UUID is a bearer capability, not authentication. It limits practical
       // conversation enumeration but does not protect a capability obtained by another party.
-      if (await getConversationSessionId(existingConversationId) !== sessionId) {
+      if (await handlerDependencies.getConversationSessionId(existingConversationId) !== sessionId) {
         return res.status(403).json({ error: 'Conversation does not belong to this session' });
       }
     }
@@ -444,7 +455,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     for (let i = 0; i < packagesToScan.length; i += 5) {
       const batch = packagesToScan.slice(i, i + 5);
       const batchPromises = batch.map(pkg => 
-        queryOSVForPackage(pkg).then(vulns => ({ package: pkg, vulnerabilities: vulns }))
+        handlerDependencies.queryOSVForPackage(pkg).then(vulns => ({ package: pkg, vulnerabilities: vulns }))
       );
       
       const batchResults = await Promise.all(batchPromises);
@@ -452,29 +463,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       // Small delay between batches
       if (i + 5 < packagesToScan.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await handlerDependencies.wait(100);
       }
     }
-
-    // Build scan results in osv-scanner compatible format
-    const scanResults: ScanResult = {
-      results: [{
-        source: {
-          path: fileName,
-          type: 'sbom'
-        },
-        packages: vulnerabilityResults
-          .filter(result => result.vulnerabilities.length > 0)
-          .map(result => ({
-            package: {
-              name: result.package.name,
-              version: result.package.version || 'unknown',
-              ecosystem: result.package.ecosystem
-            },
-            vulnerabilities: result.vulnerabilities
-          }))
-      }]
-    };
 
     // Send the scan results to the assistant
     const totalVulns = vulnerabilityResults.reduce((sum, result) => sum + result.vulnerabilities.length, 0);
@@ -483,23 +474,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Generate dependency graph for visualization
     const dependencyGraph = generateDependencyGraph(packages, dependencies, vulnerabilityResults);
 
-    // Create dependency mapping for easier AI analysis
-    const packageMap = new Map(packages.map(pkg => [pkg.id || pkg.name, pkg]));
-    const dependencyMap = new Map<string, string[]>();
-    
-    // Build dependency relationships for AI context
-    dependencies.forEach(dep => {
-      const parent = packageMap.get(dep.parent);
-      const child = packageMap.get(dep.child);
-      
-      if (parent && child) {
-        const parentKey = `${parent.name}@${parent.version || 'unknown'}`;
-        if (!dependencyMap.has(parentKey)) {
-          dependencyMap.set(parentKey, []);
-        }
-        dependencyMap.get(parentKey)!.push(`${child.name}@${child.version || 'unknown'} (${dep.relationship})`);
-      }
+    const parsedSbomForContext = JSON.parse(sbomContent) as {
+      name?: string;
+      metadata?: { component?: { name?: string } };
+    };
+    const softwareContext = buildSoftwareContext({
+      softwareName: parsedSbomForContext.name
+        ?? parsedSbomForContext.metadata?.component?.name
+        ?? fileName,
+      sbomContent,
+      packages,
+      dependencies,
+      vulnerabilityResults,
+      scannedPackageCount: packagesToScan.length,
     });
+    const truncationStatement = softwareContext.scan_truncated
+      ? `- Scan coverage warning: only ${softwareContext.scanned_package_count} of ${softwareContext.total_package_count} packages were scanned; ${softwareContext.total_package_count - softwareContext.scanned_package_count} packages were not scanned.`
+      : '';
 
     const responseInput = `I've uploaded ${existingConversationId ? 'an additional' : 'an'} SBOM file "${fileName}" with ${packages.length} packages${existingConversationId ? ' for comparison with the previous SBOM(s)' : ''}. Here's the comprehensive analysis data:
 
@@ -508,28 +499,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 - Packages with vulnerabilities: ${vulnPackages}
 - Total vulnerabilities found: ${totalVulns}
 - Dependency relationships found: ${dependencies.length}
+${truncationStatement}
 
-**Vulnerability Scan Data:**
-${JSON.stringify(scanResults, null, 2)}
-
-**Package Dependency Information:**
-${JSON.stringify(Object.fromEntries(dependencyMap), null, 2)}
-
-**All Packages in SBOM:**
-${JSON.stringify(packages.map(pkg => ({
-  name: pkg.name,
-  version: pkg.version || 'unknown',
-  ecosystem: pkg.ecosystem,
-  id: pkg.id
-})), null, 2)}
+**Minimized Software Context:**
+${JSON.stringify(softwareContext)}
 
 ${existingConversationId ?
   'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Since this is an additional SBOM, you can also compare it with previously uploaded SBOMs. Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", "dependency analysis", or "SBOM comparison" for comprehensive information.' :
   'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", or "dependency analysis" for comprehensive information.'}`;
 
     const conversationId = existingConversationId
-      ?? (await createConversation(sessionId)).id;
-    await appendConversationMessages({
+      ?? (await handlerDependencies.createConversation(sessionId)).id;
+    await handlerDependencies.appendConversationMessages({
       conversationId,
       messages: [{ role: 'user', content: responseInput }],
       pinned: true,
@@ -545,7 +526,7 @@ ${existingConversationId ?
     if (sessionId && messageIndex !== undefined) {
       try {
         const now = new Date().toISOString();
-        await insertLog({
+        await handlerDependencies.insertLog({
           id: uuidv4(),
           session_id: sessionId,
           conversation_id: conversationId,
@@ -621,4 +602,7 @@ ${existingConversationId ?
       console.warn('Failed to cleanup temp directory:', cleanupError);
     }
   }
+  };
 }
+
+export default createUploadHandler();
