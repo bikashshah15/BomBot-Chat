@@ -3,6 +3,23 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-02 — INC-09 Part B1a (unwired OSV result-shape parity)
+- Advanced the pinned local OSV snapshot to `2026-09-02` and retained advisory aliases,
+  affected ranges, and database-specific metadata so later offline wiring can preserve the
+  same minimized vulnerability fields as raw OSV results. A canonical raw-advisory table
+  preserves package-less ranges and complete multi-package records without duplicating them
+  across package-index rows; because the snapshot now stores the complete raw advisory record,
+  an offline lookup by CVE id or alias returns the same object the live `/v1/vulns/{id}` endpoint
+  returns, rather than a reconstruction. Added CVE-alias lookup without connecting it to a route.
+  This part makes no participant-facing change: routes still use the existing live OSV API path,
+  and no request bytes or model stimulus move. The declared pin alone does not identify the
+  snapshot and must be cited together with `max_modified`: `snapshot_date` `2026-09-02`,
+  `max_modified` `2026-09-02T19:45:05.400430762Z`.
+- Per-ecosystem record counts sum to 286,695 while `osv_advisories` holds 286,252; the 443-row
+  difference is cross-bucket de-duplication, not data loss or a drop, because advisories listed
+  in two ecosystem buckets are counted once per bucket but stored once by advisory-id primary
+  key. Every ecosystem reported zero dropped advisories and all four drop-reason counts are zero.
+
 ## 2026-09-01 — INC-09 Part A (unwired local OSV snapshot machinery)
 - Declared `2026-09-01` as the study snapshot pin shared by both evaluation profiles. The
   sync now requires that declaration, rejects a pin older than the newest advisory, and

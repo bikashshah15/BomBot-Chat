@@ -4,7 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { config } from '../config.ts';
-import type { OsvQueryClient } from './db.ts';
+import {
+  getOsvAdvisoriesByIds,
+  getOsvAdvisoryByIdentifier,
+  getOsvVulnerabilityRowsByIdentifier,
+  type OsvQueryClient,
+  type OsvVulnerabilityRow,
+} from './db.ts';
 import type { OsvEcosystem } from './ecosystems.ts';
 import {
   OSVMatcherSnapshotDisagreementError,
@@ -21,9 +27,18 @@ export interface OsvPackageInput {
 
 export interface OsvMatchedVulnerability {
   id: string;
-  severity: unknown | null;
-  summary: string | null;
+  severity?: unknown;
+  database_specific?: unknown;
+  aliases?: unknown;
+  summary?: string | null;
   modified: string;
+  affected: Array<{
+    package?: { ecosystem?: unknown; name?: unknown };
+    ranges?: unknown[];
+    versions?: unknown[];
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
 }
 
 export interface OsvPackageMatch {
@@ -59,6 +74,49 @@ interface CurrentSnapshot {
 
 function packageKey(package_: OsvPackageInput) {
   return JSON.stringify([package_.ecosystem, package_.name, package_.version]);
+}
+
+export function reconstructOsvVulnerability(
+  row: OsvVulnerabilityRow,
+): OsvMatchedVulnerability {
+  return reconstructOsvVulnerabilityRows([row]);
+}
+
+export function reconstructOsvVulnerabilityRows(
+  rows: OsvVulnerabilityRow[],
+): OsvMatchedVulnerability {
+  const [firstRow] = rows;
+  return {
+    id: firstRow.id,
+    severity: firstRow.severity,
+    database_specific: firstRow.databaseSpecific,
+    aliases: firstRow.aliases,
+    summary: firstRow.summary,
+    modified: firstRow.modified,
+    affected: rows.map(row => {
+      const storedRanges = row.ranges as { ranges?: unknown; versions?: unknown };
+      return {
+        package: { ecosystem: row.ecosystem, name: row.packageName },
+        ranges: Array.isArray(storedRanges?.ranges) ? storedRanges.ranges : [],
+        versions: Array.isArray(storedRanges?.versions) ? storedRanges.versions : [],
+      };
+    }),
+  };
+}
+
+export async function getOsvVulnerabilityByIdentifier(
+  client: OsvQueryClient,
+  identifier: string,
+) {
+  return getOsvAdvisoryByIdentifier(client, identifier) as Promise<OsvMatchedVulnerability | null>;
+}
+
+function rowMatchesPackage(row: OsvVulnerabilityRow, package_: OsvPackageInput) {
+  return row.packageName === package_.name
+    && (
+      row.ecosystem === package_.ecosystem
+      || row.ecosystem.startsWith(`${package_.ecosystem}:`)
+    );
 }
 
 function parseScannerMatches(output: string) {
@@ -202,33 +260,17 @@ export async function matchOsvPackages(
   );
   const matchedIds = [...new Set([...scannerMatches.values()].flatMap(ids => [...ids]))].sort();
 
-  const rows = matchedIds.length === 0
-    ? []
-    : (await client.query(
-      `SELECT DISTINCT ON (id)
-         id,
-         severity,
-         summary,
-         modified::text AS modified
-       FROM osv_vulns
-       WHERE id = ANY($1::text[])
-       ORDER BY id, ecosystem, package`,
-      [matchedIds],
-    ) as { rows: Array<{
-      id: string;
-      severity: unknown | null;
-      summary: string | null;
-      modified: string;
-    }> }).rows;
-
-  const vulnerabilitiesById = new Map(rows.map(row => [row.id, row]));
-  const missingIds = matchedIds.filter(id => !vulnerabilitiesById.has(id));
+  const advisories = await getOsvAdvisoriesByIds(client, matchedIds);
+  const advisoriesById = new Map(
+    advisories.map(advisory => [advisory.id, advisory.record as OsvMatchedVulnerability]),
+  );
+  const missingIds = matchedIds.filter(id => !advisoriesById.has(id));
   if (missingIds.length > 0) throw new OSVMatcherSnapshotDisagreementError(missingIds);
 
   return packages.map(package_ => ({
     package: package_,
     vulnerabilities: [...(scannerMatches.get(packageKey(package_)) ?? [])]
       .sort()
-      .map(id => vulnerabilitiesById.get(id)!),
+      .map(id => advisoriesById.get(id)!),
   })) satisfies OsvPackageMatch[];
 }

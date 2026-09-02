@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS osv_vulns (
     package TEXT NOT NULL,
     ranges JSONB NOT NULL,
     severity JSONB,
+    database_specific JSONB,
+    aliases JSONB,
     summary TEXT,
     modified TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (id, ecosystem, package)
@@ -59,6 +61,17 @@ CREATE TABLE IF NOT EXISTS osv_vulns (
 
 CREATE INDEX IF NOT EXISTS idx_osv_vulns_ecosystem_package
     ON osv_vulns(ecosystem, package);
+
+-- Canonical raw advisory records preserve the complete OSV response shape once per ID.
+-- Package rows above remain the projection used for scanner-authoritative matching.
+CREATE TABLE IF NOT EXISTS osv_advisories (
+    id TEXT PRIMARY KEY,
+    aliases JSONB,
+    record JSONB NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_osv_advisories_aliases
+    ON osv_advisories USING GIN (aliases);
 
 CREATE TABLE IF NOT EXISTS osv_snapshots (
     snapshot_date DATE PRIMARY KEY,
@@ -78,6 +91,14 @@ ALTER TABLE osv_snapshots
     ADD COLUMN IF NOT EXISTS ecosystem_dropped_samples JSONB NOT NULL DEFAULT '{}'::jsonb,
     ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     ADD COLUMN IF NOT EXISTS max_modified TIMESTAMPTZ;
+
+-- CREATE TABLE IF NOT EXISTS does not update an existing populated OSV table.
+ALTER TABLE osv_vulns
+    ADD COLUMN IF NOT EXISTS database_specific JSONB,
+    ADD COLUMN IF NOT EXISTS aliases JSONB;
+
+CREATE INDEX IF NOT EXISTS idx_osv_vulns_aliases
+    ON osv_vulns USING GIN (aliases);
 
 -- CREATE TABLE IF NOT EXISTS does not update databases created before pinned existed.
 ALTER TABLE conversation_messages

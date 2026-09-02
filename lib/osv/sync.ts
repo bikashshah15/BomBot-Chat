@@ -9,8 +9,10 @@ import { execFile } from 'node:child_process';
 
 import {
   clearOsvSnapshot,
+  insertOsvAdvisoryRows,
   insertOsvSnapshot,
   insertOsvVulnerabilityRows,
+  type OsvAdvisoryRow,
   type OsvQueryClient,
   type OsvVulnerabilityRow,
 } from './db.ts';
@@ -47,9 +49,11 @@ interface OsvAffectedPackage {
 
 interface OsvRecord {
   id?: unknown;
+  aliases?: unknown;
   modified?: unknown;
   summary?: unknown;
   severity?: unknown;
+  database_specific?: unknown;
   affected?: unknown;
 }
 
@@ -186,6 +190,8 @@ export function osvRowsFromRecord(record: OsvRecord, expectedEcosystem: OsvEcosy
       packageName,
       ranges: rangeData,
       severity: record.severity ?? null,
+      databaseSpecific: record.database_specific ?? null,
+      aliases: record.aliases ?? null,
       summary: typeof record.summary === 'string' ? record.summary : null,
       modified: record.modified,
     });
@@ -379,10 +385,16 @@ async function ingestArchive(client: OsvQueryClient, archive: DownloadedArchive,
   let maxModified: string | undefined;
   const droppedSamples: OsvDroppedAdvisorySample[] = [];
   const droppedReasonCounts = createDroppedReasonCounts();
+  let pendingAdvisories: OsvAdvisoryRow[] = [];
   let pendingRows: OsvVulnerabilityRow[] = [];
   for await (const filePath of jsonFiles(extractDirectory)) {
     const record = JSON.parse(await readFile(filePath, 'utf8')) as OsvRecord;
     const ingestResult = osvIngestResultFromRecord(record, archive.ecosystem);
+    pendingAdvisories.push({
+      id: record.id as string,
+      aliases: record.aliases ?? null,
+      record,
+    });
     pendingRows.push(...ingestResult.rows);
     recordCount += 1;
     rowCount += ingestResult.rows.length;
@@ -399,8 +411,13 @@ async function ingestArchive(client: OsvQueryClient, archive: DownloadedArchive,
       await insertOsvVulnerabilityRows(client, pendingRows);
       pendingRows = [];
     }
+    if (pendingAdvisories.length >= 500) {
+      await insertOsvAdvisoryRows(client, pendingAdvisories);
+      pendingAdvisories = [];
+    }
   }
 
+  await insertOsvAdvisoryRows(client, pendingAdvisories);
   await insertOsvVulnerabilityRows(client, pendingRows);
   if (recordCount === 0) {
     throw new Error(`OSV archive for ${archive.ecosystem} contains no JSON records`);
