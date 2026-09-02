@@ -6,6 +6,7 @@ import {
 } from '../../lib/db/conversations.ts';
 import { appendConversationMessages } from '../../lib/llm/conversationHistory.ts';
 import { cveQuerySchema } from '../../lib/openai-responses.ts';
+import { OSVSourceUnavailableError } from '../../lib/osv/errors.ts';
 
 interface OSVQueryRequest {
   version?: string;
@@ -96,10 +97,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let response: Response;
     let data: OSVVulnerability | OSVQueryResponse;
+    const osvBaseUrl = environmentConfig.OSV_BASE_URL;
+    if (!osvBaseUrl) {
+      throw new OSVSourceUnavailableError();
+    }
 
     if (cveId) {
       // Query specific CVE
-      response = await fetch(`${environmentConfig.OSV_BASE_URL}/v1/vulns/${encodeURIComponent(cveId)}`, {
+      response = await fetch(`${osvBaseUrl}/v1/vulns/${encodeURIComponent(cveId)}`, {
         method: 'GET',
         headers: { 
           'Content-Type': 'application/json',
@@ -127,7 +132,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         queryBody.version = version;
       }
 
-      response = await fetch(`${environmentConfig.OSV_BASE_URL}/v1/query`, {
+      response = await fetch(`${osvBaseUrl}/v1/query`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

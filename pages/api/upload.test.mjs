@@ -8,6 +8,7 @@ import test from 'node:test';
 import 'dotenv/config';
 
 const { createUploadHandler } = await import('./upload.ts');
+const { OSVSourceUnavailableError } = await import('../../lib/osv/errors.ts');
 
 function responseRecorder() {
   return {
@@ -103,6 +104,57 @@ test('upload wiring retains the full oversize inventory and exposes scan truncat
     assert.ok(oversizePrompt.endsWith(
       'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", or "dependency analysis" for comprehensive information.',
     ));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('upload fails when offline mode has no vulnerability matcher', async () => {
+  const fixturePath = new URL('../../tests/fixtures/small-spdx.json', import.meta.url);
+  const fixtureContent = await readFile(fixturePath, 'utf8');
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'bombot-upload-offline-test-'));
+  const uploadPath = path.join(tempDir, 'small-spdx.json');
+  await copyFile(fixturePath, uploadPath);
+
+  let appended = false;
+  const handler = createUploadHandler({
+    async parseForm() {
+      return {
+        fields: {
+          sessionId: '00000000-0000-4000-8000-000000000001',
+          messageIndex: '1',
+        },
+        files: {
+          file: {
+            filepath: uploadPath,
+            originalFilename: 'small-spdx.json',
+            size: Buffer.byteLength(fixtureContent),
+          },
+        },
+      };
+    },
+    async queryOSVForPackage() {
+      throw new OSVSourceUnavailableError();
+    },
+    async createConversation() {
+      throw new Error('conversation must not be created after OSV source failure');
+    },
+    async appendConversationMessages() {
+      appended = true;
+      return [];
+    },
+    async insertLog() {},
+    async wait() {},
+  });
+
+  try {
+    const response = responseRecorder();
+    await handler({ method: 'POST' }, response);
+
+    assert.equal(response.statusCode, 500);
+    assert.equal(response.jsonBody.error, 'Internal server error');
+    assert.match(response.jsonBody.details, /OSV vulnerability source is unavailable/);
+    assert.equal(appended, false);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

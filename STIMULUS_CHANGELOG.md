@@ -3,6 +3,20 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-01 — INC-09 Part A (unwired local OSV snapshot machinery)
+- Declared `2026-09-01` as the study snapshot pin shared by both evaluation profiles. The
+  sync now requires that declaration, rejects a pin older than the newest advisory, and
+  records database-clock ingestion time, newest advisory modification time, and per-ecosystem
+  record/drop/reason counts plus bounded diagnostic samples as provenance. Part A adds only
+  unwired storage, synchronization, OSV-Scanner-backed version matching, configuration,
+  and fail-loud safety machinery. The verified archives are also installed into a versioned
+  local scanner cache so the database and authoritative matcher use the same snapshot.
+  Namespaced OSV ecosystems are admitted by their base bucket while their complete source
+  namespace is preserved in storage; the production sync recorded zero dropped advisories
+  and zero drop reasons in every ecosystem after that correction. It makes no
+  participant-facing change: routes still use the existing live OSV API path, and no
+  request bytes or model stimulus move.
+
 ## 2026-08-18 — pre-INC-00 (Responses API migration)
 - Assistants API → Responses + Conversations API. Reason: OpenAI sunset 2026-08-26.
   Effect: transport change; conversation state remains OpenAI-hosted.

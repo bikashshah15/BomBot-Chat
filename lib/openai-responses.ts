@@ -2,6 +2,8 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { config } from './config.ts';
 import type { LlmToolDef } from './llm/types.ts';
+import { OSVSourceUnavailableError } from './osv/errors.ts';
+import { OSV_ECOSYSTEMS } from './osv/ecosystems.ts';
 
 export const MAX_FUNCTION_CALL_ROUNDS = 8;
 export const TOOL_ROUND_METADATA_KEY = 'bombot_tool_round';
@@ -154,19 +156,6 @@ Remember: You are the user's trusted security advisor. Provide confidence throug
 
 Vulnerability facts must come from OSV data supplied in the conversation or returned by the OSV-backed functions. Never invent vulnerability IDs, affected versions, severity, or remediation versions. If OSV data is unavailable or inconclusive, say so explicitly.`;
 
-const ecosystems = [
-  'npm',
-  'PyPI',
-  'Maven',
-  'Go',
-  'Packagist',
-  'RubyGems',
-  'NuGet',
-  'crates.io',
-  'Hex',
-  'Pub',
-] as const;
-
 export const BOMBOT_TOOLS: OpenAI.Responses.FunctionTool[] = [
   {
     type: 'function',
@@ -182,7 +171,7 @@ export const BOMBOT_TOOLS: OpenAI.Responses.FunctionTool[] = [
         ecosystem: {
           type: 'string',
           description: 'The package ecosystem (npm, PyPI, Maven, Go, etc.)',
-          enum: ecosystems,
+          enum: OSV_ECOSYSTEMS,
         },
         version: {
           type: 'string',
@@ -267,7 +256,7 @@ export const BOMBOT_LLM_TOOLS: LlmToolDef[] = BOMBOT_TOOLS.map(tool => ({
 
 const packageQuerySchema = z.object({
   name: z.string().trim().min(1),
-  ecosystem: z.enum(ecosystems),
+  ecosystem: z.enum(OSV_ECOSYSTEMS),
   version: z.string().trim().min(1).optional(),
 }).strict();
 
@@ -394,6 +383,14 @@ export async function executeFunctionCall(
   fetchImplementation: typeof fetch = fetch,
 ): Promise<string> {
   const args = parseToolArguments(functionName, rawArguments);
+  const osvBaseUrl = config.OSV_BASE_URL;
+
+  if (!osvBaseUrl && (
+    functionName === 'query_package_vulnerabilities'
+    || functionName === 'query_cve_details'
+  )) {
+    throw new OSVSourceUnavailableError();
+  }
 
   switch (functionName as BombotToolName) {
     case 'query_package_vulnerabilities': {
@@ -408,7 +405,7 @@ export async function executeFunctionCall(
         queryBody.version = packageArgs.version;
       }
 
-      const data = await getOSVJson(`${config.OSV_BASE_URL}/v1/query`, {
+      const data = await getOSVJson(`${osvBaseUrl}/v1/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -422,7 +419,7 @@ export async function executeFunctionCall(
     case 'query_cve_details': {
       const cveArgs = args as z.infer<typeof cveQuerySchema>;
       const data = await getOSVJson(
-        `${config.OSV_BASE_URL}/v1/vulns/${encodeURIComponent(cveArgs.cve_id.toUpperCase())}`,
+        `${osvBaseUrl}/v1/vulns/${encodeURIComponent(cveArgs.cve_id.toUpperCase())}`,
         {
           method: 'GET',
           headers: {

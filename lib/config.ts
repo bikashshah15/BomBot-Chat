@@ -1,6 +1,10 @@
 import { z, type ZodError } from 'zod';
+import os from 'node:os';
+import path from 'node:path';
 
 const DEFAULT_OSV_BASE_URL = 'https://api.osv.dev';
+const DEFAULT_OSV_MIRROR_BASE_URL = 'https://storage.googleapis.com';
+const DEFAULT_OSV_SCANNER_CACHE_DIRECTORY = path.join(os.tmpdir(), 'bombot-osv-scanner-db');
 
 function numericEnvironmentVariable(schema: z.ZodType<number>) {
   return z.preprocess((value) => {
@@ -39,6 +43,11 @@ const outboundHttpUrl = z.string().trim().url().refine((value) => {
   }
 }, 'must use http or https').transform(value => value.replace(/\/+$/, ''));
 
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must use YYYY-MM-DD').refine((value) => {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}, 'must be a valid calendar date');
+
 const environmentSchema = z.object({
   DATABASE_URL: z.string().trim().url().refine((value) => {
     const protocol = new URL(value).protocol;
@@ -50,6 +59,12 @@ const environmentSchema = z.object({
   LLM_API_KEY: z.string().trim().min(1).optional(),
   OSV_MODE: z.enum(['api', 'offline']).default('api'),
   OSV_BASE_URL: outboundHttpUrl.optional(),
+  OSV_MIRROR_BASE_URL: outboundHttpUrl.default(DEFAULT_OSV_MIRROR_BASE_URL),
+  OSV_SNAPSHOT_DATE: isoDate.optional(),
+  OSV_SCANNER_PATH: z.string().trim().min(1).default('osv-scanner'),
+  OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: z.string().trim().min(1)
+    .refine(value => path.isAbsolute(value), 'must be an absolute path')
+    .default(DEFAULT_OSV_SCANNER_CACHE_DIRECTORY),
   RETENTION: z.enum(['study', 'ephemeral']).default('study'),
   PARTICIPANT_ID_MODE: z.enum(['email', 'pseudonymous']).default('email'),
   PARTICIPANT_ID_SALT: z.string().trim().min(32).optional(),

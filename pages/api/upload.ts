@@ -15,6 +15,7 @@ import { appendConversationMessages } from '../../lib/llm/conversationHistory.ts
 import {
   formatOpenAIError,
 } from '../../lib/openai-responses.ts';
+import { OSVSourceUnavailableError } from '../../lib/osv/errors.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 export const config = {
@@ -308,7 +309,12 @@ async function queryOSVForPackage(pkg: SBOMPackage): Promise<OSVVulnerability[]>
       queryBody.version = pkg.version;
     }
 
-    const response = await fetch(`${environmentConfig.OSV_BASE_URL}/v1/query`, {
+    const osvBaseUrl = environmentConfig.OSV_BASE_URL;
+    if (!osvBaseUrl) {
+      throw new OSVSourceUnavailableError();
+    }
+
+    const response = await fetch(`${osvBaseUrl}/v1/query`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -325,6 +331,9 @@ async function queryOSVForPackage(pkg: SBOMPackage): Promise<OSVVulnerability[]>
     const result = await response.json();
     return result.vulns || [];
   } catch (error) {
+    if (error instanceof OSVSourceUnavailableError) {
+      throw error;
+    }
     console.warn(`Error querying OSV for ${pkg.name}:`, error);
     return [];
   }

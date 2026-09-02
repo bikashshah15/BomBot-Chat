@@ -36,10 +36,12 @@ test('schema migration adds pinned to a populated conversation_messages table', 
     connectionString: process.env.DATABASE_URL,
     connectionTimeoutMillis: 2_000,
   });
+  let connected = false;
 
   try {
     try {
       await client.connect();
+      connected = true;
     } catch (error) {
       if (isDatabaseUnreachable(error)) {
         context.skip('DATABASE_URL is configured but Postgres is unreachable; skipping populated-schema migration test');
@@ -106,8 +108,10 @@ test('schema migration adds pinned to a populated conversation_messages table', 
       pinned: false,
     }]);
   } finally {
-    await client.query('RESET search_path').catch(() => {});
-    await client.query(`DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`).catch(() => {});
+    if (connected) {
+      await client.query('RESET search_path').catch(() => {});
+      await client.query(`DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`).catch(() => {});
+    }
     await client.end().catch(() => {});
   }
 });
