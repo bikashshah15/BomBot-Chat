@@ -15,6 +15,7 @@ import { appendConversationMessages } from '../../lib/llm/conversationHistory.ts
 import {
   formatOpenAIError,
 } from '../../lib/openai-responses.ts';
+import { OSV_ECOSYSTEMS } from '../../lib/osv/ecosystems.ts';
 import { OSVSourceUnavailableError } from '../../lib/osv/errors.ts';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -87,7 +88,7 @@ interface OSVVulnerability {
 }
 
 // Parse SBOM file to extract packages and dependencies
-function parseSBOMData(sbomContent: string, fileName: string): { packages: SBOMPackage[], dependencies: DependencyRelationship[] } {
+export function parseSBOMData(sbomContent: string, fileName: string): { packages: SBOMPackage[], dependencies: DependencyRelationship[] } {
   try {
     const sbom = JSON.parse(sbomContent);
     const packages: SBOMPackage[] = [];
@@ -146,9 +147,9 @@ function parseSBOMData(sbomContent: string, fileName: string): { packages: SBOMP
         sbom.components.forEach((component: any) => {
           if (component.name && component.purl) {
             // Parse package URL (purl) to extract ecosystem
-            const purlParts = component.purl.split(':');
-            if (purlParts.length >= 3) {
-              const ecosystem = purlParts[1];
+            const typeEnd = component.purl.indexOf('/', 4);
+            if (component.purl.startsWith('pkg:') && typeEnd > 4) {
+              const ecosystem = component.purl.slice(4, typeEnd).toLowerCase();
               const ecosystemMap: { [key: string]: string } = {
                 'npm': 'npm',
                 'pypi': 'PyPI', 
@@ -453,8 +454,14 @@ export function createUploadHandler(
     }
 
     // Query OSV for vulnerabilities (limit to first 150 packages to avoid timeout)
-    console.log(`Scanning ${Math.min(packages.length, 150)} packages for vulnerabilities...`);
-    const packagesToScan = packages.slice(0, 150);
+    const recognizedEcosystems = new Set<string>(OSV_ECOSYSTEMS);
+    const packagesWithinScanCap = packages.slice(0, 150);
+    const unrecognizedEcosystemCount = packagesWithinScanCap.filter(
+      pkg => !recognizedEcosystems.has(pkg.ecosystem),
+    ).length;
+    const packagesToScan = packagesWithinScanCap
+      .filter(pkg => recognizedEcosystems.has(pkg.ecosystem));
+    console.log(`Scanning ${packagesToScan.length} packages for vulnerabilities...`);
     const vulnerabilityResults: Array<{
       package: SBOMPackage;
       vulnerabilities: OSVVulnerability[];
@@ -495,10 +502,13 @@ export function createUploadHandler(
       packages,
       dependencies,
       vulnerabilityResults,
-      scannedPackageCount: packagesToScan.length,
+      scannedPackageCount: packagesWithinScanCap.length,
     });
     const truncationStatement = softwareContext.scan_truncated
-      ? `- Scan coverage warning: only ${softwareContext.scanned_package_count} of ${softwareContext.total_package_count} packages were scanned; ${softwareContext.total_package_count - softwareContext.scanned_package_count} packages were not scanned.`
+      ? `- Scan coverage warning: ${softwareContext.total_package_count - softwareContext.scanned_package_count} of ${softwareContext.total_package_count} packages were excluded by the 150-package cap.`
+      : '';
+    const unrecognizedEcosystemStatement = unrecognizedEcosystemCount > 0
+      ? `- Ecosystem coverage warning: ${unrecognizedEcosystemCount} package${unrecognizedEcosystemCount === 1 ? '' : 's'} admitted by the 150-package cap could not be scanned because the ecosystem was unrecognized.`
       : '';
 
     const responseInput = `I've uploaded ${existingConversationId ? 'an additional' : 'an'} SBOM file "${fileName}" with ${packages.length} packages${existingConversationId ? ' for comparison with the previous SBOM(s)' : ''}. Here's the comprehensive analysis data:
@@ -509,6 +519,7 @@ export function createUploadHandler(
 - Total vulnerabilities found: ${totalVulns}
 - Dependency relationships found: ${dependencies.length}
 ${truncationStatement}
+${unrecognizedEcosystemStatement}
 
 **Minimized Software Context:**
 ${JSON.stringify(softwareContext)}
@@ -570,6 +581,7 @@ ${existingConversationId ?
       fileName: fileName,
       packagesScanned: packagesToScan.length,
       totalPackages: packages.length,
+      unrecognizedEcosystemCount,
       vulnerabilitiesFound: totalVulns,
       dependencyRelationships: dependencies.length,
       dependencyGraph: dependencyGraph,

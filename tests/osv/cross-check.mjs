@@ -13,6 +13,7 @@ import {
   matchOsvPackages,
   scanPackagesWithOsvScanner,
 } from '../../lib/osv/match.ts';
+import { parseSBOMData } from '../../pages/api/upload.ts';
 
 const repositoryRoot = new URL('../..', import.meta.url);
 
@@ -45,60 +46,18 @@ function isDatabaseUnreachable(error) {
   );
 }
 
-function spdxEcosystem(package_) {
-  const location = String(package_.downloadLocation ?? '').toLowerCase();
-  if (location.includes('pypi') || location.includes('python')) return 'PyPI';
-  if (location.includes('maven')) return 'Maven';
-  if (location.includes('nuget')) return 'NuGet';
-  if (location.includes('golang') || location.includes('go.mod')) return 'Go';
-  if (location.includes('rubygems')) return 'RubyGems';
-  if (location.includes('cargo') || location.includes('crates')) return 'crates.io';
-  return 'npm';
-}
-
-function cycloneDxEcosystem(purl) {
-  const type = purl.slice(4).split('/')[0].toLowerCase();
-  return ({
-    npm: 'npm',
-    pypi: 'PyPI',
-    maven: 'Maven',
-    golang: 'Go',
-    composer: 'Packagist',
-    gem: 'RubyGems',
-    nuget: 'NuGet',
-    cargo: 'crates.io',
-    hex: 'Hex',
-    pub: 'Pub',
-  })[type] ?? type;
-}
-
 async function fixturePackages(fixtureName) {
-  const fixture = JSON.parse(await readFile(
+  const fixtureContent = await readFile(
     new URL(`../fixtures/${fixtureName}`, import.meta.url),
     'utf8',
-  ));
-
-  if (Array.isArray(fixture.packages)) {
-    return fixture.packages
-      .filter(package_ => package_.name && (package_.versionInfo || package_.version))
-      .map(package_ => ({
-        name: package_.name,
-        version: package_.versionInfo ?? package_.version,
-        ecosystem: spdxEcosystem(package_),
-      }));
-  }
-
-  if (Array.isArray(fixture.components)) {
-    return fixture.components
-      .filter(component => component.name && component.version && component.purl)
-      .map(component => ({
-        name: component.name,
-        version: component.version,
-        ecosystem: cycloneDxEcosystem(component.purl),
-      }));
-  }
-
-  throw new Error(`${fixtureName} did not contain packages`);
+  );
+  return parseSBOMData(fixtureContent, fixtureName).packages
+    .filter(package_ => package_.version)
+    .map(package_ => ({
+      name: package_.name,
+      version: package_.version,
+      ecosystem: package_.ecosystem,
+    }));
 }
 
 function packageKey(package_) {

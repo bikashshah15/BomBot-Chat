@@ -3,6 +3,18 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-03 — INC-09.5 (SBOM parser correctness)
+- Corrected a pre-existing CycloneDX package-URL parsing defect, so valid CycloneDX uploads
+  that previously returned HTTP 400 now scan and return results. Packages whose parsed
+  ecosystem cannot be resolved to a supported OSV ecosystem are now excluded from OSV queries,
+  counted, and surfaced in both the scan result and model prompt rather than silently producing
+  an empty vulnerability list after being scanned as npm. The model-facing truncation warning
+  counts only packages excluded by the 150-package cap, while the ecosystem warning counts only
+  unrecognized packages admitted by that cap, so the warnings describe disjoint causes. This
+  changes what the model is told about a participant's software: valid CycloneDX inventories now
+  reach the model, and incomplete ecosystem coverage is disclosed instead of appearing to be a
+  clean scan. This is a correctness fix to pre-existing defects, not a new capability.
+
 ## 2026-09-02 — INC-09 Part B1a (unwired OSV result-shape parity)
 - Advanced the pinned local OSV snapshot to `2026-09-02` and retained advisory aliases,
   affected ranges, and database-specific metadata so later offline wiring can preserve the

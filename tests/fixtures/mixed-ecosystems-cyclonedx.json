@@ -1,0 +1,27 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "properties": [
+    {
+      "name": "bombot:test-purpose",
+      "value": "Hex and Pub are valid OSV ecosystems absent from the route's map. This fixture pins current behavior, not correct behavior, and must be updated when those mappings are corrected."
+    }
+  ],
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/requests@2.31.0",
+      "name": "requests",
+      "version": "2.31.0",
+      "purl": "pkg:pypi/requests@2.31.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:hex/jason@1.4.1",
+      "name": "jason",
+      "version": "1.4.1",
+      "purl": "pkg:hex/jason@1.4.1"
+    }
+  ]
+}
