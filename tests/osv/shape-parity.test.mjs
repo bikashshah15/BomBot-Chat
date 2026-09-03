@@ -10,11 +10,13 @@ import pg from 'pg';
 
 import { config } from '../../lib/config.ts';
 import { buildSoftwareContext } from '../../lib/context/softwareContext.ts';
-import { getOsvVulnerabilityRowsByIdentifier } from '../../lib/osv/db.ts';
 import {
-  getOsvVulnerabilityByIdentifier,
+  getOsvAdvisoryByIdentifier,
+  getOsvVulnerabilityRowsByIdentifier,
+} from '../../lib/osv/db.ts';
+import {
   getCurrentOsvSnapshot,
-  reconstructOsvVulnerabilityRows,
+  matchOsvPackages,
 } from '../../lib/osv/match.ts';
 import { baseOsvEcosystem, osvRowsFromRecord } from '../../lib/osv/sync.ts';
 
@@ -123,6 +125,24 @@ function minimizedVulnerability(vulnerability, row) {
   }).packages_depends_on[0].vulnerabilities[0];
 }
 
+async function matchedAdvisoryForRow(client, row) {
+  const versions = row.ranges?.versions;
+  assert.ok(
+    Array.isArray(versions) && versions.length > 0,
+    `OSV row ${row.id} must identify an affected version for matcher parity`,
+  );
+  const package_ = {
+    name: row.packageName,
+    version: versions[0],
+    ecosystem: row.ecosystem,
+  };
+  const [match] = await matchOsvPackages(client, [package_]);
+  assert.deepEqual(match.package, package_);
+  const advisory = match.vulnerabilities.find(vulnerability => vulnerability.id === row.id);
+  assert.ok(advisory, `osv-scanner did not match affected advisory ${row.id}`);
+  return advisory;
+}
+
 async function findSingleRowRawRecord(client, snapshot, predicateSql, rawPredicate) {
   const candidates = await client.query(
     `SELECT id
@@ -133,6 +153,7 @@ async function findSingleRowRawRecord(client, snapshot, predicateSql, rawPredica
        ORDER BY id, ecosystem, package
      ) AS first_rows
      WHERE ${predicateSql}
+       AND jsonb_array_length(COALESCE(ranges->'versions', '[]'::jsonb)) > 0
      ORDER BY id
      LIMIT 250`,
   );
@@ -163,7 +184,9 @@ async function findMultiRowRawRecord(client, snapshot) {
      FROM osv_vulns
      GROUP BY id
      HAVING COUNT(*) > 1
+       AND BOOL_AND(ecosystem = 'npm')
        AND BOOL_OR(ranges @? '$.ranges[*].events[*].fixed')
+       AND BOOL_AND(jsonb_array_length(COALESCE(ranges->'versions', '[]'::jsonb)) > 0)
      ORDER BY id
      LIMIT 250`,
   );
@@ -193,10 +216,6 @@ async function findMultiRowRawRecord(client, snapshot) {
   assert.fail('No real multi-row OSV advisory with a fixed version satisfied the parity-test predicate');
 }
 
-function orderInsensitiveRanges(ranges) {
-  return ranges.map(range => JSON.stringify(range)).sort();
-}
-
 test('stored OSV round trip preserves real fixed-version minimization', async context => {
   await withDatabase(context, async client => {
     const snapshot = await paritySnapshot(context, client);
@@ -213,8 +232,15 @@ test('stored OSV round trip preserves real fixed-version minimization', async co
     );
     const [row] = rows;
     const expected = minimizedVulnerability(raw, row);
-    const actual = minimizedVulnerability(reconstructOsvVulnerabilityRows(rows), row);
+    // matchOsvPackages deliberately returns the stored canonical raw advisory, so matcher-side
+    // shape parity is direct by design; this guard pins that contract against the source archive.
+    const actual = minimizedVulnerability(await matchedAdvisoryForRow(client, row), row);
 
+    assert.ok(raw.affected.some(affected => (
+      (affected.ranges ?? []).some(range => (
+        (range.events ?? []).some(event => event.fixed !== undefined)
+      ))
+    )));
     assert.ok(expected.fixed_versions.length > 0);
     assert.deepEqual(actual, expected);
   });
@@ -240,8 +266,11 @@ test('stored OSV round trip preserves real database-specific severity fallback',
     );
     const [row] = rows;
     const expected = minimizedVulnerability(raw, row);
-    const actual = minimizedVulnerability(reconstructOsvVulnerabilityRows(rows), row);
+    // This comparison is intentionally direct: the matcher returns the canonical raw record.
+    const actual = minimizedVulnerability(await matchedAdvisoryForRow(client, row), row);
 
+    assert.ok(!Array.isArray(raw.severity) || raw.severity.length === 0);
+    assert.ok(typeof raw.database_specific?.severity === 'string');
     assert.deepEqual(expected.severity, [{
       type: 'DATABASE_SPECIFIC',
       score: raw.database_specific.severity,
@@ -256,18 +285,14 @@ test('stored OSV round trip preserves real multi-package range and fix minimizat
     if (!snapshot) return;
     const { raw, rows, projectedRows } = await findMultiRowRawRecord(client, snapshot);
     const expected = minimizedVulnerability(raw, rows[0]);
-    const reconstructed = await getOsvVulnerabilityByIdentifier(client, raw.id);
-    assert.ok(reconstructed, `canonical OSV advisory ${raw.id} disappeared during parity test`);
-    const actual = minimizedVulnerability(reconstructed, rows[0]);
+    // The matcher returns this complete canonical multi-package record rather than narrowing it.
+    const actual = minimizedVulnerability(await matchedAdvisoryForRow(client, rows[0]), rows[0]);
 
     assert.ok(projectedRows.length > 1);
+    assert.ok(raw.affected.length > 1);
     assert.ok(expected.fixed_versions.length > 0);
     context.diagnostic(`multi-package parity advisory ${raw.id} projects to ${projectedRows.length} rows`);
-    assert.deepEqual(
-      orderInsensitiveRanges(actual.affected_version_ranges),
-      orderInsensitiveRanges(expected.affected_version_ranges),
-    );
-    assert.deepEqual([...actual.fixed_versions].sort(), [...expected.fixed_versions].sort());
+    assert.deepEqual(actual, expected);
   });
 });
 
@@ -283,7 +308,7 @@ test('OSV identifier lookup resolves a real CVE alias to its primary record', as
     );
     assert.equal(candidate.rowCount, 1, 'snapshot must contain a CVE alias');
 
-    const advisory = await getOsvVulnerabilityByIdentifier(client, candidate.rows[0].alias);
+    const advisory = await getOsvAdvisoryByIdentifier(client, candidate.rows[0].alias);
     assert.ok(advisory);
     assert.equal(advisory.id, candidate.rows[0].id);
     assert.ok(advisory.aliases.includes(candidate.rows[0].alias));

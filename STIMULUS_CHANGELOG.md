@@ -16,6 +16,12 @@ Columns: date · increment · what changed · why · effect on the study.
   clean scan. This is a correctness fix to pre-existing defects, not a new capability.
 
 ## 2026-09-02 — INC-09 Part B1a (unwired OSV result-shape parity)
+- Record correction: commit `7def4ca8` says, “The matcher returns an affected array rebuilt from
+  the rows belonging to the matched package.” That claim, and its accompanying description of
+  narrower package-scoped ranges, are incorrect. `matchOsvPackages` returns the complete canonical
+  advisory record so its result shape matches the live `/v1/query` response rather than producing
+  a narrower reconstruction. This correction changes no participant-facing behavior: the matcher
+  remains unwired and its return value is unchanged.
 - Advanced the pinned local OSV snapshot to `2026-09-02` and retained advisory aliases,
   affected ranges, and database-specific metadata so later offline wiring can preserve the
   same minimized vulnerability fields as raw OSV results. A canonical raw-advisory table

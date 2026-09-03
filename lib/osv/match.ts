@@ -6,10 +6,7 @@ import path from 'node:path';
 import { config } from '../config.ts';
 import {
   getOsvAdvisoriesByIds,
-  getOsvAdvisoryByIdentifier,
-  getOsvVulnerabilityRowsByIdentifier,
   type OsvQueryClient,
-  type OsvVulnerabilityRow,
 } from './db.ts';
 import type { OsvEcosystem } from './ecosystems.ts';
 import {
@@ -74,49 +71,6 @@ interface CurrentSnapshot {
 
 function packageKey(package_: OsvPackageInput) {
   return JSON.stringify([package_.ecosystem, package_.name, package_.version]);
-}
-
-export function reconstructOsvVulnerability(
-  row: OsvVulnerabilityRow,
-): OsvMatchedVulnerability {
-  return reconstructOsvVulnerabilityRows([row]);
-}
-
-export function reconstructOsvVulnerabilityRows(
-  rows: OsvVulnerabilityRow[],
-): OsvMatchedVulnerability {
-  const [firstRow] = rows;
-  return {
-    id: firstRow.id,
-    severity: firstRow.severity,
-    database_specific: firstRow.databaseSpecific,
-    aliases: firstRow.aliases,
-    summary: firstRow.summary,
-    modified: firstRow.modified,
-    affected: rows.map(row => {
-      const storedRanges = row.ranges as { ranges?: unknown; versions?: unknown };
-      return {
-        package: { ecosystem: row.ecosystem, name: row.packageName },
-        ranges: Array.isArray(storedRanges?.ranges) ? storedRanges.ranges : [],
-        versions: Array.isArray(storedRanges?.versions) ? storedRanges.versions : [],
-      };
-    }),
-  };
-}
-
-export async function getOsvVulnerabilityByIdentifier(
-  client: OsvQueryClient,
-  identifier: string,
-) {
-  return getOsvAdvisoryByIdentifier(client, identifier) as Promise<OsvMatchedVulnerability | null>;
-}
-
-function rowMatchesPackage(row: OsvVulnerabilityRow, package_: OsvPackageInput) {
-  return row.packageName === package_.name
-    && (
-      row.ecosystem === package_.ecosystem
-      || row.ecosystem.startsWith(`${package_.ecosystem}:`)
-    );
 }
 
 function parseScannerMatches(output: string) {
