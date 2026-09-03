@@ -3,6 +3,23 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-03 — INC-09 Part B1b-3 (offline model-tool OSV wiring)
+- Under `OSV_MODE=offline`, the two OSV-backed model tools now answer from the pinned local
+  snapshot instead of failing because no hosted base URL is configured. Their direct model-facing
+  JSON identifies the offline source and distinguishes successful results, missing advisories,
+  unsupported versionless queries, and an unreadable vulnerability source. A CVE lookup resolved
+  through an alias names both the requested CVE and the differently-keyed advisory, includes the
+  advisory itself, and states that the returned details belong to the resolved advisory. Package
+  matching invokes the scanner at most once per tool call. Under the default `OSV_MODE=api`
+  configuration, hosted request and return shapes are unchanged: the model receives the raw hosted
+  OSV package-query or advisory object. In contrast, under `OSV_MODE=offline` the model receives a
+  top-level result envelope containing `success`, `source`, and `status`, plus query/result,
+  disclosure, or fixed failure fields appropriate to the outcome. The two arms are therefore not
+  shape-equivalent, and the offline model-tool path is not yet measured; measurement remains Part
+  B2. The snapshot
+  is identified by `snapshot_date` `2026-09-02` together with `max_modified`
+  `2026-09-02T19:45:05.400430762Z`.
+
 ## 2026-09-03 — INC-09 Part B1b-2 (offline OSV query-route wiring)
 - Under the default `OSV_MODE=api` configuration, the OSV query route retains its existing hosted
   requests and participant-facing behavior. Under `OSV_MODE=offline`, package queries and

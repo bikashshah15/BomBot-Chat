@@ -1,9 +1,12 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { config } from './config.ts';
+import { dbPool } from './db/client.ts';
 import type { LlmToolDef } from './llm/types.ts';
+import { getOsvAdvisoryByIdentifier, type OsvQueryClient } from './osv/db.ts';
 import { OSVSourceUnavailableError } from './osv/errors.ts';
 import { OSV_ECOSYSTEMS } from './osv/ecosystems.ts';
+import { getCurrentOsvSnapshot, matchOsvPackages } from './osv/match.ts';
 
 export const MAX_FUNCTION_CALL_ROUNDS = 8;
 export const TOOL_ROUND_METADATA_KEY = 'bombot_tool_round';
@@ -377,15 +380,70 @@ async function getOSVJson(
   return response.json();
 }
 
+interface FunctionCallDependencies {
+  fetch: typeof fetch;
+  getCurrentOsvSnapshot: typeof getCurrentOsvSnapshot;
+  getOsvAdvisoryByIdentifier: typeof getOsvAdvisoryByIdentifier;
+  matchOsvPackages: typeof matchOsvPackages;
+  osvClient: OsvQueryClient;
+  osvMode: typeof config.OSV_MODE;
+  osvBaseUrl: typeof config.OSV_BASE_URL;
+}
+
+const defaultFunctionCallDependencies: FunctionCallDependencies = {
+  fetch,
+  getCurrentOsvSnapshot,
+  getOsvAdvisoryByIdentifier,
+  matchOsvPackages,
+  osvClient: dbPool,
+  osvMode: config.OSV_MODE,
+  osvBaseUrl: config.OSV_BASE_URL,
+};
+
+const OFFLINE_OSV_SOURCE = 'offline_osv_snapshot';
+
+function offlineSourceFailure(error: unknown, query: Record<string, unknown>) {
+  console.error('Offline OSV model-tool lookup failed:', error);
+  return JSON.stringify({
+    success: false,
+    source: OFFLINE_OSV_SOURCE,
+    status: 'source_unavailable',
+    error: 'The offline OSV vulnerability source is unavailable; no vulnerability lookup was performed.',
+    query,
+  });
+}
+
+export function createFunctionCallExecutor(
+  overrides: Partial<FunctionCallDependencies> = {},
+) {
+  const dependencies = { ...defaultFunctionCallDependencies, ...overrides };
+  return (functionName: string, rawArguments: string) => executeFunctionCallWithDependencies(
+    functionName,
+    rawArguments,
+    dependencies,
+  );
+}
+
 export async function executeFunctionCall(
   functionName: string,
   rawArguments: string,
   fetchImplementation: typeof fetch = fetch,
 ): Promise<string> {
-  const args = parseToolArguments(functionName, rawArguments);
-  const osvBaseUrl = config.OSV_BASE_URL;
+  return executeFunctionCallWithDependencies(functionName, rawArguments, {
+    ...defaultFunctionCallDependencies,
+    fetch: fetchImplementation,
+  });
+}
 
-  if (!osvBaseUrl && (
+async function executeFunctionCallWithDependencies(
+  functionName: string,
+  rawArguments: string,
+  dependencies: FunctionCallDependencies,
+): Promise<string> {
+  const args = parseToolArguments(functionName, rawArguments);
+  const osvBaseUrl = dependencies.osvBaseUrl;
+
+  if (dependencies.osvMode === 'api' && !osvBaseUrl && (
     functionName === 'query_package_vulnerabilities'
     || functionName === 'query_cve_details'
   )) {
@@ -395,6 +453,44 @@ export async function executeFunctionCall(
   switch (functionName as BombotToolName) {
     case 'query_package_vulnerabilities': {
       const packageArgs = args as z.infer<typeof packageQuerySchema>;
+      if (dependencies.osvMode === 'offline') {
+        const query = {
+          name: packageArgs.name,
+          ecosystem: packageArgs.ecosystem,
+          ...(packageArgs.version ? { version: packageArgs.version } : {}),
+        };
+        if (!packageArgs.version) {
+          return JSON.stringify({
+            success: false,
+            source: OFFLINE_OSV_SOURCE,
+            status: 'unsupported_query',
+            error: 'Offline OSV matching requires an exact package version; no vulnerability lookup was performed.',
+            query,
+          });
+        }
+
+        try {
+          const [match] = await dependencies.matchOsvPackages(
+            dependencies.osvClient,
+            [{
+              name: packageArgs.name,
+              ecosystem: packageArgs.ecosystem,
+              version: packageArgs.version,
+            }],
+          );
+          if (!match) throw new OSVSourceUnavailableError();
+          return JSON.stringify({
+            success: true,
+            source: OFFLINE_OSV_SOURCE,
+            status: 'ok',
+            query,
+            vulns: match.vulnerabilities,
+          });
+        } catch (error) {
+          return offlineSourceFailure(error, query);
+        }
+      }
+
       const queryBody: Record<string, unknown> = {
         package: {
           name: packageArgs.name,
@@ -412,14 +508,60 @@ export async function executeFunctionCall(
           'User-Agent': 'BOMbot-SBOM-Scanner/1.0',
         },
         body: JSON.stringify(queryBody),
-      }, fetchImplementation);
+      }, dependencies.fetch);
       return JSON.stringify(data);
     }
 
     case 'query_cve_details': {
       const cveArgs = args as z.infer<typeof cveQuerySchema>;
+      const requestedIdentifier = cveArgs.cve_id.toUpperCase();
+      if (dependencies.osvMode === 'offline') {
+        const query = { requested_identifier: requestedIdentifier };
+        try {
+          await dependencies.getCurrentOsvSnapshot(dependencies.osvClient);
+          const advisory = await dependencies.getOsvAdvisoryByIdentifier(
+            dependencies.osvClient,
+            requestedIdentifier,
+          ) as { id?: unknown; aliases?: unknown } | null;
+          if (!advisory) {
+            return JSON.stringify({
+              success: false,
+              source: OFFLINE_OSV_SOURCE,
+              status: 'not_found',
+              error: `${requestedIdentifier} was not found in the pinned offline OSV snapshot.`,
+              ...query,
+            });
+          }
+          if (typeof advisory.id !== 'string') {
+            throw new Error('Offline OSV identifier lookup returned an advisory without an id');
+          }
+          const resolvedViaAlias = advisory.id !== requestedIdentifier;
+          if (
+            resolvedViaAlias
+            && (!Array.isArray(advisory.aliases) || !advisory.aliases.includes(requestedIdentifier))
+          ) {
+            throw new Error('Offline OSV alias resolution returned an inconsistent advisory');
+          }
+
+          return JSON.stringify({
+            success: true,
+            source: OFFLINE_OSV_SOURCE,
+            status: 'ok',
+            requested_identifier: requestedIdentifier,
+            resolved_advisory_id: advisory.id,
+            resolved_via_alias: resolvedViaAlias,
+            ...(resolvedViaAlias ? {
+              notice: `Offline snapshot substitution: requested identifier ${requestedIdentifier} is an alias of advisory ${advisory.id}; the returned details are for ${advisory.id}.`,
+            } : {}),
+            advisory,
+          });
+        } catch (error) {
+          return offlineSourceFailure(error, query);
+        }
+      }
+
       const data = await getOSVJson(
-        `${osvBaseUrl}/v1/vulns/${encodeURIComponent(cveArgs.cve_id.toUpperCase())}`,
+        `${osvBaseUrl}/v1/vulns/${encodeURIComponent(requestedIdentifier)}`,
         {
           method: 'GET',
           headers: {
@@ -427,7 +569,7 @@ export async function executeFunctionCall(
             'User-Agent': 'BOMbot-SBOM-Scanner/1.0',
           },
         },
-        fetchImplementation,
+        dependencies.fetch,
       );
       return JSON.stringify(data);
     }
