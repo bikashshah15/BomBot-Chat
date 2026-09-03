@@ -3,6 +3,28 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-03 — INC-09 Part B1b-2 (offline OSV query-route wiring)
+- Under the default `OSV_MODE=api` configuration, the OSV query route retains its existing hosted
+  requests and participant-facing behavior. Under `OSV_MODE=offline`, package queries and
+  identifier lookups now answer from the pinned local snapshot, and those results can enter the
+  model conversation without contacting the hosted OSV API. Every successful offline identifier
+  lookup against this pinned snapshot returns a differently-keyed advisory resolved through an
+  alias: the route accepts only CVE-form identifiers, while the snapshot contains zero CVE-keyed
+  primary advisory records. This substitution is disclosed to both the client and the model at
+  the point of use. The no-substitution path remains implemented and covered by an injected test,
+  but is unreachable against this snapshot. The hosted and offline arms are not equivalent, and
+  known input differences include two package-query classes. First, the hosted arm forwards a
+  versionless query, while the selected offline matcher inherently requires an exact version; the
+  route's HTTP 400 refusal is the deliberate fail-visible response to that constraint. Second,
+  the hosted arm forwards ecosystems outside `OSV_ECOSYSTEMS`, while the offline snapshot is
+  ingested only for that configured ecosystem set; the route deliberately returns HTTP 400 rather
+  than an empty result. These known differences are not claimed to be exhaustive. An input class
+  answered by one arm and rejected by the other is a data-path difference, not a difference in
+  model behavior, and bears on any later comparison between the arms. The offline path is not yet
+  measured; measurement remains Part B2. The snapshot is identified by `snapshot_date`
+  `2026-09-02` together with `max_modified`
+  `2026-09-02T19:45:05.400430762Z`.
+
 ## 2026-09-03 — INC-09 Part B1b-1 (offline upload scan wiring)
 - Under the default `OSV_MODE=api` configuration, upload scanning remains on the existing hosted
   OSV API path with the same request shape, batching, pacing, and package cap, so this increment
@@ -37,9 +59,13 @@ Columns: date · increment · what changed · why · effect on the study.
   affected ranges, and database-specific metadata so later offline wiring can preserve the
   same minimized vulnerability fields as raw OSV results. A canonical raw-advisory table
   preserves package-less ranges and complete multi-package records without duplicating them
-  across package-index rows; because the snapshot now stores the complete raw advisory record,
-  an offline lookup by CVE id or alias returns the same object the live `/v1/vulns/{id}` endpoint
-  returns, rather than a reconstruction. Added CVE-alias lookup without connecting it to a route.
+  across package-index rows. The prior claim that an offline lookup by CVE id or alias returns
+  the same object as the live `/v1/vulns/{id}` endpoint was measured false: 40 aliases were
+  probed, four produced live responses, and none was deeply equal. The per-ecosystem archives are
+  keyed by ecosystem-native advisory ids with CVEs as aliases, while `/v1/vulns/{id}` additionally
+  serves CVE-keyed records those archives do not contain. An offline alias lookup therefore
+  returns the stored ecosystem-native canonical advisory, not the live endpoint's CVE-keyed
+  object. Added CVE-alias lookup without connecting it to a route.
   This part makes no participant-facing change: routes still use the existing live OSV API path,
   and no request bytes or model stimulus move. The declared pin alone does not identify the
   snapshot and must be cited together with `max_modified`: `snapshot_date` `2026-09-02`,

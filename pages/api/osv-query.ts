@@ -1,12 +1,16 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { config as environmentConfig } from '../../lib/config.ts';
+import { dbPool } from '../../lib/db/client.ts';
 import {
   ConversationSequenceConflictError,
   getConversationSessionId,
 } from '../../lib/db/conversations.ts';
 import { appendConversationMessages } from '../../lib/llm/conversationHistory.ts';
 import { cveQuerySchema } from '../../lib/openai-responses.ts';
+import { getOsvAdvisoryByIdentifier, type OsvQueryClient } from '../../lib/osv/db.ts';
+import { OSV_ECOSYSTEMS, type OsvEcosystem } from '../../lib/osv/ecosystems.ts';
 import { OSVSourceUnavailableError } from '../../lib/osv/errors.ts';
+import { getCurrentOsvSnapshot, matchOsvPackages } from '../../lib/osv/match.ts';
 
 interface OSVQueryRequest {
   version?: string;
@@ -56,7 +60,52 @@ interface OSVQueryResponse {
   vulns: OSVVulnerability[];
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+interface IdentifierResolution {
+  requestedIdentifier: string;
+  resolvedAdvisoryId: string;
+  resolvedViaAlias: boolean;
+}
+
+interface OsvQueryHandlerDependencies {
+  fetch: typeof fetch;
+  getConversationSessionId: typeof getConversationSessionId;
+  appendConversationMessages: typeof appendConversationMessages;
+  getCurrentOsvSnapshot: typeof getCurrentOsvSnapshot;
+  getOsvAdvisoryByIdentifier: typeof getOsvAdvisoryByIdentifier;
+  matchOsvPackages: typeof matchOsvPackages;
+  osvClient: OsvQueryClient;
+  osvMode: typeof environmentConfig.OSV_MODE;
+  osvBaseUrl: typeof environmentConfig.OSV_BASE_URL;
+}
+
+const defaultHandlerDependencies: OsvQueryHandlerDependencies = {
+  fetch,
+  getConversationSessionId,
+  appendConversationMessages,
+  getCurrentOsvSnapshot,
+  getOsvAdvisoryByIdentifier,
+  matchOsvPackages,
+  osvClient: dbPool,
+  osvMode: environmentConfig.OSV_MODE,
+  osvBaseUrl: environmentConfig.OSV_BASE_URL,
+};
+
+function isOsvEcosystem(ecosystem: string): ecosystem is OsvEcosystem {
+  return (OSV_ECOSYSTEMS as readonly string[]).includes(ecosystem);
+}
+
+export function createOsvQueryHandler(
+  overrides: Partial<OsvQueryHandlerDependencies> = {},
+) {
+  const dependencies = { ...defaultHandlerDependencies, ...overrides };
+  return (req: NextApiRequest, res: NextApiResponse) => handleOsvQuery(req, res, dependencies);
+}
+
+async function handleOsvQuery(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  dependencies: OsvQueryHandlerDependencies,
+) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
@@ -90,62 +139,111 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (conversationId) {
       // This session UUID is a bearer capability, not authentication. It limits practical
       // conversation enumeration but does not protect a capability obtained by another party.
-      if (await getConversationSessionId(conversationId) !== sessionId) {
+      if (await dependencies.getConversationSessionId(conversationId) !== sessionId) {
         return res.status(403).json({ error: 'Conversation does not belong to this session' });
       }
     }
 
-    let response: Response;
     let data: OSVVulnerability | OSVQueryResponse;
-    const osvBaseUrl = environmentConfig.OSV_BASE_URL;
-    if (!osvBaseUrl) {
-      throw new OSVSourceUnavailableError();
-    }
-
-    if (cveId) {
-      // Query specific CVE
-      response = await fetch(`${osvBaseUrl}/v1/vulns/${encodeURIComponent(cveId)}`, {
-        method: 'GET',
-        headers: { 
-          'Content-Type': 'application/json',
-          'User-Agent': 'BOMbot-SBOM-Scanner/1.0'
-        }
-      });
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          return res.status(404).json({ 
+    let identifierResolution: IdentifierResolution | undefined;
+    if (dependencies.osvMode === 'offline') {
+      if (cveId) {
+        // Confirm the pinned source is readable before interpreting a null lookup as not found.
+        await dependencies.getCurrentOsvSnapshot(dependencies.osvClient);
+        const advisory = await dependencies.getOsvAdvisoryByIdentifier(
+          dependencies.osvClient,
+          cveId,
+        );
+        if (!advisory) {
+          return res.status(404).json({
             error: `CVE ${cveId} not found in OSV database`
           });
         }
-        throw new Error(`OSV API error: ${response.status}`);
+        const vulnerability = advisory as OSVVulnerability;
+        if (typeof vulnerability.id !== 'string') {
+          throw new Error('Offline OSV identifier lookup returned an advisory without an id');
+        }
+        const resolvedViaAlias = vulnerability.id !== cveId;
+        if (resolvedViaAlias && !vulnerability.aliases?.includes(cveId)) {
+          throw new Error('Offline OSV alias resolution returned an inconsistent advisory');
+        }
+        identifierResolution = {
+          requestedIdentifier: cveId,
+          resolvedAdvisoryId: vulnerability.id,
+          resolvedViaAlias,
+        };
+        data = vulnerability;
+      } else {
+        if (!version) {
+          return res.status(400).json({
+            error: 'Package version is required when OSV_MODE=offline',
+          });
+        }
+        if (!isOsvEcosystem(ecosystem!)) {
+          return res.status(400).json({
+            error: `Ecosystem ${ecosystem} is not supported when OSV_MODE=offline`,
+          });
+        }
+
+        const [match] = await dependencies.matchOsvPackages(
+          dependencies.osvClient,
+          [{ name: name!, version, ecosystem }],
+        );
+        if (!match) throw new OSVSourceUnavailableError();
+        data = { vulns: match.vulnerabilities as unknown as OSVVulnerability[] };
       }
-      
-      data = await response.json() as OSVVulnerability;
     } else {
-      // Query by package name and version
-      const queryBody: any = {
-        package: { name, ecosystem }
-      };
-      
-      if (version) {
-        queryBody.version = version;
+      const osvBaseUrl = dependencies.osvBaseUrl;
+      if (!osvBaseUrl) {
+        throw new OSVSourceUnavailableError();
       }
 
-      response = await fetch(`${osvBaseUrl}/v1/query`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'User-Agent': 'BOMbot-SBOM-Scanner/1.0'
-        },
-        body: JSON.stringify(queryBody)
-      });
+      let response: Response;
+      if (cveId) {
+        // Query specific CVE
+        response = await dependencies.fetch(`${osvBaseUrl}/v1/vulns/${encodeURIComponent(cveId)}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'BOMbot-SBOM-Scanner/1.0'
+          }
+        });
 
-      if (!response.ok) {
-        throw new Error(`OSV API error: ${response.status}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            return res.status(404).json({
+              error: `CVE ${cveId} not found in OSV database`
+            });
+          }
+          throw new Error(`OSV API error: ${response.status}`);
+        }
+
+        data = await response.json() as OSVVulnerability;
+      } else {
+        // Query by package name and version
+        const queryBody: any = {
+          package: { name, ecosystem }
+        };
+
+        if (version) {
+          queryBody.version = version;
+        }
+
+        response = await dependencies.fetch(`${osvBaseUrl}/v1/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'BOMbot-SBOM-Scanner/1.0'
+          },
+          body: JSON.stringify(queryBody)
+        });
+
+        if (!response.ok) {
+          throw new Error(`OSV API error: ${response.status}`);
+        }
+
+        data = await response.json() as OSVQueryResponse;
       }
-
-      data = await response.json() as OSVQueryResponse;
     }
 
     // If a conversation is provided, send the authoritative OSV result into it.
@@ -155,7 +253,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         
         if (cveId) {
           const vuln = data as OSVVulnerability;
-          messageContent = `Here are the details for CVE ${cveId}:\n\n${JSON.stringify(vuln, null, 2)}\n\nPlease provide a QUICK summary with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and suggest I can ask for "detailed analysis" if needed.`;
+          const resolutionNote = identifierResolution?.resolvedViaAlias
+            ? `\n\nOffline snapshot note: Requested identifier ${cveId} is an alias of advisory ${identifierResolution.resolvedAdvisoryId}; the details below are for ${identifierResolution.resolvedAdvisoryId}.`
+            : '';
+          messageContent = `Here are the details for CVE ${cveId}:${resolutionNote}\n\n${JSON.stringify(vuln, null, 2)}\n\nPlease provide a QUICK summary with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and suggest I can ask for "detailed analysis" if needed.`;
         } else {
           const queryResult = data as OSVQueryResponse;
           const vulnCount = queryResult.vulns?.length || 0;
@@ -167,7 +268,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
 
-        await appendConversationMessages({
+        await dependencies.appendConversationMessages({
           conversationId,
           messages: [{ role: 'user', content: messageContent }],
         });
@@ -177,6 +278,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           result: data,
           conversationId,
           threadId: conversationId,
+          ...(identifierResolution ? { identifierResolution } : {}),
           query: cveId ? { cve: cveId } : { name, ecosystem, version }
         });
       } catch (assistantError) {
@@ -188,6 +290,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ 
           result: data,
           assistantError: 'Failed to send to AI assistant',
+          ...(identifierResolution ? { identifierResolution } : {}),
           query: cveId ? { cve: cveId } : { name, ecosystem, version }
         });
       }
@@ -197,6 +300,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json({ 
       success: true,
       result: data,
+      ...(identifierResolution ? { identifierResolution } : {}),
       query: cveId ? { cve: cveId } : { name, ecosystem, version }
     });
 
@@ -208,3 +312,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
+export default createOsvQueryHandler();
