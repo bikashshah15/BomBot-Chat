@@ -6,6 +6,7 @@ import path from 'path';
 import { config as environmentConfig } from '../../lib/config.ts';
 import { buildSoftwareContext } from '../../lib/context/softwareContext.ts';
 import { insertLog } from '../../lib/db/chatLogs.ts';
+import { dbPool } from '../../lib/db/client.ts';
 import {
   ConversationSequenceConflictError,
   createConversation,
@@ -17,6 +18,9 @@ import {
 } from '../../lib/openai-responses.ts';
 import { OSV_ECOSYSTEMS } from '../../lib/osv/ecosystems.ts';
 import { OSVSourceUnavailableError } from '../../lib/osv/errors.ts';
+import { matchOsvPackages } from '../../lib/osv/match.ts';
+import type { OsvEcosystem } from '../../lib/osv/ecosystems.ts';
+import type { OsvQueryClient } from '../../lib/osv/db.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 export const config = {
@@ -346,6 +350,9 @@ interface UploadHandlerDependencies {
     uploadDir: string,
   ) => Promise<{ fields: any; files: any }>;
   queryOSVForPackage: typeof queryOSVForPackage;
+  matchOsvPackages: typeof matchOsvPackages;
+  osvClient: OsvQueryClient;
+  osvMode: typeof environmentConfig.OSV_MODE;
   createConversation: typeof createConversation;
   getConversationSessionId: typeof getConversationSessionId;
   appendConversationMessages: typeof appendConversationMessages;
@@ -373,6 +380,9 @@ export function createUploadHandler(
   const handlerDependencies: UploadHandlerDependencies = {
     parseForm: parseUploadForm,
     queryOSVForPackage,
+    matchOsvPackages,
+    osvClient: dbPool,
+    osvMode: environmentConfig.OSV_MODE,
     createConversation,
     getConversationSessionId,
     appendConversationMessages,
@@ -467,19 +477,35 @@ export function createUploadHandler(
       vulnerabilities: OSVVulnerability[];
     }> = [];
 
-    // Process packages in batches to avoid rate limiting
-    for (let i = 0; i < packagesToScan.length; i += 5) {
-      const batch = packagesToScan.slice(i, i + 5);
-      const batchPromises = batch.map(pkg => 
-        handlerDependencies.queryOSVForPackage(pkg).then(vulns => ({ package: pkg, vulnerabilities: vulns }))
+    if (handlerDependencies.osvMode === 'offline') {
+      const offlinePackages = packagesToScan.map(pkg => ({
+        name: pkg.name,
+        version: pkg.version as string,
+        ecosystem: pkg.ecosystem as OsvEcosystem,
+      }));
+      const offlineMatches = await handlerDependencies.matchOsvPackages(
+        handlerDependencies.osvClient,
+        offlinePackages,
       );
-      
-      const batchResults = await Promise.all(batchPromises);
-      vulnerabilityResults.push(...batchResults);
-      
-      // Small delay between batches
-      if (i + 5 < packagesToScan.length) {
-        await handlerDependencies.wait(100);
+      vulnerabilityResults.push(...offlineMatches.map((match, index) => ({
+        package: packagesToScan[index],
+        vulnerabilities: match.vulnerabilities as unknown as OSVVulnerability[],
+      })));
+    } else {
+      // Process packages in batches to avoid rate limiting
+      for (let i = 0; i < packagesToScan.length; i += 5) {
+        const batch = packagesToScan.slice(i, i + 5);
+        const batchPromises = batch.map(pkg =>
+          handlerDependencies.queryOSVForPackage(pkg).then(vulns => ({ package: pkg, vulnerabilities: vulns }))
+        );
+
+        const batchResults = await Promise.all(batchPromises);
+        vulnerabilityResults.push(...batchResults);
+
+        // Small delay between batches
+        if (i + 5 < packagesToScan.length) {
+          await handlerDependencies.wait(100);
+        }
       }
     }
 

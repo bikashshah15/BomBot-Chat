@@ -3,6 +3,17 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-03 — INC-09 Part B1b-1 (offline upload scan wiring)
+- Under the default `OSV_MODE=api` configuration, upload scanning remains on the existing hosted
+  OSV API path with the same request shape, batching, pacing, and package cap, so this increment
+  makes no default-profile participant-facing change. Under `OSV_MODE=offline`, SBOM uploads now
+  resolve recognized, versioned packages in one batch against the pinned local snapshot instead
+  of failing because no hosted base URL is configured. This creates a working offline-profile
+  participant path and changes the vulnerability data supplied to its model. This increment does
+  not establish equivalence between the hosted and offline arms; offline ledger measurement is
+  deferred to Part B2. The snapshot is identified by `snapshot_date` `2026-09-02` together with
+  `max_modified` `2026-09-02T19:45:05.400430762Z`.
+
 ## 2026-09-03 — INC-09.5 (SBOM parser correctness)
 - Corrected a pre-existing CycloneDX package-URL parsing defect, so valid CycloneDX uploads
   that previously returned HTTP 400 now scan and return results. Packages whose parsed
