@@ -1,19 +1,19 @@
 {
-  "profile": "hosted",
-  "generatedAt": "2026-09-04T00:31:28.633Z",
+  "profile": "offline",
+  "generatedAt": "2026-09-04T00:31:50.639Z",
   "fixture": "tests/fixtures/small-spdx.json",
   "runs": {
     "smallSpdx": {
       "fixture": "tests/fixtures/small-spdx.json",
-      "osvRequestCount": 12
+      "osvRequestCount": 0
     }
   },
   "destinations": [
     {
       "host": "api.openai.com",
       "requestCount": 9,
-      "totalRequestBodySize": 133584,
-      "maxRequestBodySize": 34188,
+      "totalRequestBodySize": 342571,
+      "maxRequestBodySize": 71232,
       "carriesInventory": true,
       "matchedMarkers": [
         "0.21.1",
@@ -43,53 +43,42 @@
         "zod"
       ],
       "classification": "CARRIES_INVENTORY"
-    },
-    {
-      "host": "api.osv.dev",
-      "requestCount": 164,
-      "totalRequestBodySize": 14039,
-      "maxRequestBodySize": 88,
-      "carriesInventory": true,
-      "matchedMarkers": [
-        "0.21.1",
-        "1.0.1",
-        "1.2.5",
-        "11.1.0",
-        "18.3.1",
-        "3.1.3",
-        "3.23.8",
-        "4.1.5",
-        "4.17.20",
-        "5.0.7",
-        "7.0.0",
-        "9.0.1",
-        "axios",
-        "commander",
-        "fast-deep-equal",
-        "is-number",
-        "kleur",
-        "lodash",
-        "minimist",
-        "nanoid",
-        "picocolors",
-        "react",
-        "uuid",
-        "zod"
-      ],
-      "classification": "CARRIES_INVENTORY"
     }
   ],
   "instrumentation": {
-    "sinkRequestCount": 173,
-    "interceptorRequestCount": 173,
+    "sinkRequestCount": 9,
+    "interceptorRequestCount": 9,
     "sinkCapturedExpectedHosts": true,
     "interceptorCapturedExpectedHosts": true,
     "unexpectedTransportHosts": []
   },
   "regressionGuards": {
     "oversizeSpdxPackages": 200,
-    "oversizeSpdxOsvQueries": 150,
+    "oversizeSpdxOsvQueries": 0,
     "observedUploadCap": 150
+  },
+  "executionProof": {
+    "snapshot": {
+      "snapshotDate": "2026-09-02",
+      "databaseMaxModified": "2026-09-02T19:45:05.400431Z",
+      "advisoryRows": 286252,
+      "vulnerabilityRows": 297916,
+      "maxModified": "2026-09-02T19:45:05.400430762Z"
+    },
+    "smallUpload": {
+      "packagesScanned": 12,
+      "vulnerabilitiesFound": 35
+    },
+    "packageQuery": {
+      "package": "lodash",
+      "version": "4.17.20",
+      "vulnerabilitiesFound": 5
+    },
+    "identifier": {
+      "requestedIdentifier": "CVE-2021-23337",
+      "resolvedAdvisoryId": "GHSA-35jh-r3h4-6jhm",
+      "resolvedViaAlias": true
+    }
   },
   "manualDeploymentRows": [
     {

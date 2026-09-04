@@ -33,22 +33,22 @@ small-fixture OSV queries, and 2 of 2 inventory-carrying hosts.
 ## Ledger result
 
 Regeneration preserved those request counts and reduced total OpenAI request-body bytes from
-176,959 to 133,578: 43,381 bytes, or 24.5%. The largest OpenAI body fell from 42,091 to
-34,198 bytes. The original 60–90 KB estimate was high because it overestimated the saving in
+176,959 to 133,584: 43,375 bytes, or 24.5%. The largest OpenAI body fell from 42,091 to
+34,188 bytes. The original 60–90 KB estimate was high because it overestimated the saving in
 each replayed small-fixture context.
 
 The raw-payload table and the wire ledger measure different serialization layers. The first
 eight OpenAI requests belong to the small-SPDX conversation; each replays the same pinned upload
-prompt and saves 4,436 wire bytes, for 35,488 bytes total. Request 9 is the separate oversize
-upload request. It contains one input item and one oversize context, and saves 7,893 wire bytes.
-Thus `8 × 4,436 + 7,893 = 43,381`, which reconciles the aggregate exactly.
+prompt and saves 4,434 wire bytes, for 35,472 bytes total. Request 9 is the separate oversize
+upload request. It contains one input item and one oversize context, and saves 7,903 wire bytes.
+Thus `8 × 4,434 + 7,903 = 43,375`, which reconciles the aggregate exactly.
 
 For the oversize row, the table's data-only reduction is 5,973 raw UTF-8 bytes. At full-prompt
-scope, adding the new prose truncation warning makes the raw reduction 5,879 bytes. Serializing
-that prompt as a JSON string for the provider body increases the reduction to 7,893 bytes,
+scope, the current prose coverage-warning block makes the raw reduction 5,890 bytes. Serializing
+that prompt as a JSON string for the provider body increases the reduction to 7,903 bytes,
 because the old pretty-printed payload has 1,218 newline characters and 3,214 quote characters
 that require JSON escaping, while the compact minimized data has 1 newline and 2,416 quotes.
-The data blocks therefore differ by 1,217 newlines, but the new full prompt adds one newline for
-the prose truncation warning, making the full-prompt difference 1,216 escaped newlines and 798
-escaped quotes. This reconciles exactly: `5,879 + 1,216 + 798 = 7,893`. The wire figure is
+The data blocks therefore differ by 1,217 newlines, but the current full prompt adds two newlines
+for the coverage-warning block, making the full-prompt difference 1,215 escaped newlines and 798
+escaped quotes. This reconciles exactly: `5,890 + 1,215 + 798 = 7,903`. The wire figure is
 therefore larger without implying that the request carries multiple small contexts.

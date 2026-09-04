@@ -1,0 +1,31 @@
+{
+  "profile": "offline",
+  "allowed": [
+    {
+      "host": "api.openai.com",
+      "carriesInventory": true
+    }
+  ],
+  "maxInventoryCarryingHosts": 1,
+  "snapshot": {
+    "snapshotDate": "2026-09-02",
+    "maxModified": "2026-09-02T19:45:05.400430762Z",
+    "databaseMaxModified": "2026-09-02T19:45:05.400431Z"
+  },
+  "disclosureRows": [
+    {
+      "id": "D1",
+      "destination": "api.openai.com/v1/responses",
+      "operator": "OpenAI",
+      "carriesInventory": true,
+      "observable": true
+    },
+    {
+      "id": "D6",
+      "destination": "Vercel edge + runtime",
+      "operator": "Vercel",
+      "carriesInventory": true,
+      "observable": false
+    }
+  ]
+}

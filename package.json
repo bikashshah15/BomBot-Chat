@@ -18,7 +18,7 @@
     "type-check": "tsc --noEmit",
     "db:migrate": "node scripts/db-migrate.mjs",
     "osv:sync": "node scripts/osv-sync.mjs",
-    "ledger:build": "node tests/ledger/run-ledger.mjs",
+    "ledger:build": "node tests/ledger/run-ledger.mjs hosted && node tests/ledger/run-ledger.mjs offline",
     "ledger:check": "node tests/ledger/check.mjs",
     "lint": "eslint .",
     "deploy": "vercel --prod",
