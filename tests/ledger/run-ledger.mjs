@@ -11,13 +11,14 @@ import { Pool } from 'pg';
 
 import { startLedgerSink } from './sink.mjs';
 
-const { BOMBOT_INSTRUCTIONS } = await import('../../lib/openai-responses.ts');
+const { buildBombotInstructions } = await import('../../lib/openai-responses.ts');
 
 const ledgerDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(ledgerDir, '../..');
 const fixturesDir = path.join(repoRoot, 'tests/fixtures');
 const profile = process.argv[2];
 assert.ok(profile === 'hosted' || profile === 'offline', 'Ledger profile must be hosted or offline');
+const expectedInstructions = buildBombotInstructions(profile === 'hosted' ? 'api' : 'offline');
 const expectedPath = path.join(
   ledgerDir,
   profile === 'hosted' ? 'expected.json' : 'expected-offline.json',
@@ -548,7 +549,7 @@ try {
     assert.equal(body.background, undefined);
     assert.equal(body.stream, true);
     assert.equal(body.conversation, undefined);
-    assert.equal(body.instructions, BOMBOT_INSTRUCTIONS);
+    assert.equal(body.instructions, expectedInstructions);
     assert.equal(body.input.some(item => item.role === 'system'), false);
     assert.equal(Object.hasOwn(body, 'tools'), false);
   }

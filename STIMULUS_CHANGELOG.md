@@ -3,6 +3,16 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-03 — INC-09.6 (profile-accurate OSV provenance instructions)
+- The two arms now receive different system prompts by construction, deliberately matching the
+  configured vulnerability source. Under `OSV_MODE=api`, the model continues to be told that it
+  has real-time, current, and up-to-date OSV vulnerability data; that hosted instruction string is
+  byte-identical to the preceding stimulus. Under `OSV_MODE=offline`, those currency claims are
+  replaced with statements that its vulnerability data comes from a pinned local OSV snapshot.
+  The offline prompt does not bake in a snapshot date and does not ask the model to hedge or
+  disclaim findings from the real snapshot. This change makes provenance and currency honest for
+  each profile; it does not establish equivalence between the arms in data, output, or behavior.
+
 ## 2026-09-03 — INC-09 Part B1b-3 (offline model-tool OSV wiring)
 - Under `OSV_MODE=offline`, the two OSV-backed model tools now answer from the pinned local
   snapshot instead of failing because no hosted base URL is configured. Their direct model-facing

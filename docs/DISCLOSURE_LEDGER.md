@@ -21,7 +21,7 @@ both profiles to consume the same vulnerability records and identifier semantics
 |---|---|---:|---:|---:|---|
 | hosted | `api.openai.com` | 9 | 133584 | 34188 | **Yes** |
 | hosted | `api.osv.dev` | 164 | 14039 | 88 | **Yes** |
-| offline | `api.openai.com` | 9 | 342571 | 71232 | **Yes** |
+| offline | `api.openai.com` | 9 | 344677 | 71466 | **Yes** |
 
 The hosted run contacted **2** logical hosts and the offline
 run contacted **1**. OpenAI remains present in both profiles

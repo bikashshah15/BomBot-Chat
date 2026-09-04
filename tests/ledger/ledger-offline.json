@@ -1,6 +1,6 @@
 {
   "profile": "offline",
-  "generatedAt": "2026-09-04T00:31:50.639Z",
+  "generatedAt": "2026-09-04T17:25:05.462Z",
   "fixture": "tests/fixtures/small-spdx.json",
   "runs": {
     "smallSpdx": {
@@ -12,8 +12,8 @@
     {
       "host": "api.openai.com",
       "requestCount": 9,
-      "totalRequestBodySize": 342571,
-      "maxRequestBodySize": 71232,
+      "totalRequestBodySize": 344677,
+      "maxRequestBodySize": 71466,
       "carriesInventory": true,
       "matchedMarkers": [
         "0.21.1",
