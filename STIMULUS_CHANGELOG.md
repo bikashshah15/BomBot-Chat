@@ -3,6 +3,34 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-07 — INC-10a-1 (local OpenAI-compatible inference path)
+- The hosted participant-facing path is unchanged: `PROFILE=hosted` still selects the OpenAI
+  Responses provider, and its endpoint, request construction, prompt delivery, decoding fields,
+  tool handling, streaming behavior, and result mapping do not move. A local profile now fails at
+  configuration load unless `LLM_BASE_URL` names a local or private inference endpoint; this
+  prevents the hosted OpenAI default from becoming an authenticated local-profile request.
+- When the local arm is first exercised, its wire contract will differ from the hosted arm in at
+  least the following ways; this list is not claimed to be exhaustive:
+  - **Inherent to the chat-completions surface:** requests use `/chat/completions` and a `messages`
+    array rather than `/responses` with `instructions` plus `input`. The system instruction is a
+    `system` message instead of the top-level `instructions` field.
+  - **Inherent to the chat-completions surface:** function definitions are nested under
+    `tools[].function`; assistant calls use `message.tool_calls`; and tool results are `tool`
+    messages. The hosted Responses wire uses flat function tools plus `function_call` and
+    `function_call_output` input items.
+  - **Inherent to the chat-completions surface:** the output limit is sent as `max_tokens`; the
+    hosted Responses request uses `max_output_tokens`.
+  - **Inherent to the chat-completions surface:** streaming arrives as choice deltas followed by a
+    `finish_reason`, and terminal status is derived from that reason. The hosted provider consumes
+    typed Responses events and the response's explicit status.
+  - **Chosen difference:** the local request omits the hosted provider's `store: false` and
+    `parallel_tool_calls: true` fields rather than assuming every compatible server implements
+    those OpenAI-specific controls.
+  - **Chosen difference:** the local provider sends the configured `seed`; the hosted provider
+    discards it because the Responses request surface has no seed field.
+  - **Chosen difference:** local continuation requests do not carry the hosted provider's
+    idempotency header; caller-owned message history remains the continuation mechanism.
+
 ## 2026-09-03 — INC-09.6 (profile-accurate OSV provenance instructions)
 - The two arms now receive different system prompts by construction, deliberately matching the
   configured vulnerability source. Under `OSV_MODE=api`, the model continues to be told that it

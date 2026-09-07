@@ -1,7 +1,9 @@
 import { z, type ZodError } from 'zod';
+import { isIP } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
+const DEFAULT_LLM_BASE_URL = 'https://api.openai.com/v1';
 const DEFAULT_OSV_BASE_URL = 'https://api.osv.dev';
 const DEFAULT_OSV_MIRROR_BASE_URL = 'https://storage.googleapis.com';
 const DEFAULT_OSV_SCANNER_CACHE_DIRECTORY = path.join(os.tmpdir(), 'bombot-osv-scanner-db');
@@ -48,13 +50,45 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must use YYYY-MM-DD').r
   return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
 }, 'must be a valid calendar date');
 
+function isLocalInferenceUrl(value: string) {
+  const url = new URL(value);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+
+  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (
+    hostname === 'localhost'
+    || hostname.endsWith('.localhost')
+    || hostname === 'host.docker.internal'
+    || hostname === 'model'
+  ) return true;
+
+  const ipVersion = isIP(hostname);
+  if (ipVersion === 4) {
+    const [first, second] = hostname.split('.').map(Number);
+    return first === 10
+      || first === 127
+      || (first === 169 && second === 254)
+      || (first === 172 && second >= 16 && second <= 31)
+      || (first === 192 && second === 168);
+  }
+
+  if (ipVersion === 6) {
+    return hostname === '::1'
+      || hostname.startsWith('fc')
+      || hostname.startsWith('fd')
+      || /^fe[89ab]/.test(hostname);
+  }
+
+  return false;
+}
+
 const environmentSchema = z.object({
   DATABASE_URL: z.string().trim().url().refine((value) => {
     const protocol = new URL(value).protocol;
     return protocol === 'postgres:' || protocol === 'postgresql:';
   }, 'must use postgres or postgresql'),
   PROFILE: z.enum(['hosted', 'local']).default('hosted'),
-  LLM_BASE_URL: z.string().trim().url().default('https://api.openai.com/v1'),
+  LLM_BASE_URL: z.string().trim().url().default(DEFAULT_LLM_BASE_URL),
   LLM_MODEL: z.string().trim().min(1),
   LLM_API_KEY: z.string().trim().min(1).optional(),
   OSV_MODE: z.enum(['api', 'offline']).default('api'),
@@ -80,6 +114,14 @@ const environmentSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['LLM_API_KEY'],
       message: 'is required when PROFILE=hosted',
+    });
+  }
+
+  if (value.PROFILE === 'local' && !isLocalInferenceUrl(value.LLM_BASE_URL)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['LLM_BASE_URL'],
+      message: 'must point to a local inference server when PROFILE=local',
     });
   }
 

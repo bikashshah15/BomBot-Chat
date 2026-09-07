@@ -28,6 +28,7 @@ const previousValues = new Map(
 Object.assign(process.env, {
   DATABASE_URL: 'postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic',
   PROFILE: 'local',
+  LLM_BASE_URL: 'http://127.0.0.1:11434/v1',
   LLM_MODEL: 'synthetic-local-model',
   OSV_MODE: 'offline',
   RETENTION: 'study',

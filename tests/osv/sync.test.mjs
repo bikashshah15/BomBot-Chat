@@ -110,6 +110,7 @@ test('OSV sync script refuses to run without an explicit OSV_SNAPSHOT_DATE', () 
       DOTENV_CONFIG_PATH: process.platform === 'win32' ? 'NUL' : '/dev/null',
       DATABASE_URL: 'postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic',
       PROFILE: 'local',
+      LLM_BASE_URL: 'http://127.0.0.1:11434/v1',
       LLM_MODEL: 'synthetic-local-model',
       LLM_TEMPERATURE: '0',
       LLM_TOP_P: '1',

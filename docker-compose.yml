@@ -1,0 +1,88 @@
+services:
+  app:
+    build: .
+    env_file:
+      - .env
+    environment:
+      PROFILE: local
+      LLM_BASE_URL: http://model:11434/v1
+      DATABASE_URL: postgresql://bombot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/bombot
+      OSV_MODE: offline
+    depends_on:
+      model:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - app_runtime
+      - model_private
+      - data_private
+
+  model:
+    image: ${OLLAMA_IMAGE:?OLLAMA_IMAGE must be pinned by immutable digest}
+    command: serve
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_MODEL: ${LLM_MODEL:?LLM_MODEL must name the provisioned model}
+    volumes:
+      - bombot_model_weights:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama show \"$$OLLAMA_MODEL\" >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - model_private
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: bombot
+      POSTGRES_USER: bombot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - bombot_postgres_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bombot -d bombot"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    networks:
+      - data_private
+
+  osv-sync:
+    build: .
+    profiles: [maintenance]
+    command: ["node", "scripts/osv-sync.mjs"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://bombot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/bombot
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app_runtime
+      - data_private
+
+networks:
+  app_runtime: {}
+  model_private:
+    internal: true
+  data_private:
+    internal: true
+
+volumes:
+  bombot_model_weights:
+    external: true
+  bombot_postgres_data:

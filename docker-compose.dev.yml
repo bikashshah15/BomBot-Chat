@@ -1,4 +1,21 @@
 services:
+  app:
+    build: .
+    env_file:
+      - .env
+    environment:
+      PROFILE: local
+      LLM_BASE_URL: http://host.docker.internal:11434/v1
+      DATABASE_URL: postgresql://bombot@postgres:5432/bombot
+      PGPASSWORD: bombot_dev_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:3000:3000"
+
   postgres:
     image: postgres:16
     environment:

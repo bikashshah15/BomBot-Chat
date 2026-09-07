@@ -1,0 +1,10 @@
+.env*
+.git
+.next
+dist
+node_modules
+*.log
+*.tsbuildinfo
+CODEX_*
+CLAUDE_*
+BOMBOT_PRIVACY_REARCHITECTURE_PLAN.md

@@ -1,9 +1,12 @@
 import { config, type Config } from '../config.ts';
 import {
   createOpenAIProvider,
-  type OpenAIProvider,
   type OpenAIProviderOptions,
 } from './providers/openai.ts';
+import {
+  createOpenAICompatibleProvider,
+  type OpenAICompatibleProviderOptions,
+} from './providers/openaiCompatible.ts';
 import type {
   LlmChunk,
   LlmProvider,
@@ -37,21 +40,30 @@ export interface CreateLlmGatewayOptions {
   settings?: LlmGatewayConfig;
   provider?: LlmProvider;
   openAI?: Pick<OpenAIProviderOptions, 'client'>;
+  openAICompatible?: Pick<OpenAICompatibleProviderOptions, 'transport'>;
 }
 
 export function selectLlmProvider(
   settings: LlmGatewayConfig,
   openAI: Pick<OpenAIProviderOptions, 'client'> = {},
-): OpenAIProvider {
+  openAICompatible: Pick<OpenAICompatibleProviderOptions, 'transport'> = {},
+): LlmProvider {
+  if (settings.PROFILE === 'local') {
+    return createOpenAICompatibleProvider({
+      model: settings.LLM_MODEL,
+      baseURL: settings.LLM_BASE_URL,
+      apiKey: settings.LLM_API_KEY,
+      transport: openAICompatible.transport,
+    });
+  }
+
   if (settings.PROFILE === 'hosted' && !settings.LLM_API_KEY && !openAI.client) {
     throw new Error('LLM_API_KEY is required for the hosted LLM provider');
   }
 
   return createOpenAIProvider({
     model: settings.LLM_MODEL,
-    apiKey: settings.PROFILE === 'local'
-      ? settings.LLM_API_KEY ?? 'local-openai-compatible'
-      : settings.LLM_API_KEY,
+    apiKey: settings.LLM_API_KEY,
     baseURL: settings.LLM_BASE_URL,
     client: openAI.client,
   });
@@ -74,7 +86,7 @@ export function createLlmGateway(options: CreateLlmGatewayOptions = {}): LlmGate
   const settings = options.settings ?? config;
   const selectedProvider = options.provider
     ? undefined
-    : selectLlmProvider(settings, options.openAI);
+    : selectLlmProvider(settings, options.openAI, options.openAICompatible);
   const provider = options.provider ?? selectedProvider as LlmProvider;
 
   return Object.freeze({
