@@ -57,10 +57,10 @@ receives in transit.
 Zero intercepted OSV requests is not treated as proof that the offline path ran. This run also
 required all of the following application-level outcomes before writing the artifact:
 
-- The database reported snapshot date `2026-09-02`,
-  `max_modified` `2026-09-02T19:45:05.400430762Z`,
-  286252 advisory rows, and
-  297916 package-vulnerability rows.
+- The database reported snapshot date `2026-09-07`,
+  `max_modified` `2026-09-07T22:30:03.807220381Z`,
+  286684 advisory rows, and
+  298387 package-vulnerability rows.
 - Uploading the 12-package fixture completed an offline batch scan and returned
   **35** real vulnerabilities.
 - The offline package-query route returned

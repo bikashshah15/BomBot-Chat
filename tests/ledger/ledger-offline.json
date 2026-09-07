@@ -1,6 +1,6 @@
 {
   "profile": "offline",
-  "generatedAt": "2026-09-04T17:25:05.462Z",
+  "generatedAt": "2026-09-07T22:48:30.878Z",
   "fixture": "tests/fixtures/small-spdx.json",
   "runs": {
     "smallSpdx": {
@@ -59,11 +59,11 @@
   },
   "executionProof": {
     "snapshot": {
-      "snapshotDate": "2026-09-02",
-      "databaseMaxModified": "2026-09-02T19:45:05.400431Z",
-      "advisoryRows": 286252,
-      "vulnerabilityRows": 297916,
-      "maxModified": "2026-09-02T19:45:05.400430762Z"
+      "snapshotDate": "2026-09-07",
+      "databaseMaxModified": "2026-09-07T22:30:03.807220Z",
+      "advisoryRows": 286684,
+      "vulnerabilityRows": 298387,
+      "maxModified": "2026-09-07T22:30:03.807220381Z"
     },
     "smallUpload": {
       "packagesScanned": 12,

@@ -3,6 +3,19 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-07 — INC-09.7 (durable OSV snapshot restoration)
+- Advanced the declared local OSV study snapshot from `2026-09-02` to `2026-09-07` and rebuilt
+  both its SQL projection and osv-scanner cache from the same verified archive set. The new
+  snapshot is identified by `snapshot_date` `2026-09-07` together with `max_modified`
+  `2026-09-07T22:30:03.807220381Z`. The date pin alone does not identify an immutable snapshot:
+  the mirror remains mutable within a UTC date, so two downloads carrying the same date can
+  contain different advisory revisions. The observed `max_modified` distinguishes the corpus
+  actually ingested and must be cited with the pin.
+- This changes the vulnerability corpus used by the offline arm and can therefore change the
+  advisory records entering its model request bodies. The hosted arm continues to query the live
+  OSV API and is not changed by this snapshot advance. The scanner cache now lives on the declared
+  durable host path instead of the operating system's reclaimable temporary directory.
+
 ## 2026-09-07 — INC-10a-1 (local OpenAI-compatible inference path)
 - The hosted participant-facing path is unchanged: `PROFILE=hosted` still selects the OpenAI
   Responses provider, and its endpoint, request construction, prompt delivery, decoding fields,
