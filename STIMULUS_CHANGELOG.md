@@ -36,6 +36,9 @@ Columns: date · increment · what changed · why · effect on the study.
   - **Inherent to the chat-completions surface:** streaming arrives as choice deltas followed by a
     `finish_reason`, and terminal status is derived from that reason. The hosted provider consumes
     typed Responses events and the response's explicit status.
+  - **Chosen difference:** local streaming requests set `stream_options.include_usage: true`, and
+    server-reported usage that arrives after `finish_reason` is included in the terminal result.
+    Compatible servers that omit usage continue to complete normally without it.
   - **Chosen difference:** the local request omits the hosted provider's `store: false` and
     `parallel_tool_calls: true` fields rather than assuming every compatible server implements
     those OpenAI-specific controls.

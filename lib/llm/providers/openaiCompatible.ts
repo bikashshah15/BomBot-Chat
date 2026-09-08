@@ -207,6 +207,7 @@ export function createOpenAICompatibleProvider(
       const request: ChatCompletionStreamRequest = {
         ...baseRequest(options, req),
         stream: true,
+        stream_options: { include_usage: true },
       };
       let stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
       try {
@@ -222,7 +223,6 @@ export function createOpenAICompatibleProvider(
       let status: LlmResultStatus = 'completed';
       let incompleteDetails: LlmResult['incompleteDetails'];
       let usage: OpenAI.CompletionUsage | undefined;
-      let emittedDone = false;
       const toolCallParts = new Map<number, { id: string; name: string; arguments: string }>();
 
       try {
@@ -252,51 +252,32 @@ export function createOpenAICompatibleProvider(
           }
 
           if (choice.finish_reason) {
-            emittedDone = true;
             const finish = statusFromFinishReason(choice.finish_reason);
             status = finish.status;
             incompleteDetails = finish.incompleteDetails;
-            const toolCalls = [...toolCallParts.entries()]
-              .sort(([left], [right]) => left - right)
-              .map(([, toolCall]) => toolCall);
-            yield {
-              result: {
-                content,
-                toolCalls,
-                done: true,
-                responseId,
-                status,
-                ...(incompleteDetails ? { incompleteDetails } : {}),
-                createdAt,
-                model,
-                ...toUsage(usage),
-              },
-              done: true,
-            };
           }
         }
       } catch (error) {
         throw transportError(options.baseURL, error);
       }
 
-      if (!emittedDone) {
-        const toolCalls = [...toolCallParts.entries()]
-          .sort(([left], [right]) => left - right)
-          .map(([, toolCall]) => toolCall);
-        yield {
-          result: {
-            content,
-            toolCalls,
-            done: true,
-            responseId,
-            status,
-            createdAt,
-            model,
-            ...toUsage(usage),
-          },
+      const toolCalls = [...toolCallParts.entries()]
+        .sort(([left], [right]) => left - right)
+        .map(([, toolCall]) => toolCall);
+      yield {
+        result: {
+          content,
+          toolCalls,
           done: true,
-        };
-      }
+          responseId,
+          status,
+          ...(incompleteDetails ? { incompleteDetails } : {}),
+          createdAt,
+          model,
+          ...toUsage(usage),
+        },
+        done: true,
+      };
     },
   };
 }
