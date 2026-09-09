@@ -18,6 +18,7 @@
     "type-check": "tsc --noEmit",
     "db:migrate": "node scripts/db-migrate.mjs",
     "osv:sync": "node scripts/osv-sync.mjs",
+    "model:evaluate": "node scripts/model-evaluation.mjs",
     "ledger:build": "node tests/ledger/run-ledger.mjs hosted && node tests/ledger/run-ledger.mjs offline",
     "ledger:check": "node tests/ledger/check.mjs",
     "lint": "eslint .",

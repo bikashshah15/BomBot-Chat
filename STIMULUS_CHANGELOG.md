@@ -318,3 +318,8 @@ Columns: date · increment · what changed · why · effect on the study.
 - The participant-facing instruction text is unchanged; only its preceding data payload changed.
   The payload now states total and scanned package counts, exposes truncation as a boolean, and
   adds a prose warning when the 150-package scan cap leaves packages unscanned.
+
+## 2026-09-09 — INC-10a-2 (local model quality measurement)
+- No stimulus change. This increment adds measurement only: it evaluates the existing offline
+  upload prompt and pinned decoding settings without changing participant-facing prompt text,
+  model parameters, tool availability, scan coverage, or UI behavior.
