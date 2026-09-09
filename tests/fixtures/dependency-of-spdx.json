@@ -1,0 +1,71 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Synthetic DEPENDENCY_OF SPDX Fixture",
+  "documentNamespace": "https://example.invalid/bombot/tests/dependency-of-spdx",
+  "creationInfo": {
+    "created": "2026-09-09T00:00:00Z",
+    "creators": ["Tool: BOMbot synthetic test fixture"]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-application",
+      "name": "example-application",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/example-application@1.0.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-library",
+      "name": "example-library",
+      "versionInfo": "2.0.0",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/example-library@2.0.0"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "SPDXID": "SPDXRef-File-package-lock",
+      "fileName": "package-lock.json",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-Package-library",
+      "relationshipType": "DEPENDENCY_OF",
+      "relatedSpdxElement": "SPDXRef-Package-application"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-application",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-File-package-lock"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "OTHER",
+      "relatedSpdxElement": "SPDXRef-Package-application",
+      "comment": "Synthetic generator evidence linkage, not a dependency."
+    }
+  ]
+}

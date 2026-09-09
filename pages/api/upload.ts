@@ -166,6 +166,17 @@ export function parseSBOMData(sbomContent: string, fileName: string): { packages
       // Parse relationships for dependencies
       if (sbom.relationships) {
         sbom.relationships.forEach((rel: any) => {
+          // SPDX CONTAINS describes file containment and OTHER carries generator evidence
+          // linkage; neither is a package dependency and both must remain excluded here.
+          if (rel.relationshipType === 'DEPENDENCY_OF') {
+            dependencies.push({
+              parent: rel.relatedSpdxElement,
+              child: rel.spdxElementId,
+              relationship: 'DEPENDS_ON'
+            });
+            return;
+          }
+
           if (rel.relationshipType && (
             rel.relationshipType === 'DEPENDS_ON' || 
             rel.relationshipType === 'BUILD_DEPENDS_ON' ||

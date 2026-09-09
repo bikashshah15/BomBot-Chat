@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -540,6 +540,119 @@ test('generic JSON packages without an ecosystem remain unknown', () => {
   }), 'generic.json');
 
   assert.equal(parsed.packages[0].ecosystem, 'unknown');
+});
+
+test('SPDX DEPENDENCY_OF and swapped DEPENDS_ON stay directionally identical downstream', async () => {
+  const fixtureContent = await readFile(
+    new URL('../../tests/fixtures/dependency-of-spdx.json', import.meta.url),
+    'utf8',
+  );
+  const dependencyOfDocument = JSON.parse(fixtureContent);
+  const dependsOnDocument = structuredClone(dependencyOfDocument);
+  const dependencyRelationship = dependsOnDocument.relationships.find(
+    relationship => relationship.relationshipType === 'DEPENDENCY_OF',
+  );
+  [dependencyRelationship.spdxElementId, dependencyRelationship.relatedSpdxElement] = [
+    dependencyRelationship.relatedSpdxElement,
+    dependencyRelationship.spdxElementId,
+  ];
+  dependencyRelationship.relationshipType = 'DEPENDS_ON';
+
+  const dependencyOfParsed = parseSBOMData(JSON.stringify(dependencyOfDocument), 'dependency-of.spdx.json');
+  const dependsOnParsed = parseSBOMData(JSON.stringify(dependsOnDocument), 'depends-on.spdx.json');
+  assert.deepEqual(dependencyOfParsed.dependencies, dependsOnParsed.dependencies);
+  assert.deepEqual(dependencyOfParsed.dependencies, [{
+    parent: 'SPDXRef-Package-application',
+    child: 'SPDXRef-Package-library',
+    relationship: 'DEPENDS_ON',
+  }]);
+
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'bombot-upload-dependency-direction-test-'));
+  async function uploadDocument(document, suffix) {
+    const content = JSON.stringify(document);
+    const uploadPath = path.join(tempDir, `${suffix}.spdx.json`);
+    await writeFile(uploadPath, content);
+    let capturedAppend;
+    const handler = createUploadHandler({
+      async parseForm() {
+        return {
+          fields: {
+            sessionId: '00000000-0000-4000-8000-000000000001',
+            messageIndex: '1',
+          },
+          files: {
+            file: {
+              filepath: uploadPath,
+              originalFilename: `${suffix}.spdx.json`,
+              size: Buffer.byteLength(content),
+            },
+          },
+        };
+      },
+      async queryOSVForPackage() {
+        return [];
+      },
+      async createConversation() {
+        return { id: `conversation_${suffix}` };
+      },
+      async appendConversationMessages(options) {
+        capturedAppend = options;
+        return [];
+      },
+      async insertLog() {},
+      async wait() {},
+    });
+    const response = responseRecorder();
+    await handler({ method: 'POST' }, response);
+    assert.equal(response.statusCode, 200);
+
+    const prompt = capturedAppend.messages[0].content;
+    const contextHeading = '**Minimized Software Context:**\n';
+    const contextStart = prompt.indexOf(contextHeading) + contextHeading.length;
+    const contextEnd = prompt.indexOf('\n\nPlease provide a QUICK summary', contextStart);
+    return {
+      dependencyGraphEdges: response.jsonBody.dependencyGraph.edges,
+      dependencyRelationships: response.jsonBody.dependencyRelationships,
+      dependenciesFound: response.jsonBody.quickSummary.dependenciesFound,
+      contextDependencies: JSON.parse(prompt.slice(contextStart, contextEnd)).packages_depends_on
+        .map(package_ => ({
+          packageName: package_.package_name,
+          dependencies: package_.dependencies,
+        })),
+      prompt,
+    };
+  }
+
+  try {
+    const dependencyOfResult = await uploadDocument(dependencyOfDocument, 'dependency_of');
+    const dependsOnResult = await uploadDocument(dependsOnDocument, 'depends_on');
+    assert.deepEqual(dependencyOfResult.dependencyGraphEdges, dependsOnResult.dependencyGraphEdges);
+    assert.deepEqual(dependencyOfResult.dependencyGraphEdges, [{
+      from: 'SPDXRef-Package-application',
+      to: 'SPDXRef-Package-library',
+      label: 'DEPENDS ON',
+      relationship: 'DEPENDS_ON',
+    }]);
+    assert.deepEqual(dependencyOfResult.contextDependencies, dependsOnResult.contextDependencies);
+    assert.deepEqual(dependencyOfResult.contextDependencies, [
+      {
+        packageName: 'example-application',
+        dependencies: [{
+          package_name: 'example-library',
+          package_version: '2.0.0',
+          relationship: 'DEPENDS_ON',
+        }],
+      },
+      { packageName: 'example-library', dependencies: [] },
+    ]);
+    for (const result of [dependencyOfResult, dependsOnResult]) {
+      assert.equal(result.dependencyRelationships, 1);
+      assert.equal(result.dependenciesFound, 1);
+      assert.match(result.prompt, /Dependency relationships found: 1/);
+    }
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test('shared purl mapping covers configured OSV ecosystems and rejects non-OSV purl types', () => {

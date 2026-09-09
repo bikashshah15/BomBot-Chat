@@ -3,6 +3,15 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-09 — INC-10a-1.3 (SPDX DEPENDENCY_OF orientation)
+- SPDX `DEPENDENCY_OF` relationships now normalize to the same parent-to-child convention as
+  `DEPENDS_ON` and CycloneDX: if `B DEPENDENCY_OF A`, the resulting edge is parent `A` to child
+  `B`, with relationship `DEPENDS_ON`. File-containment `CONTAINS` and generator-evidence `OTHER`
+  relationships remain excluded because neither represents a package dependency.
+- A Syft SPDX document that previously yielded no dependency relationships can now supply them to
+  both the model-facing software context and the participant-visible dependency graph. This is a
+  stimulus change to the HOSTED arm and changes the answer key for dependency-related measures.
+
 ## 2026-09-09 — INC-10a-1.2 (SBOM ecosystem derivation)
 - SPDX uploads with a purl reference derive an OSV ecosystem from that purl or classify it as
   unknown; the recognized download-location rules (with the npm registry host added) run only
