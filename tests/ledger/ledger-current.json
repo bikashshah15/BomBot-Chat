@@ -1,6 +1,6 @@
 {
   "profile": "hosted",
-  "generatedAt": "2026-09-07T22:48:10.045Z",
+  "generatedAt": "2026-09-09T14:40:03.754Z",
   "fixture": "tests/fixtures/small-spdx.json",
   "runs": {
     "smallSpdx": {

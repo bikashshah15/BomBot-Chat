@@ -8,7 +8,7 @@ import test from 'node:test';
 import 'dotenv/config';
 import pg from 'pg';
 
-const { createUploadHandler } = await import('./upload.ts');
+const { createUploadHandler, parseSBOMData } = await import('./upload.ts');
 const { OSVSourceUnavailableError } = await import('../../lib/osv/errors.ts');
 const { matchOsvPackages: realMatchOsvPackages } = await import('../../lib/osv/match.ts');
 
@@ -327,7 +327,7 @@ test('valid CycloneDX upload extracts packages and reaches the scanner', async (
   }
 });
 
-test('mixed CycloneDX ecosystems are correctly scanned or counted as unrecognized', async () => {
+test('closed Hex and Pub purl mapping gap scans all mixed CycloneDX ecosystems', async () => {
   const fixturePath = new URL('../../tests/fixtures/mixed-ecosystems-cyclonedx.json', import.meta.url);
   const fixtureContent = await readFile(fixturePath, 'utf8');
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'bombot-upload-ecosystem-test-'));
@@ -372,18 +372,20 @@ test('mixed CycloneDX ecosystems are correctly scanned or counted as unrecognize
     await handler({ method: 'POST' }, response);
 
     assert.equal(response.statusCode, 200);
-    assert.equal(response.jsonBody.totalPackages, 2);
-    assert.equal(response.jsonBody.packagesScanned, 1);
-    assert.equal(response.jsonBody.unrecognizedEcosystemCount, 1);
+    assert.equal(response.jsonBody.totalPackages, 3);
+    assert.equal(response.jsonBody.packagesScanned, 3);
+    assert.equal(response.jsonBody.unrecognizedEcosystemCount, 0);
     assert.deepEqual(
       queriedPackages.map(package_ => ({ name: package_.name, ecosystem: package_.ecosystem })),
-      [{ name: 'requests', ecosystem: 'PyPI' }],
+      [
+        { name: 'requests', ecosystem: 'PyPI' },
+        { name: 'jason', ecosystem: 'Hex' },
+        { name: 'http', ecosystem: 'Pub' },
+      ],
     );
-    // Hex and Pub are valid OSV ecosystems but are absent from the route's map. This pins
-    // current behavior, not correct behavior, and must change when those mappings are fixed.
-    assert.match(
+    assert.doesNotMatch(
       capturedAppend.messages[0].content,
-      /Ecosystem coverage warning: 1 package admitted by the 150-package cap could not be scanned because the ecosystem was unrecognized\./,
+      /Ecosystem coverage warning:/,
     );
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -445,7 +447,7 @@ test('over-150 upload keeps cap truncation and unrecognized ecosystem counts dis
     );
     assert.match(
       capturedAppend.messages[0].content,
-      /Ecosystem coverage warning: 1 package admitted by the 150-package cap could not be scanned because the ecosystem was unrecognized\./,
+      /Ecosystem coverage warning: 1 package admitted by the 150-package cap could not be scanned because the ecosystem was unrecognized or could not be derived\./,
     );
 
     const contextHeading = '**Minimized Software Context:**\n';
@@ -465,6 +467,115 @@ test('over-150 upload keeps cap truncation and unrecognized ecosystem counts dis
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test('mixed SPDX purls derive ecosystems end to end and keep unknown packages from the scanner', async () => {
+  const fixturePath = new URL('../../tests/fixtures/mixed-ecosystems-spdx.json', import.meta.url);
+  const fixtureContent = await readFile(fixturePath, 'utf8');
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'bombot-upload-spdx-ecosystem-test-'));
+  const uploadPath = path.join(tempDir, 'mixed-ecosystems-spdx.json');
+  await copyFile(fixturePath, uploadPath);
+
+  let capturedAppend;
+  const queriedPackages = [];
+  const handler = createUploadHandler({
+    async parseForm() {
+      return {
+        fields: {
+          sessionId: '00000000-0000-4000-8000-000000000001',
+          messageIndex: '1',
+        },
+        files: {
+          file: {
+            filepath: uploadPath,
+            originalFilename: 'mixed-ecosystems-spdx.json',
+            size: Buffer.byteLength(fixtureContent),
+          },
+        },
+      };
+    },
+    async queryOSVForPackage(package_) {
+      queriedPackages.push(package_);
+      return [];
+    },
+    async createConversation() {
+      return { id: 'conversation_spdx_ecosystem_synthetic' };
+    },
+    async appendConversationMessages(options) {
+      capturedAppend = options;
+      return [];
+    },
+    async insertLog() {},
+    async wait() {},
+  });
+
+  try {
+    const response = responseRecorder();
+    await handler({ method: 'POST' }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.jsonBody.totalPackages, 5);
+    assert.equal(response.jsonBody.packagesScanned, 3);
+    assert.equal(response.jsonBody.unrecognizedEcosystemCount, 2);
+    assert.deepEqual(
+      queriedPackages.map(package_ => ({ name: package_.name, ecosystem: package_.ecosystem })),
+      [
+        { name: 'requests', ecosystem: 'PyPI' },
+        { name: 'lodash', ecosystem: 'npm' },
+        { name: 'log4j-core', ecosystem: 'Maven' },
+      ],
+    );
+    assert.match(
+      capturedAppend.messages[0].content,
+      /Ecosystem coverage warning: 2 packages admitted by the 150-package cap could not be scanned because the ecosystem was unrecognized or could not be derived\./,
+    );
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('generic JSON packages without an ecosystem remain unknown', () => {
+  const parsed = parseSBOMData(JSON.stringify({
+    packages: [{ name: 'generic-without-ecosystem', version: '1.0.0' }],
+  }), 'generic.json');
+
+  assert.equal(parsed.packages[0].ecosystem, 'unknown');
+});
+
+test('shared purl mapping covers configured OSV ecosystems and rejects non-OSV purl types', () => {
+  const mappedTypes = [
+    ['npm', 'npm'],
+    ['pypi', 'PyPI'],
+    ['maven', 'Maven'],
+    ['golang', 'Go'],
+    ['composer', 'Packagist'],
+    ['gem', 'RubyGems'],
+    ['nuget', 'NuGet'],
+    ['cargo', 'crates.io'],
+    ['hex', 'Hex'],
+    ['pub', 'Pub'],
+  ];
+  const unmappedTypes = ['github', 'generic', 'deb', 'apk', 'docker'];
+  const parsed = parseSBOMData(JSON.stringify({
+    bomFormat: 'CycloneDX',
+    components: [
+      ...mappedTypes.map(([type, ecosystem]) => ({
+        name: `mapped-${ecosystem}`,
+        version: '1.0.0',
+        purl: `pkg:${type}/example@1.0.0`,
+      })),
+      ...unmappedTypes.map(type => ({
+        name: `unmapped-${type}`,
+        version: '1.0.0',
+        purl: `pkg:${type}/example@1.0.0`,
+      })),
+    ],
+  }), 'purl-map.cdx.json');
+
+  assert.deepEqual(
+    parsed.packages.map(package_ => package_.ecosystem),
+    [...mappedTypes.map(([, ecosystem]) => ecosystem), ...unmappedTypes.map(() => 'unknown')],
+  );
 });
 
 test('upload fails when offline mode has no vulnerability matcher', async () => {

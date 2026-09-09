@@ -3,6 +3,26 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-09 — INC-10a-1.2 (SBOM ecosystem derivation)
+- SPDX uploads with a purl reference derive an OSV ecosystem from that purl or classify it as
+  unknown; the recognized download-location rules (with the npm registry host added) run only
+  when no purl reference is present, because a purl is an explicit assertion of package type and
+  a download-location substring is a guess, so the guess must not override the assertion. Thus a
+  package with an unmappable purl and a recognizable download location classifies as unknown, as
+  the new mixed SPDX fixture asserts. The SPDX and generic-JSON npm defaults were removed. This
+  is a stimulus change affecting the HOSTED arm, and it changes the answer key: packages that
+  were silently scanned as npm are now either scanned correctly or reported as unscannable.
+  Unknown packages remain distinct from packages excluded by the 150-package cap in both the
+  scan-result count and the model-facing prose.
+- SPDX and CycloneDX now share one purl-type map covering every OSV ecosystem supported by the
+  application, including Hex and Pub. The CycloneDX branch's handling of unmapped purl types also
+  changed: types such as github, generic, deb, apk, and docker now classify as unknown instead of
+  passing through as raw ecosystem strings.
+- Adding purls to the oversize fixture changed its SBOM hash value while every request byte count
+  stayed identical. The ledger measures request counts and sizes and therefore cannot observe
+  that content change; a byte-identical ledger is not evidence that the hosted stimulus is
+  unchanged.
+
 ## 2026-09-07 — INC-09.7 (durable OSV snapshot restoration)
 - Advanced the declared local OSV study snapshot from `2026-09-02` to `2026-09-07` and rebuilt
   both its SQL projection and osv-scanner cache from the same verified archive set. The new

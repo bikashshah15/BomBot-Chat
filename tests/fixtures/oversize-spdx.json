@@ -15,1201 +15,2601 @@
       "SPDXID": "SPDXRef-Package-synthetic-001",
       "name": "synthetic-ledger-package-001",
       "versionInfo": "0.0.1",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-001"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-001",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-001@0.0.1"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-002",
       "name": "synthetic-ledger-package-002",
       "versionInfo": "0.0.2",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-002"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-002",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-002@0.0.2"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-003",
       "name": "synthetic-ledger-package-003",
       "versionInfo": "0.0.3",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-003"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-003",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-003@0.0.3"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-004",
       "name": "synthetic-ledger-package-004",
       "versionInfo": "0.0.4",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-004"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-004",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-004@0.0.4"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-005",
       "name": "synthetic-ledger-package-005",
       "versionInfo": "0.0.5",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-005"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-005",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-005@0.0.5"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-006",
       "name": "synthetic-ledger-package-006",
       "versionInfo": "0.0.6",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-006"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-006",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-006@0.0.6"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-007",
       "name": "synthetic-ledger-package-007",
       "versionInfo": "0.0.7",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-007"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-007",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-007@0.0.7"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-008",
       "name": "synthetic-ledger-package-008",
       "versionInfo": "0.0.8",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-008"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-008",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-008@0.0.8"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-009",
       "name": "synthetic-ledger-package-009",
       "versionInfo": "0.0.9",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-009"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-009",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-009@0.0.9"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-010",
       "name": "synthetic-ledger-package-010",
       "versionInfo": "0.0.10",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-010"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-010",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-010@0.0.10"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-011",
       "name": "synthetic-ledger-package-011",
       "versionInfo": "0.0.11",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-011"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-011",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-011@0.0.11"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-012",
       "name": "synthetic-ledger-package-012",
       "versionInfo": "0.0.12",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-012"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-012",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-012@0.0.12"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-013",
       "name": "synthetic-ledger-package-013",
       "versionInfo": "0.0.13",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-013"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-013",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-013@0.0.13"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-014",
       "name": "synthetic-ledger-package-014",
       "versionInfo": "0.0.14",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-014"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-014",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-014@0.0.14"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-015",
       "name": "synthetic-ledger-package-015",
       "versionInfo": "0.0.15",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-015"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-015",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-015@0.0.15"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-016",
       "name": "synthetic-ledger-package-016",
       "versionInfo": "0.0.16",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-016"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-016",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-016@0.0.16"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-017",
       "name": "synthetic-ledger-package-017",
       "versionInfo": "0.0.17",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-017"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-017",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-017@0.0.17"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-018",
       "name": "synthetic-ledger-package-018",
       "versionInfo": "0.0.18",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-018"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-018",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-018@0.0.18"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-019",
       "name": "synthetic-ledger-package-019",
       "versionInfo": "0.0.19",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-019"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-019",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-019@0.0.19"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-020",
       "name": "synthetic-ledger-package-020",
       "versionInfo": "0.0.20",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-020"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-020",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-020@0.0.20"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-021",
       "name": "synthetic-ledger-package-021",
       "versionInfo": "0.0.21",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-021"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-021",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-021@0.0.21"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-022",
       "name": "synthetic-ledger-package-022",
       "versionInfo": "0.0.22",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-022"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-022",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-022@0.0.22"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-023",
       "name": "synthetic-ledger-package-023",
       "versionInfo": "0.0.23",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-023"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-023",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-023@0.0.23"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-024",
       "name": "synthetic-ledger-package-024",
       "versionInfo": "0.0.24",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-024"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-024",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-024@0.0.24"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-025",
       "name": "synthetic-ledger-package-025",
       "versionInfo": "0.0.25",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-025"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-025",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-025@0.0.25"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-026",
       "name": "synthetic-ledger-package-026",
       "versionInfo": "0.0.26",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-026"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-026",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-026@0.0.26"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-027",
       "name": "synthetic-ledger-package-027",
       "versionInfo": "0.0.27",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-027"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-027",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-027@0.0.27"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-028",
       "name": "synthetic-ledger-package-028",
       "versionInfo": "0.0.28",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-028"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-028",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-028@0.0.28"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-029",
       "name": "synthetic-ledger-package-029",
       "versionInfo": "0.0.29",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-029"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-029",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-029@0.0.29"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-030",
       "name": "synthetic-ledger-package-030",
       "versionInfo": "0.0.30",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-030"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-030",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-030@0.0.30"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-031",
       "name": "synthetic-ledger-package-031",
       "versionInfo": "0.0.31",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-031"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-031",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-031@0.0.31"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-032",
       "name": "synthetic-ledger-package-032",
       "versionInfo": "0.0.32",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-032"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-032",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-032@0.0.32"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-033",
       "name": "synthetic-ledger-package-033",
       "versionInfo": "0.0.33",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-033"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-033",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-033@0.0.33"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-034",
       "name": "synthetic-ledger-package-034",
       "versionInfo": "0.0.34",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-034"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-034",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-034@0.0.34"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-035",
       "name": "synthetic-ledger-package-035",
       "versionInfo": "0.0.35",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-035"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-035",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-035@0.0.35"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-036",
       "name": "synthetic-ledger-package-036",
       "versionInfo": "0.0.36",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-036"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-036",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-036@0.0.36"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-037",
       "name": "synthetic-ledger-package-037",
       "versionInfo": "0.0.37",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-037"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-037",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-037@0.0.37"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-038",
       "name": "synthetic-ledger-package-038",
       "versionInfo": "0.0.38",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-038"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-038",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-038@0.0.38"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-039",
       "name": "synthetic-ledger-package-039",
       "versionInfo": "0.0.39",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-039"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-039",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-039@0.0.39"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-040",
       "name": "synthetic-ledger-package-040",
       "versionInfo": "0.0.40",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-040"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-040",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-040@0.0.40"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-041",
       "name": "synthetic-ledger-package-041",
       "versionInfo": "0.0.41",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-041"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-041",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-041@0.0.41"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-042",
       "name": "synthetic-ledger-package-042",
       "versionInfo": "0.0.42",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-042"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-042",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-042@0.0.42"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-043",
       "name": "synthetic-ledger-package-043",
       "versionInfo": "0.0.43",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-043"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-043",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-043@0.0.43"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-044",
       "name": "synthetic-ledger-package-044",
       "versionInfo": "0.0.44",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-044"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-044",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-044@0.0.44"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-045",
       "name": "synthetic-ledger-package-045",
       "versionInfo": "0.0.45",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-045"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-045",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-045@0.0.45"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-046",
       "name": "synthetic-ledger-package-046",
       "versionInfo": "0.0.46",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-046"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-046",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-046@0.0.46"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-047",
       "name": "synthetic-ledger-package-047",
       "versionInfo": "0.0.47",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-047"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-047",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-047@0.0.47"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-048",
       "name": "synthetic-ledger-package-048",
       "versionInfo": "0.0.48",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-048"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-048",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-048@0.0.48"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-049",
       "name": "synthetic-ledger-package-049",
       "versionInfo": "0.0.49",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-049"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-049",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-049@0.0.49"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-050",
       "name": "synthetic-ledger-package-050",
       "versionInfo": "0.0.50",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-050"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-050",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-050@0.0.50"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-051",
       "name": "synthetic-ledger-package-051",
       "versionInfo": "0.1.1",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-051"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-051",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-051@0.1.1"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-052",
       "name": "synthetic-ledger-package-052",
       "versionInfo": "0.1.2",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-052"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-052",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-052@0.1.2"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-053",
       "name": "synthetic-ledger-package-053",
       "versionInfo": "0.1.3",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-053"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-053",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-053@0.1.3"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-054",
       "name": "synthetic-ledger-package-054",
       "versionInfo": "0.1.4",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-054"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-054",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-054@0.1.4"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-055",
       "name": "synthetic-ledger-package-055",
       "versionInfo": "0.1.5",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-055"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-055",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-055@0.1.5"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-056",
       "name": "synthetic-ledger-package-056",
       "versionInfo": "0.1.6",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-056"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-056",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-056@0.1.6"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-057",
       "name": "synthetic-ledger-package-057",
       "versionInfo": "0.1.7",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-057"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-057",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-057@0.1.7"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-058",
       "name": "synthetic-ledger-package-058",
       "versionInfo": "0.1.8",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-058"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-058",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-058@0.1.8"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-059",
       "name": "synthetic-ledger-package-059",
       "versionInfo": "0.1.9",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-059"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-059",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-059@0.1.9"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-060",
       "name": "synthetic-ledger-package-060",
       "versionInfo": "0.1.10",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-060"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-060",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-060@0.1.10"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-061",
       "name": "synthetic-ledger-package-061",
       "versionInfo": "0.1.11",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-061"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-061",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-061@0.1.11"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-062",
       "name": "synthetic-ledger-package-062",
       "versionInfo": "0.1.12",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-062"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-062",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-062@0.1.12"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-063",
       "name": "synthetic-ledger-package-063",
       "versionInfo": "0.1.13",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-063"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-063",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-063@0.1.13"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-064",
       "name": "synthetic-ledger-package-064",
       "versionInfo": "0.1.14",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-064"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-064",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-064@0.1.14"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-065",
       "name": "synthetic-ledger-package-065",
       "versionInfo": "0.1.15",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-065"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-065",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-065@0.1.15"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-066",
       "name": "synthetic-ledger-package-066",
       "versionInfo": "0.1.16",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-066"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-066",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-066@0.1.16"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-067",
       "name": "synthetic-ledger-package-067",
       "versionInfo": "0.1.17",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-067"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-067",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-067@0.1.17"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-068",
       "name": "synthetic-ledger-package-068",
       "versionInfo": "0.1.18",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-068"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-068",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-068@0.1.18"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-069",
       "name": "synthetic-ledger-package-069",
       "versionInfo": "0.1.19",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-069"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-069",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-069@0.1.19"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-070",
       "name": "synthetic-ledger-package-070",
       "versionInfo": "0.1.20",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-070"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-070",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-070@0.1.20"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-071",
       "name": "synthetic-ledger-package-071",
       "versionInfo": "0.1.21",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-071"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-071",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-071@0.1.21"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-072",
       "name": "synthetic-ledger-package-072",
       "versionInfo": "0.1.22",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-072"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-072",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-072@0.1.22"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-073",
       "name": "synthetic-ledger-package-073",
       "versionInfo": "0.1.23",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-073"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-073",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-073@0.1.23"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-074",
       "name": "synthetic-ledger-package-074",
       "versionInfo": "0.1.24",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-074"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-074",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-074@0.1.24"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-075",
       "name": "synthetic-ledger-package-075",
       "versionInfo": "0.1.25",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-075"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-075",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-075@0.1.25"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-076",
       "name": "synthetic-ledger-package-076",
       "versionInfo": "0.1.26",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-076"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-076",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-076@0.1.26"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-077",
       "name": "synthetic-ledger-package-077",
       "versionInfo": "0.1.27",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-077"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-077",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-077@0.1.27"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-078",
       "name": "synthetic-ledger-package-078",
       "versionInfo": "0.1.28",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-078"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-078",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-078@0.1.28"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-079",
       "name": "synthetic-ledger-package-079",
       "versionInfo": "0.1.29",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-079"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-079",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-079@0.1.29"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-080",
       "name": "synthetic-ledger-package-080",
       "versionInfo": "0.1.30",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-080"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-080",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-080@0.1.30"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-081",
       "name": "synthetic-ledger-package-081",
       "versionInfo": "0.1.31",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-081"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-081",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-081@0.1.31"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-082",
       "name": "synthetic-ledger-package-082",
       "versionInfo": "0.1.32",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-082"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-082",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-082@0.1.32"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-083",
       "name": "synthetic-ledger-package-083",
       "versionInfo": "0.1.33",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-083"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-083",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-083@0.1.33"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-084",
       "name": "synthetic-ledger-package-084",
       "versionInfo": "0.1.34",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-084"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-084",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-084@0.1.34"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-085",
       "name": "synthetic-ledger-package-085",
       "versionInfo": "0.1.35",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-085"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-085",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-085@0.1.35"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-086",
       "name": "synthetic-ledger-package-086",
       "versionInfo": "0.1.36",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-086"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-086",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-086@0.1.36"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-087",
       "name": "synthetic-ledger-package-087",
       "versionInfo": "0.1.37",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-087"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-087",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-087@0.1.37"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-088",
       "name": "synthetic-ledger-package-088",
       "versionInfo": "0.1.38",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-088"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-088",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-088@0.1.38"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-089",
       "name": "synthetic-ledger-package-089",
       "versionInfo": "0.1.39",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-089"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-089",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-089@0.1.39"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-090",
       "name": "synthetic-ledger-package-090",
       "versionInfo": "0.1.40",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-090"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-090",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-090@0.1.40"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-091",
       "name": "synthetic-ledger-package-091",
       "versionInfo": "0.1.41",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-091"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-091",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-091@0.1.41"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-092",
       "name": "synthetic-ledger-package-092",
       "versionInfo": "0.1.42",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-092"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-092",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-092@0.1.42"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-093",
       "name": "synthetic-ledger-package-093",
       "versionInfo": "0.1.43",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-093"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-093",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-093@0.1.43"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-094",
       "name": "synthetic-ledger-package-094",
       "versionInfo": "0.1.44",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-094"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-094",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-094@0.1.44"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-095",
       "name": "synthetic-ledger-package-095",
       "versionInfo": "0.1.45",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-095"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-095",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-095@0.1.45"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-096",
       "name": "synthetic-ledger-package-096",
       "versionInfo": "0.1.46",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-096"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-096",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-096@0.1.46"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-097",
       "name": "synthetic-ledger-package-097",
       "versionInfo": "0.1.47",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-097"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-097",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-097@0.1.47"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-098",
       "name": "synthetic-ledger-package-098",
       "versionInfo": "0.1.48",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-098"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-098",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-098@0.1.48"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-099",
       "name": "synthetic-ledger-package-099",
       "versionInfo": "0.1.49",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-099"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-099",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-099@0.1.49"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-100",
       "name": "synthetic-ledger-package-100",
       "versionInfo": "0.1.50",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-100"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-100",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-100@0.1.50"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-101",
       "name": "synthetic-ledger-package-101",
       "versionInfo": "0.2.1",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-101"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-101",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-101@0.2.1"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-102",
       "name": "synthetic-ledger-package-102",
       "versionInfo": "0.2.2",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-102"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-102",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-102@0.2.2"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-103",
       "name": "synthetic-ledger-package-103",
       "versionInfo": "0.2.3",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-103"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-103",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-103@0.2.3"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-104",
       "name": "synthetic-ledger-package-104",
       "versionInfo": "0.2.4",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-104"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-104",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-104@0.2.4"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-105",
       "name": "synthetic-ledger-package-105",
       "versionInfo": "0.2.5",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-105"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-105",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-105@0.2.5"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-106",
       "name": "synthetic-ledger-package-106",
       "versionInfo": "0.2.6",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-106"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-106",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-106@0.2.6"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-107",
       "name": "synthetic-ledger-package-107",
       "versionInfo": "0.2.7",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-107"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-107",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-107@0.2.7"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-108",
       "name": "synthetic-ledger-package-108",
       "versionInfo": "0.2.8",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-108"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-108",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-108@0.2.8"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-109",
       "name": "synthetic-ledger-package-109",
       "versionInfo": "0.2.9",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-109"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-109",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-109@0.2.9"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-110",
       "name": "synthetic-ledger-package-110",
       "versionInfo": "0.2.10",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-110"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-110",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-110@0.2.10"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-111",
       "name": "synthetic-ledger-package-111",
       "versionInfo": "0.2.11",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-111"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-111",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-111@0.2.11"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-112",
       "name": "synthetic-ledger-package-112",
       "versionInfo": "0.2.12",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-112"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-112",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-112@0.2.12"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-113",
       "name": "synthetic-ledger-package-113",
       "versionInfo": "0.2.13",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-113"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-113",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-113@0.2.13"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-114",
       "name": "synthetic-ledger-package-114",
       "versionInfo": "0.2.14",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-114"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-114",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-114@0.2.14"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-115",
       "name": "synthetic-ledger-package-115",
       "versionInfo": "0.2.15",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-115"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-115",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-115@0.2.15"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-116",
       "name": "synthetic-ledger-package-116",
       "versionInfo": "0.2.16",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-116"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-116",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-116@0.2.16"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-117",
       "name": "synthetic-ledger-package-117",
       "versionInfo": "0.2.17",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-117"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-117",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-117@0.2.17"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-118",
       "name": "synthetic-ledger-package-118",
       "versionInfo": "0.2.18",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-118"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-118",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-118@0.2.18"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-119",
       "name": "synthetic-ledger-package-119",
       "versionInfo": "0.2.19",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-119"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-119",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-119@0.2.19"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-120",
       "name": "synthetic-ledger-package-120",
       "versionInfo": "0.2.20",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-120"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-120",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-120@0.2.20"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-121",
       "name": "synthetic-ledger-package-121",
       "versionInfo": "0.2.21",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-121"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-121",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-121@0.2.21"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-122",
       "name": "synthetic-ledger-package-122",
       "versionInfo": "0.2.22",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-122"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-122",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-122@0.2.22"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-123",
       "name": "synthetic-ledger-package-123",
       "versionInfo": "0.2.23",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-123"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-123",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-123@0.2.23"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-124",
       "name": "synthetic-ledger-package-124",
       "versionInfo": "0.2.24",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-124"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-124",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-124@0.2.24"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-125",
       "name": "synthetic-ledger-package-125",
       "versionInfo": "0.2.25",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-125"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-125",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-125@0.2.25"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-126",
       "name": "synthetic-ledger-package-126",
       "versionInfo": "0.2.26",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-126"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-126",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-126@0.2.26"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-127",
       "name": "synthetic-ledger-package-127",
       "versionInfo": "0.2.27",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-127"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-127",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-127@0.2.27"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-128",
       "name": "synthetic-ledger-package-128",
       "versionInfo": "0.2.28",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-128"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-128",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-128@0.2.28"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-129",
       "name": "synthetic-ledger-package-129",
       "versionInfo": "0.2.29",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-129"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-129",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-129@0.2.29"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-130",
       "name": "synthetic-ledger-package-130",
       "versionInfo": "0.2.30",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-130"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-130",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-130@0.2.30"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-131",
       "name": "synthetic-ledger-package-131",
       "versionInfo": "0.2.31",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-131"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-131",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-131@0.2.31"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-132",
       "name": "synthetic-ledger-package-132",
       "versionInfo": "0.2.32",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-132"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-132",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-132@0.2.32"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-133",
       "name": "synthetic-ledger-package-133",
       "versionInfo": "0.2.33",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-133"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-133",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-133@0.2.33"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-134",
       "name": "synthetic-ledger-package-134",
       "versionInfo": "0.2.34",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-134"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-134",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-134@0.2.34"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-135",
       "name": "synthetic-ledger-package-135",
       "versionInfo": "0.2.35",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-135"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-135",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-135@0.2.35"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-136",
       "name": "synthetic-ledger-package-136",
       "versionInfo": "0.2.36",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-136"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-136",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-136@0.2.36"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-137",
       "name": "synthetic-ledger-package-137",
       "versionInfo": "0.2.37",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-137"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-137",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-137@0.2.37"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-138",
       "name": "synthetic-ledger-package-138",
       "versionInfo": "0.2.38",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-138"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-138",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-138@0.2.38"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-139",
       "name": "synthetic-ledger-package-139",
       "versionInfo": "0.2.39",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-139"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-139",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-139@0.2.39"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-140",
       "name": "synthetic-ledger-package-140",
       "versionInfo": "0.2.40",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-140"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-140",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-140@0.2.40"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-141",
       "name": "synthetic-ledger-package-141",
       "versionInfo": "0.2.41",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-141"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-141",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-141@0.2.41"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-142",
       "name": "synthetic-ledger-package-142",
       "versionInfo": "0.2.42",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-142"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-142",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-142@0.2.42"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-143",
       "name": "synthetic-ledger-package-143",
       "versionInfo": "0.2.43",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-143"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-143",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-143@0.2.43"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-144",
       "name": "synthetic-ledger-package-144",
       "versionInfo": "0.2.44",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-144"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-144",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-144@0.2.44"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-145",
       "name": "synthetic-ledger-package-145",
       "versionInfo": "0.2.45",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-145"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-145",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-145@0.2.45"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-146",
       "name": "synthetic-ledger-package-146",
       "versionInfo": "0.2.46",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-146"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-146",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-146@0.2.46"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-147",
       "name": "synthetic-ledger-package-147",
       "versionInfo": "0.2.47",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-147"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-147",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-147@0.2.47"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-148",
       "name": "synthetic-ledger-package-148",
       "versionInfo": "0.2.48",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-148"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-148",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-148@0.2.48"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-149",
       "name": "synthetic-ledger-package-149",
       "versionInfo": "0.2.49",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-149"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-149",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-149@0.2.49"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-150",
       "name": "synthetic-ledger-package-150",
       "versionInfo": "0.2.50",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-150"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-150",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-150@0.2.50"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-151",
       "name": "synthetic-ledger-package-151",
       "versionInfo": "0.3.1",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-151"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-151",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-151@0.3.1"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-152",
       "name": "synthetic-ledger-package-152",
       "versionInfo": "0.3.2",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-152"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-152",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-152@0.3.2"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-153",
       "name": "synthetic-ledger-package-153",
       "versionInfo": "0.3.3",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-153"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-153",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-153@0.3.3"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-154",
       "name": "synthetic-ledger-package-154",
       "versionInfo": "0.3.4",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-154"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-154",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-154@0.3.4"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-155",
       "name": "synthetic-ledger-package-155",
       "versionInfo": "0.3.5",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-155"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-155",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-155@0.3.5"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-156",
       "name": "synthetic-ledger-package-156",
       "versionInfo": "0.3.6",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-156"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-156",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-156@0.3.6"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-157",
       "name": "synthetic-ledger-package-157",
       "versionInfo": "0.3.7",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-157"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-157",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-157@0.3.7"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-158",
       "name": "synthetic-ledger-package-158",
       "versionInfo": "0.3.8",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-158"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-158",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-158@0.3.8"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-159",
       "name": "synthetic-ledger-package-159",
       "versionInfo": "0.3.9",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-159"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-159",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-159@0.3.9"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-160",
       "name": "synthetic-ledger-package-160",
       "versionInfo": "0.3.10",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-160"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-160",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-160@0.3.10"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-161",
       "name": "synthetic-ledger-package-161",
       "versionInfo": "0.3.11",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-161"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-161",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-161@0.3.11"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-162",
       "name": "synthetic-ledger-package-162",
       "versionInfo": "0.3.12",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-162"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-162",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-162@0.3.12"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-163",
       "name": "synthetic-ledger-package-163",
       "versionInfo": "0.3.13",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-163"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-163",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-163@0.3.13"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-164",
       "name": "synthetic-ledger-package-164",
       "versionInfo": "0.3.14",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-164"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-164",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-164@0.3.14"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-165",
       "name": "synthetic-ledger-package-165",
       "versionInfo": "0.3.15",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-165"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-165",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-165@0.3.15"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-166",
       "name": "synthetic-ledger-package-166",
       "versionInfo": "0.3.16",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-166"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-166",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-166@0.3.16"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-167",
       "name": "synthetic-ledger-package-167",
       "versionInfo": "0.3.17",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-167"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-167",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-167@0.3.17"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-168",
       "name": "synthetic-ledger-package-168",
       "versionInfo": "0.3.18",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-168"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-168",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-168@0.3.18"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-169",
       "name": "synthetic-ledger-package-169",
       "versionInfo": "0.3.19",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-169"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-169",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-169@0.3.19"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-170",
       "name": "synthetic-ledger-package-170",
       "versionInfo": "0.3.20",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-170"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-170",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-170@0.3.20"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-171",
       "name": "synthetic-ledger-package-171",
       "versionInfo": "0.3.21",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-171"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-171",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-171@0.3.21"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-172",
       "name": "synthetic-ledger-package-172",
       "versionInfo": "0.3.22",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-172"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-172",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-172@0.3.22"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-173",
       "name": "synthetic-ledger-package-173",
       "versionInfo": "0.3.23",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-173"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-173",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-173@0.3.23"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-174",
       "name": "synthetic-ledger-package-174",
       "versionInfo": "0.3.24",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-174"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-174",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-174@0.3.24"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-175",
       "name": "synthetic-ledger-package-175",
       "versionInfo": "0.3.25",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-175"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-175",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-175@0.3.25"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-176",
       "name": "synthetic-ledger-package-176",
       "versionInfo": "0.3.26",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-176"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-176",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-176@0.3.26"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-177",
       "name": "synthetic-ledger-package-177",
       "versionInfo": "0.3.27",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-177"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-177",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-177@0.3.27"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-178",
       "name": "synthetic-ledger-package-178",
       "versionInfo": "0.3.28",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-178"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-178",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-178@0.3.28"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-179",
       "name": "synthetic-ledger-package-179",
       "versionInfo": "0.3.29",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-179"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-179",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-179@0.3.29"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-180",
       "name": "synthetic-ledger-package-180",
       "versionInfo": "0.3.30",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-180"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-180",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-180@0.3.30"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-181",
       "name": "synthetic-ledger-package-181",
       "versionInfo": "0.3.31",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-181"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-181",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-181@0.3.31"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-182",
       "name": "synthetic-ledger-package-182",
       "versionInfo": "0.3.32",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-182"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-182",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-182@0.3.32"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-183",
       "name": "synthetic-ledger-package-183",
       "versionInfo": "0.3.33",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-183"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-183",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-183@0.3.33"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-184",
       "name": "synthetic-ledger-package-184",
       "versionInfo": "0.3.34",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-184"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-184",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-184@0.3.34"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-185",
       "name": "synthetic-ledger-package-185",
       "versionInfo": "0.3.35",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-185"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-185",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-185@0.3.35"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-186",
       "name": "synthetic-ledger-package-186",
       "versionInfo": "0.3.36",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-186"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-186",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-186@0.3.36"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-187",
       "name": "synthetic-ledger-package-187",
       "versionInfo": "0.3.37",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-187"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-187",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-187@0.3.37"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-188",
       "name": "synthetic-ledger-package-188",
       "versionInfo": "0.3.38",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-188"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-188",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-188@0.3.38"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-189",
       "name": "synthetic-ledger-package-189",
       "versionInfo": "0.3.39",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-189"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-189",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-189@0.3.39"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-190",
       "name": "synthetic-ledger-package-190",
       "versionInfo": "0.3.40",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-190"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-190",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-190@0.3.40"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-191",
       "name": "synthetic-ledger-package-191",
       "versionInfo": "0.3.41",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-191"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-191",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-191@0.3.41"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-192",
       "name": "synthetic-ledger-package-192",
       "versionInfo": "0.3.42",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-192"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-192",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-192@0.3.42"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-193",
       "name": "synthetic-ledger-package-193",
       "versionInfo": "0.3.43",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-193"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-193",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-193@0.3.43"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-194",
       "name": "synthetic-ledger-package-194",
       "versionInfo": "0.3.44",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-194"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-194",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-194@0.3.44"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-195",
       "name": "synthetic-ledger-package-195",
       "versionInfo": "0.3.45",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-195"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-195",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-195@0.3.45"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-196",
       "name": "synthetic-ledger-package-196",
       "versionInfo": "0.3.46",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-196"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-196",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-196@0.3.46"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-197",
       "name": "synthetic-ledger-package-197",
       "versionInfo": "0.3.47",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-197"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-197",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-197@0.3.47"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-198",
       "name": "synthetic-ledger-package-198",
       "versionInfo": "0.3.48",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-198"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-198",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-198@0.3.48"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-199",
       "name": "synthetic-ledger-package-199",
       "versionInfo": "0.3.49",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-199"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-199",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-199@0.3.49"
+        }
+      ]
     },
     {
       "SPDXID": "SPDXRef-Package-synthetic-200",
       "name": "synthetic-ledger-package-200",
       "versionInfo": "0.3.50",
-      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-200"
+      "downloadLocation": "https://example.invalid/packages/synthetic-ledger-package-200",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/synthetic-ledger-package-200@0.3.50"
+        }
+      ]
     }
   ],
   "relationships": []

@@ -91,6 +91,48 @@ interface OSVVulnerability {
   }>;
 }
 
+const PURL_TYPE_TO_OSV_ECOSYSTEM: Readonly<Record<string, OsvEcosystem>> = {
+  npm: 'npm',
+  pypi: 'PyPI',
+  maven: 'Maven',
+  golang: 'Go',
+  composer: 'Packagist',
+  gem: 'RubyGems',
+  nuget: 'NuGet',
+  cargo: 'crates.io',
+  hex: 'Hex',
+  pub: 'Pub',
+};
+
+function ecosystemFromPurl(purl: unknown): OsvEcosystem | 'unknown' {
+  if (typeof purl !== 'string') return 'unknown';
+
+  const match = /^pkg:([^/]+)\//i.exec(purl);
+  if (!match) return 'unknown';
+
+  return PURL_TYPE_TO_OSV_ECOSYSTEM[match[1].toLowerCase()] ?? 'unknown';
+}
+
+function ecosystemFromDownloadLocation(downloadLocation: unknown): OsvEcosystem | 'unknown' {
+  if (typeof downloadLocation !== 'string') return 'unknown';
+
+  const location = downloadLocation.toLowerCase();
+  if (location.includes('pypi') || location.includes('python')) return 'PyPI';
+  if (location.includes('maven')) return 'Maven';
+  if (location.includes('nuget')) return 'NuGet';
+  if (location.includes('golang') || location.includes('go.mod')) return 'Go';
+  if (location.includes('rubygems')) return 'RubyGems';
+  if (location.includes('cargo') || location.includes('crates')) return 'crates.io';
+
+  try {
+    if (new URL(downloadLocation).hostname.toLowerCase() === 'registry.npmjs.org') return 'npm';
+  } catch {
+    // The existing substring rules above also support non-URL location strings.
+  }
+
+  return 'unknown';
+}
+
 // Parse SBOM file to extract packages and dependencies
 export function parseSBOMData(sbomContent: string, fileName: string): { packages: SBOMPackage[], dependencies: DependencyRelationship[] } {
   try {
@@ -104,17 +146,12 @@ export function parseSBOMData(sbomContent: string, fileName: string): { packages
       if (sbom.packages) {
         sbom.packages.forEach((pkg: any) => {
           if (pkg.name && pkg.name !== 'NOASSERTION') {
-            // Extract ecosystem from package manager or downloadLocation
-            let ecosystem = 'npm'; // default
-            if (pkg.downloadLocation) {
-              const url = pkg.downloadLocation.toLowerCase();
-              if (url.includes('pypi') || url.includes('python')) ecosystem = 'PyPI';
-              else if (url.includes('maven')) ecosystem = 'Maven';
-              else if (url.includes('nuget')) ecosystem = 'NuGet';
-              else if (url.includes('golang') || url.includes('go.mod')) ecosystem = 'Go';
-              else if (url.includes('rubygems')) ecosystem = 'RubyGems';
-              else if (url.includes('cargo') || url.includes('crates')) ecosystem = 'crates.io';
-            }
+            const purlReference = Array.isArray(pkg.externalRefs)
+              ? pkg.externalRefs.find((reference: any) => reference?.referenceType === 'purl')
+              : undefined;
+            const ecosystem = purlReference
+              ? ecosystemFromPurl(purlReference.referenceLocator)
+              : ecosystemFromDownloadLocation(pkg.downloadLocation);
             
             packages.push({
               name: pkg.name,
@@ -150,28 +187,12 @@ export function parseSBOMData(sbomContent: string, fileName: string): { packages
       if (sbom.components) {
         sbom.components.forEach((component: any) => {
           if (component.name && component.purl) {
-            // Parse package URL (purl) to extract ecosystem
-            const typeEnd = component.purl.indexOf('/', 4);
-            if (component.purl.startsWith('pkg:') && typeEnd > 4) {
-              const ecosystem = component.purl.slice(4, typeEnd).toLowerCase();
-              const ecosystemMap: { [key: string]: string } = {
-                'npm': 'npm',
-                'pypi': 'PyPI', 
-                'maven': 'Maven',
-                'nuget': 'NuGet',
-                'golang': 'Go',
-                'gem': 'RubyGems',
-                'cargo': 'crates.io',
-                'composer': 'Packagist'
-              };
-              
-              packages.push({
-                name: component.name,
-                version: component.version,
-                ecosystem: ecosystemMap[ecosystem] || ecosystem,
-                id: component['bom-ref'] || component.purl
-              });
-            }
+            packages.push({
+              name: component.name,
+              version: component.version,
+              ecosystem: ecosystemFromPurl(component.purl),
+              id: component['bom-ref'] || component.purl
+            });
           }
         });
       }
@@ -199,7 +220,7 @@ export function parseSBOMData(sbomContent: string, fileName: string): { packages
           packages.push({
             name: pkg.name,
             version: pkg.version,
-            ecosystem: pkg.ecosystem || 'npm', // default to npm
+            ecosystem: pkg.ecosystem || 'unknown',
             id: pkg.id || pkg.purl || pkg.name
           });
         }
@@ -534,7 +555,7 @@ export function createUploadHandler(
       ? `- Scan coverage warning: ${softwareContext.total_package_count - softwareContext.scanned_package_count} of ${softwareContext.total_package_count} packages were excluded by the 150-package cap.`
       : '';
     const unrecognizedEcosystemStatement = unrecognizedEcosystemCount > 0
-      ? `- Ecosystem coverage warning: ${unrecognizedEcosystemCount} package${unrecognizedEcosystemCount === 1 ? '' : 's'} admitted by the 150-package cap could not be scanned because the ecosystem was unrecognized.`
+      ? `- Ecosystem coverage warning: ${unrecognizedEcosystemCount} package${unrecognizedEcosystemCount === 1 ? '' : 's'} admitted by the 150-package cap could not be scanned because the ecosystem was unrecognized or could not be derived.`
       : '';
 
     const responseInput = `I've uploaded ${existingConversationId ? 'an additional' : 'an'} SBOM file "${fileName}" with ${packages.length} packages${existingConversationId ? ' for comparison with the previous SBOM(s)' : ''}. Here's the comprehensive analysis data:

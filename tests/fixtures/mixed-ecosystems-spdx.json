@@ -1,0 +1,71 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Synthetic Mixed-Ecosystem SPDX Fixture",
+  "documentNamespace": "https://example.invalid/bombot/tests/mixed-ecosystems-spdx",
+  "creationInfo": {
+    "created": "2026-09-09T00:00:00Z",
+    "creators": ["Tool: BOMbot synthetic test fixture"]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-requests",
+      "name": "requests",
+      "versionInfo": "2.31.0",
+      "downloadLocation": "https://registry.npmjs.org/not-requests",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/requests@2.31.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-lodash",
+      "name": "lodash",
+      "versionInfo": "4.17.21",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/lodash@4.17.21"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-log4j-core",
+      "name": "log4j-core",
+      "versionInfo": "2.23.1",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/org.apache.logging.log4j/log4j-core@2.23.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-github-source",
+      "name": "source-only-package",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "https://registry.npmjs.org/source-only-package",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:github/example/source-only-package@v1.0.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-no-ecosystem",
+      "name": "no-ecosystem-package",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "NOASSERTION"
+    }
+  ]
+}

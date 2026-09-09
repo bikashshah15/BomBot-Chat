@@ -32,6 +32,10 @@ small-fixture OSV queries, and 2 of 2 inventory-carrying hosts.
 
 ## Ledger result
 
+Additional current endpoint figures are: hosted OSV, 164 requests, 14,039 total request-body
+bytes, and an 88-byte largest body; offline OpenAI, 9 requests, 344,677 total request-body bytes,
+and a 71,466-byte largest body.
+
 Regeneration preserved those request counts and reduced total OpenAI request-body bytes from
 176,959 to 133,584: 43,375 bytes, or 24.5%. The largest OpenAI body fell from 42,091 to
 34,188 bytes. The original 60–90 KB estimate was high because it overestimated the saving in
