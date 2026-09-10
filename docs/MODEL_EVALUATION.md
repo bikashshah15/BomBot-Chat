@@ -231,10 +231,14 @@ extractors; it must not be read as proof of identical generations.
 There are only three repeat-level observations per model. Their observed spread describes these
 three runs and is not a sufficiently large sample for a variance or reproducibility claim.
 
-These results support carrying Qwen2.5 7.6B forward as the conservative model-selection direction
-for INC-10b because it has the strongest severity-class exact-match result and no non-matching
-identifier occurrences, while its weaker fixture-package classification and mitigation results
-remain explicit tradeoffs. These results do not support any published quality claim.
+The measures split rather than converge on a single candidate. Qwen2.5 7.6B leads on
+severity-class exact agreement and shares the best identifier-grounding result with Mistral-Nemo,
+while Qwen2.5 14.8B leads on mitigation specificity and exceeds Qwen2.5 7.6B on fixture-package
+classification. Mistral-Nemo records the highest fixture-package classification observation in
+repeats 2 and 3, but the lowest in repeat 1. Mitigation specificity is a dependent variable of this
+study, so preferring severity agreement and identifier grounding over mitigation specificity would
+be a study-design judgement, not a result settled by these measures. The model choice belongs to
+Bikash and Jean. These results do not support any published quality claim.
 
 ## Diagnostic appendix: severity-rank correlation
 
@@ -247,6 +251,15 @@ Tie structures use `severity=count`; the ranks are low 1, medium/moderate 2, hig
 | Qwen2.5 7.6B | -0.632456, -0.632456, -0.632456 | -0.632456–-0.632456; width 0 | 6, 6, 6 | `2=2, 3=4` each | `3=5, 4=1` each |
 | Qwen2.5 14.8B | -0.539360, -0.539360, -0.539360 | -0.539360–-0.539360; width 0 | 6, 6, 6 | `2=1, 3=5` each | `1=1, 2=2, 3=1, 4=2` each |
 | Mistral-Nemo 12.2B | 0.577350, 0.645497, 0.645497 | 0.577350–0.645497; width 0.068147 | 4, 7, 7 | R1 `2=2, 3=2`; R2/R3 `2=2, 3=5` | R1 `3=1, 4=3`; R2/R3 `3=1, 4=6` |
+
+Mistral-Nemo shows why both severity statistics are retained. In repeat 1, its comparable reference
+labels tied as two medium and two high while its model labels tied as one high and three critical;
+in repeats 2 and 3, the reference labels tied as two medium and five high while the model labels
+tied as one high and six critical. It therefore ordered severity consistently with the reference
+and received positive rank correlation in every repeat, while assigning a different class to every
+comparable observation and receiving zero exact agreement. Rank correlation rewards the consistent
+ordering, whereas exact agreement penalises the different labels; neither statistic alone describes
+this behaviour.
 
 The complete per-turn responses, prompt-token counts, guard decisions, reference package records,
 grounding routes, and unrounded score components are stored in `docs/model-evaluation-runs.json`.
