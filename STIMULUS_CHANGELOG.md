@@ -323,3 +323,12 @@ Columns: date · increment · what changed · why · effect on the study.
 - No stimulus change. This increment adds measurement only: it evaluates the existing offline
   upload prompt and pinned decoding settings without changing participant-facing prompt text,
   model parameters, tool availability, scan coverage, or UI behavior.
+
+## 2026-09-09 — INC-10a-2.1 (instruction reference reconciliation)
+- This changes a stimulus document, not the stimulus. The model-facing instructions are unchanged;
+  `Instruction Prompt.md`, an otherwise inert reference copy, is reconciled to their existing
+  mode-dependent OSV provenance and currency language and now identifies
+  `lib/openai-responses.ts` as authoritative.
+- Open item: maintaining a second, hand-written copy of generated instruction content allowed this
+  drift. The lasting options are to generate `Instruction Prompt.md` from the shipped instructions
+  or remove it in favour of the authoritative code; neither option is implemented here.
