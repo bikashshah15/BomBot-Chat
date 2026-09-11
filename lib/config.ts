@@ -1,12 +1,11 @@
 import { z, type ZodError } from 'zod';
 import { isIP } from 'node:net';
-import os from 'node:os';
 import path from 'node:path';
 
 const DEFAULT_LLM_BASE_URL = 'https://api.openai.com/v1';
 const DEFAULT_OSV_BASE_URL = 'https://api.osv.dev';
 const DEFAULT_OSV_MIRROR_BASE_URL = 'https://storage.googleapis.com';
-const DEFAULT_OSV_SCANNER_CACHE_DIRECTORY = path.join(os.tmpdir(), 'bombot-osv-scanner-db');
+const DEFAULT_OSV_SCANNER_CACHE_DIRECTORY = '/var/lib/bombot/osv-scanner';
 
 function numericEnvironmentVariable(schema: z.ZodType<number>) {
   return z.preprocess((value) => {

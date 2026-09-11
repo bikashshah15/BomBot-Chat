@@ -188,7 +188,7 @@ npm run build
 
 ### Static File Issues
 - Check that `public/dist/` contains UI files after build
-- Verify Next.js routing in `next.config.cjs`
+- Verify Next.js routing in `next.config.mjs`
 
 ## Performance Optimizations
 

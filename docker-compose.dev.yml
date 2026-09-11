@@ -8,6 +8,9 @@ services:
       LLM_BASE_URL: http://host.docker.internal:11434/v1
       DATABASE_URL: postgresql://bombot@postgres:5432/bombot
       PGPASSWORD: bombot_dev_password
+      OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/bombot/osv-scanner
+    volumes:
+      - bombot_osv_scanner_cache:/var/lib/bombot/osv-scanner
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,5 +36,22 @@ services:
       timeout: 5s
       retries: 15
 
+  osv-sync:
+    build: .
+    profiles: [maintenance]
+    command: ["node", "scripts/osv-sync.mjs"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://bombot@postgres:5432/bombot
+      PGPASSWORD: bombot_dev_password
+      OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/bombot/osv-scanner
+    volumes:
+      - bombot_osv_scanner_cache:/var/lib/bombot/osv-scanner
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   bombot_postgres_data:
+  bombot_osv_scanner_cache:

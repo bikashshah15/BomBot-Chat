@@ -3,6 +3,19 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-10 — INC-11a (compose correctness and verification artifacts)
+- No participant-facing stimulus changed. This increment gives the offline scanner cache durable,
+  shared storage in both Compose topologies, installs the already-selected OSV-Scanner version in
+  the runtime image, aligns the configuration default with the documented durable path, and adds
+  the unexecuted Linux/AWS egress-verification harness and verification procedure. It changes
+  deployment and future measurement mechanics only; prompts, model selection, decoding settings,
+  model-facing request content, and participant workflow are unchanged.
+- **Carried extra:** the previously ignored Next configuration now loads, so `npm run build`
+  additionally produces `.next/standalone` for the runtime image. The redundant `/assets/*`
+  rewrite was not activated: `pages/index.tsx` already rewrites the SPA HTML to `/dist/assets/*`.
+  `trailingSlash: false` is the existing Next default. Standalone packaging changes build output,
+  not participant-facing stimulus or route behaviour.
+
 ## 2026-09-09 — INC-10a-1.3 (SPDX DEPENDENCY_OF orientation)
 - SPDX `DEPENDENCY_OF` relationships now normalize to the same parent-to-child convention as
   `DEPENDS_ON` and CycloneDX: if `B DEPENDENCY_OF A`, the resulting edge is parent `A` to child

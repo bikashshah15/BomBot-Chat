@@ -8,6 +8,9 @@ services:
       LLM_BASE_URL: http://model:11434/v1
       DATABASE_URL: postgresql://bombot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/bombot
       OSV_MODE: offline
+      OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/bombot/osv-scanner
+    volumes:
+      - bombot_osv_scanner_cache:/var/lib/bombot/osv-scanner
     depends_on:
       model:
         condition: service_healthy
@@ -68,6 +71,9 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://bombot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/bombot
+      OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/bombot/osv-scanner
+    volumes:
+      - bombot_osv_scanner_cache:/var/lib/bombot/osv-scanner
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,3 +92,4 @@ volumes:
   bombot_model_weights:
     external: true
   bombot_postgres_data:
+  bombot_osv_scanner_cache:
