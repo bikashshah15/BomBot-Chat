@@ -1,5 +1,10 @@
 # BOMbot Load Testing Guide
 
+> **Historical deployment guide:** This document describes the former hosted Vercel deployment
+> with OpenAI-hosted inference, Supabase chat logging, and the hosted OSV API. It does not describe
+> the current Compose deployment, which configures the local profile with a local OpenAI-compatible
+> model service, self-hosted PostgreSQL, and offline OSV scanning.
+
 ## Overview
 
 This guide covers comprehensive load testing for BOMbot, a Next.js application deployed on Vercel with OpenAI integration, Supabase database, and OSV API dependencies.

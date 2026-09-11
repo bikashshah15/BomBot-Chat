@@ -3,6 +3,13 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-11 — INC-11a.1 (retired Supabase documentation surface)
+- No participant-facing stimulus changed. This increment removes retired Supabase setup, schema,
+  and verification documentation from `HEAD`, preserves and renames the current self-hosted
+  PostgreSQL migration guide, and marks the two hosted-deployment load-testing guides as
+  historical. Application behavior, participant workflow, model-facing text, model selection,
+  decoding settings, scan coverage, and routes are unchanged.
+
 ## 2026-09-10 — INC-11a (compose correctness and verification artifacts)
 - No participant-facing stimulus changed. This increment gives the offline scanner cache durable,
   shared storage in both Compose topologies, installs the already-selected OSV-Scanner version in

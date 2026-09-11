@@ -1,5 +1,10 @@
 # Production Load Testing Guide for 30-User Survey
 
+> **Historical deployment guide:** This document describes the former hosted Vercel deployment
+> with OpenAI-hosted inference, Supabase chat logging, and the hosted OSV API. It does not describe
+> the current Compose deployment, which configures the local profile with a local OpenAI-compatible
+> model service, self-hosted PostgreSQL, and offline OSV scanning.
+
 This guide provides step-by-step instructions for testing BOMbot with 30 concurrent users for 7 minutes on your production environment.
 
 ## Survey Test Overview
