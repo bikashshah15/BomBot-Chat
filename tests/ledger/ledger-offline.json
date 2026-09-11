@@ -1,6 +1,6 @@
 {
   "profile": "offline",
-  "generatedAt": "2026-09-09T14:40:26.213Z",
+  "generatedAt": "2026-09-11T15:37:23.427Z",
   "fixture": "tests/fixtures/small-spdx.json",
   "runs": {
     "smallSpdx": {

@@ -352,3 +352,9 @@ Columns: date · increment · what changed · why · effect on the study.
 - Open item: maintaining a second, hand-written copy of generated instruction content allowed this
   drift. The lasting options are to generate `Instruction Prompt.md` from the shipped instructions
   or remove it in favour of the authoritative code; neither option is implemented here.
+
+## 2026-09-11 — INC-12a (unwired session-key and retention-window preparation)
+- No stimulus change. This increment adds unwired per-session encryption machinery, required
+  retention-window configuration, and additive schema columns only. The window is declared but
+  inert: nothing reads or acts on it yet. No read path, write path, route, prompt, decoding
+  parameter, model input, or participant-facing behavior changes.

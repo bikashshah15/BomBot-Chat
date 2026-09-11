@@ -12,11 +12,20 @@ CREATE TABLE IF NOT EXISTS chat_logs (
     message_index INTEGER NOT NULL,
     message_type VARCHAR(20) CHECK (message_type IN ('user', 'assistant', 'file_upload')) NOT NULL,
     user_message TEXT,
+    user_message_ciphertext BYTEA,
+    user_message_nonce BYTEA,
+    user_message_auth_tag BYTEA,
     ai_response TEXT,
+    ai_response_ciphertext BYTEA,
+    ai_response_nonce BYTEA,
+    ai_response_auth_tag BYTEA,
     file_name VARCHAR(255),
     file_size BIGINT,
     vulnerability_count INTEGER,
     user_email VARCHAR(255),
+    user_email_ciphertext BYTEA,
+    user_email_nonce BYTEA,
+    user_email_auth_tag BYTEA,
     session_started_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     session_last_activity TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -36,7 +45,10 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
     conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     seq INT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('system', 'user', 'assistant', 'tool')),
-    content TEXT NOT NULL,
+    content TEXT,
+    content_ciphertext BYTEA,
+    content_nonce BYTEA,
+    content_auth_tag BYTEA,
     tool_call_id TEXT,
     tool_calls JSONB,
     pinned BOOLEAN NOT NULL DEFAULT FALSE,
@@ -103,6 +115,25 @@ CREATE INDEX IF NOT EXISTS idx_osv_vulns_aliases
 -- CREATE TABLE IF NOT EXISTS does not update databases created before pinned existed.
 ALTER TABLE conversation_messages
     ADD COLUMN IF NOT EXISTS pinned BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Encryption envelopes are additive so replaying this schema prepares existing
+-- populated databases without changing any current plaintext read or write path.
+ALTER TABLE chat_logs
+    ADD COLUMN IF NOT EXISTS user_message_ciphertext BYTEA,
+    ADD COLUMN IF NOT EXISTS user_message_nonce BYTEA,
+    ADD COLUMN IF NOT EXISTS user_message_auth_tag BYTEA,
+    ADD COLUMN IF NOT EXISTS ai_response_ciphertext BYTEA,
+    ADD COLUMN IF NOT EXISTS ai_response_nonce BYTEA,
+    ADD COLUMN IF NOT EXISTS ai_response_auth_tag BYTEA,
+    ADD COLUMN IF NOT EXISTS user_email_ciphertext BYTEA,
+    ADD COLUMN IF NOT EXISTS user_email_nonce BYTEA,
+    ADD COLUMN IF NOT EXISTS user_email_auth_tag BYTEA;
+
+ALTER TABLE conversation_messages
+    ALTER COLUMN content DROP NOT NULL,
+    ADD COLUMN IF NOT EXISTS content_ciphertext BYTEA,
+    ADD COLUMN IF NOT EXISTS content_nonce BYTEA,
+    ADD COLUMN IF NOT EXISTS content_auth_tag BYTEA;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_chat_logs_session_id ON chat_logs(session_id);

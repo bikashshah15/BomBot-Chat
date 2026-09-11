@@ -99,6 +99,7 @@ const environmentSchema = z.object({
     .refine(value => path.isAbsolute(value), 'must be an absolute path')
     .default(DEFAULT_OSV_SCANNER_CACHE_DIRECTORY),
   RETENTION: z.enum(['study', 'ephemeral']).default('study'),
+  RETENTION_IDLE_HOURS: numericEnvironmentVariable(z.number().finite().int().positive()),
   PARTICIPANT_ID_MODE: z.enum(['email', 'pseudonymous']).default('email'),
   PARTICIPANT_ID_SALT: z.string().trim().min(32).optional(),
   MAX_HISTORY_MESSAGES: numericEnvironmentVariable(z.number().finite().int().positive().default(20)),

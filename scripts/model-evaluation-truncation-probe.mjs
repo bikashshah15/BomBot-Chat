@@ -27,6 +27,7 @@ Object.assign(process.env, {
   OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: process.env.MODEL_EVALUATION_OSV_CACHE_DIRECTORY
     ?? path.join(os.homedir(), 'bombot-osv', 'scanner-db'),
   RETENTION: 'study',
+  RETENTION_IDLE_HOURS: '24',
   PARTICIPANT_ID_MODE: 'email',
   MAX_HISTORY_MESSAGES: '20',
   ENABLE_MODEL_TOOL_CALLS: 'false',

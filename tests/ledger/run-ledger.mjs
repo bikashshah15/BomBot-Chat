@@ -373,6 +373,7 @@ const applicationEnvironment = {
   LLM_SEED: 'null',
   OSV_MODE: profile === 'hosted' ? 'api' : 'offline',
   RETENTION: 'study',
+  RETENTION_IDLE_HOURS: '24',
   PARTICIPANT_ID_MODE: 'email',
   LEDGER_FIXTURE_PATH: path.join(fixturesDir, 'small-spdx.json'),
   LEDGER_INTERCEPT_LOG: interceptLog,

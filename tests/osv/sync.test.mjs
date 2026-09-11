@@ -116,6 +116,7 @@ test('OSV sync script refuses to run without an explicit OSV_SNAPSHOT_DATE', () 
       LLM_TOP_P: '1',
       LLM_MAX_OUTPUT_TOKENS: '1',
       OSV_MODE: 'api',
+      RETENTION_IDLE_HOURS: '24',
     },
   });
 
