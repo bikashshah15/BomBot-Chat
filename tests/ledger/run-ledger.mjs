@@ -374,6 +374,7 @@ const applicationEnvironment = {
   OSV_MODE: profile === 'hosted' ? 'api' : 'offline',
   RETENTION: 'study',
   RETENTION_IDLE_HOURS: '24',
+  SESSION_KEY_DIRECTORY: path.join(tempDir, 'session-keys'),
   PARTICIPANT_ID_MODE: 'email',
   LEDGER_FIXTURE_PATH: path.join(fixturesDir, 'small-spdx.json'),
   LEDGER_INTERCEPT_LOG: interceptLog,
@@ -572,7 +573,15 @@ try {
       COUNT(*)::int AS total_logs,
       COUNT(*) FILTER (WHERE message_type = 'file_upload')::int AS file_upload_logs,
       COUNT(*) FILTER (WHERE message_type = 'user')::int AS user_logs,
-      COUNT(*) FILTER (WHERE ai_response IS NOT NULL)::int AS completed_logs
+      COUNT(*) FILTER (
+        WHERE ai_response IS NULL
+          AND ai_response_ciphertext IS NOT NULL
+          AND ai_response_nonce IS NOT NULL
+          AND ai_response_auth_tag IS NOT NULL
+      )::int AS completed_logs,
+      COUNT(*) FILTER (
+        WHERE user_message IS NOT NULL OR ai_response IS NOT NULL OR user_email IS NOT NULL
+      )::int AS plaintext_content_logs
     FROM chat_logs
     WHERE session_id = $1`,
     [sessionId],
@@ -582,6 +591,7 @@ try {
     file_upload_logs: 1,
     user_logs: 5,
     completed_logs: 6,
+    plaintext_content_logs: 0,
   });
 } catch (error) {
   const details = error instanceof Error ? error.stack || error.message : String(error);

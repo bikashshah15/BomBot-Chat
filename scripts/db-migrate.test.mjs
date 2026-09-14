@@ -160,6 +160,26 @@ test('schema migration adds encryption envelopes to populated content tables', a
     );
     assert.equal(contentColumn.rows[0].is_nullable, 'YES');
 
+    const contentConstraint = await client.query(
+      `SELECT pg_get_constraintdef(oid) AS definition
+      FROM pg_constraint
+      WHERE conname = 'conversation_messages_content_exactly_one'
+        AND conrelid = 'conversation_messages'::regclass`,
+    );
+    assert.equal(contentConstraint.rowCount, 1);
+    assert.match(contentConstraint.rows[0].definition, /content IS NULL/);
+    assert.match(contentConstraint.rows[0].definition, /content_ciphertext IS NULL/);
+
+    await assert.rejects(
+      client.query(
+        `INSERT INTO conversation_messages (
+          conversation_id, seq, role, content, content_ciphertext, tool_call_id, tool_calls
+        ) VALUES ($1, 2, 'user', NULL, NULL, NULL, NULL)`,
+        [conversationId],
+      ),
+      error => error?.constraint === 'conversation_messages_content_exactly_one',
+    );
+
     const chatRows = await client.query(
       `SELECT user_message, ai_response, user_email,
         user_message_ciphertext, ai_response_ciphertext, user_email_ciphertext

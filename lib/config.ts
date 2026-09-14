@@ -6,6 +6,7 @@ const DEFAULT_LLM_BASE_URL = 'https://api.openai.com/v1';
 const DEFAULT_OSV_BASE_URL = 'https://api.osv.dev';
 const DEFAULT_OSV_MIRROR_BASE_URL = 'https://storage.googleapis.com';
 const DEFAULT_OSV_SCANNER_CACHE_DIRECTORY = '/var/lib/bombot/osv-scanner';
+const DEFAULT_SESSION_KEY_DIRECTORY = '/var/lib/bombot/session-keys';
 
 function numericEnvironmentVariable(schema: z.ZodType<number>) {
   return z.preprocess((value) => {
@@ -100,6 +101,9 @@ const environmentSchema = z.object({
     .default(DEFAULT_OSV_SCANNER_CACHE_DIRECTORY),
   RETENTION: z.enum(['study', 'ephemeral']).default('study'),
   RETENTION_IDLE_HOURS: numericEnvironmentVariable(z.number().finite().int().positive()),
+  SESSION_KEY_DIRECTORY: z.string().trim().min(1)
+    .refine(value => path.isAbsolute(value), 'must be an absolute path')
+    .default(DEFAULT_SESSION_KEY_DIRECTORY),
   PARTICIPANT_ID_MODE: z.enum(['email', 'pseudonymous']).default('email'),
   PARTICIPANT_ID_SALT: z.string().trim().min(32).optional(),
   MAX_HISTORY_MESSAGES: numericEnvironmentVariable(z.number().finite().int().positive().default(20)),

@@ -358,3 +358,9 @@ Columns: date · increment · what changed · why · effect on the study.
   retention-window configuration, and additive schema columns only. The window is declared but
   inert: nothing reads or acts on it yet. No read path, write path, route, prompt, decoding
   parameter, model input, or participant-facing behavior changes.
+
+## 2026-09-11 — INC-12b (encrypted persistence with byte-identical replay)
+- No participant-facing stimulus change. Session content is encrypted before database writes and
+  decrypted before reads; legacy plaintext rows remain readable, and malformed encryption fails
+  the entire replay rather than shortening it. Multi-turn, pinned-head, mixed-row, route, and live
+  ledger runs verify that model-facing content and ordering remain unchanged.

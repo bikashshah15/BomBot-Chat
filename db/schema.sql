@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
     tool_calls JSONB,
     pinned BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT conversation_messages_content_exactly_one
+        CHECK ((content IS NULL) <> (content_ciphertext IS NULL)),
     UNIQUE (conversation_id, seq)
 );
 
@@ -117,7 +119,7 @@ ALTER TABLE conversation_messages
     ADD COLUMN IF NOT EXISTS pinned BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Encryption envelopes are additive so replaying this schema prepares existing
--- populated databases without changing any current plaintext read or write path.
+-- populated databases as well as fresh ones.
 ALTER TABLE chat_logs
     ADD COLUMN IF NOT EXISTS user_message_ciphertext BYTEA,
     ADD COLUMN IF NOT EXISTS user_message_nonce BYTEA,
@@ -134,6 +136,23 @@ ALTER TABLE conversation_messages
     ADD COLUMN IF NOT EXISTS content_ciphertext BYTEA,
     ADD COLUMN IF NOT EXISTS content_nonce BYTEA,
     ADD COLUMN IF NOT EXISTS content_auth_tag BYTEA;
+
+-- PostgreSQL has no ADD CONSTRAINT IF NOT EXISTS for CHECK constraints. Resolve
+-- the current search_path table and add the invariant only when it is absent.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'conversation_messages_content_exactly_one'
+          AND conrelid = 'conversation_messages'::regclass
+    ) THEN
+        ALTER TABLE conversation_messages
+            ADD CONSTRAINT conversation_messages_content_exactly_one
+            CHECK ((content IS NULL) <> (content_ciphertext IS NULL));
+    END IF;
+END;
+$$;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_chat_logs_session_id ON chat_logs(session_id);

@@ -33,7 +33,8 @@ ENV HOSTNAME=0.0.0.0
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends unzip \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /var/lib/bombot/osv-scanner \
+    && mkdir -p /var/lib/bombot/osv-scanner /var/lib/bombot/session-keys \
+    && chmod 700 /var/lib/bombot/session-keys \
     && chown -R node:node /var/lib/bombot
 COPY --from=osv-scanner-builder /go/bin/osv-scanner /usr/local/bin/osv-scanner
 COPY --from=builder --chown=node:node /app/.next/standalone ./

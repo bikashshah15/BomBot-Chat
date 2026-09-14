@@ -9,8 +9,10 @@ services:
       DATABASE_URL: postgresql://bombot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/bombot
       OSV_MODE: offline
       OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: /var/lib/bombot/osv-scanner
+      SESSION_KEY_DIRECTORY: /var/lib/bombot/session-keys
     volumes:
       - bombot_osv_scanner_cache:/var/lib/bombot/osv-scanner
+      - bombot_session_keys:/var/lib/bombot/session-keys
     depends_on:
       model:
         condition: service_healthy
@@ -93,3 +95,4 @@ volumes:
     external: true
   bombot_postgres_data:
   bombot_osv_scanner_cache:
+  bombot_session_keys:

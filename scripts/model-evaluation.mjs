@@ -16,6 +16,7 @@ const childEnvironment = {
     ?? path.join(os.homedir(), 'bombot-osv', 'scanner-db'),
   RETENTION: 'study',
   RETENTION_IDLE_HOURS: '24',
+  SESSION_KEY_DIRECTORY: path.join(os.tmpdir(), 'bombot-model-evaluation-session-keys'),
   PARTICIPANT_ID_MODE: 'email',
   MAX_HISTORY_MESSAGES: '20',
   ENABLE_MODEL_TOOL_CALLS: 'false',
