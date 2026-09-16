@@ -270,6 +270,16 @@ NODE_ENV=production                     # Runtime environment
 
 Key destruction after the idle window is owned by the retention scheduler and is not implemented in this increment; until that scheduler is deployed, selecting `ephemeral` records the intended policy but does not by itself enforce the 24-hour deadline.
 
+### Derived Session Measures (Callable, No Caller)
+
+INC-12c-2 provides `extractAndStoreSessionMeasures(sessionId)` in `lib/db/sessionMeasures.ts`, backed by the per-session pass in `lib/measures/`. It has **no production caller** and performs **zero per-turn work**. INC-12c-3 will invoke it before destroying a key; failures must prevent destruction. No retention window, deletion or expiry is implemented here.
+
+The pass reads full stored history, unions primary identifiers from all pinned pre-scans in the session, and counts advisory-identifier occurrences in assistant text (including repeated Markdown labels/destinations, as in the evaluation harness). It resolves aliases against the local snapshot only, never through HTTP. A configured snapshot-pin mismatch or missing snapshot is recorded as unavailable; absent/invalid scans are explicitly unresolved rather than negative evidence.
+
+`session_measures` retains only counts and completed categorical resolution outcomes (direct, alias-grounded, resolved-ungrounded, not-found, unresolved), not identifier strings, messages, filenames, hashes or package lists. These categories store the resolution result immediately; no later lookup is needed. Each result carries the reference definition, separate scan-source and resolution-source provenance, and scan coverage. Scan source is explicitly `unknown` for every session in this increment; known coverage is read from the stored pre-scan. INC-12c-2.1 owns future scan-source capture. Multiple scans retain separate coverage entries.
+
+Reading, local resolution and storage share a repeatable-read transaction. Re-running the pass replaces that session's result using the then-current local snapshot and records its source anew; a stored result itself needs no corpus to interpret. The date-granular snapshot pin cannot distinguish different ingests on the same date. The measure row has no cascading foreign key to raw content, so future content removal does not remove the result.
+
 ### OpenAI Responses Configuration
 ```yaml
 Responses API:

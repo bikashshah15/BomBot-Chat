@@ -100,6 +100,14 @@ CREATE TABLE IF NOT EXISTS osv_snapshots (
     max_modified TIMESTAMPTZ
 );
 
+-- Derived counts/outcomes only; deliberately no cascading reference to content.
+-- Extraction is callable but has no production caller until INC-12c-3.
+CREATE TABLE IF NOT EXISTS session_measures (
+    session_id VARCHAR(255) PRIMARY KEY,
+    result JSONB NOT NULL,
+    extracted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- CREATE TABLE IF NOT EXISTS does not update an existing OSV snapshots table.
 ALTER TABLE osv_snapshots
     ADD COLUMN IF NOT EXISTS ecosystem_dropped_counts JSONB NOT NULL DEFAULT '{}'::jsonb,

@@ -114,6 +114,17 @@ test('schema migration adds encryption envelopes to populated content tables', a
     await client.query(schema);
     await client.query(schema);
 
+    const measureColumns = await client.query(
+      `SELECT column_name FROM information_schema.columns
+      WHERE table_schema = $1 AND table_name = 'session_measures'
+      ORDER BY ordinal_position`, [schemaName],
+    );
+    assert.deepEqual(measureColumns.rows.map(row => row.column_name), ['session_id', 'result', 'extracted_at']);
+    assert.equal((await client.query(`SELECT count(*)::int AS count FROM session_measures`)).rows[0].count, 0);
+    const measureForeignKeys = await client.query(`SELECT conname FROM pg_constraint
+      WHERE conrelid = 'session_measures'::regclass AND contype = 'f'`);
+    assert.equal(measureForeignKeys.rowCount, 0);
+
     const retentionColumn = await client.query(
       `SELECT column_default FROM information_schema.columns
       WHERE table_schema = $1 AND table_name = 'conversations'
