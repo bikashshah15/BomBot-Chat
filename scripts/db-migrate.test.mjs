@@ -112,6 +112,58 @@ test('schema migration adds encryption envelopes to populated content tables', a
 
     const schema = await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8');
     await client.query(schema);
+    await client.query(schema);
+
+    const retentionColumn = await client.query(
+      `SELECT column_default FROM information_schema.columns
+      WHERE table_schema = $1 AND table_name = 'conversations'
+        AND column_name = 'retention_mode'`,
+      [schemaName],
+    );
+    assert.equal(retentionColumn.rows[0].column_default, "'study'::text");
+
+    const defaultConversationId = randomUUID();
+    const defaultConversation = await client.query(
+      `INSERT INTO conversations (id, session_id) VALUES ($1, $2)
+      RETURNING retention_mode`,
+      [defaultConversationId, 'synthetic-post-migration-session'],
+    );
+    assert.equal(defaultConversation.rows[0].retention_mode, 'study');
+
+    const retentionConstraint = await client.query(
+      `SELECT convalidated FROM pg_constraint
+      WHERE conname = 'conversations_retention_mode_valid'
+        AND conrelid = 'conversations'::regclass`,
+    );
+    assert.equal(retentionConstraint.rowCount, 1);
+    assert.equal(retentionConstraint.rows[0].convalidated, false);
+
+    await assert.rejects(
+      client.query(
+        `INSERT INTO conversations (id, session_id, retention_mode)
+        VALUES ($1, $2, 'standard')`,
+        [randomUUID(), 'synthetic-invalid-retention-session'],
+      ),
+      error => error?.constraint === 'conversations_retention_mode_valid',
+    );
+    await assert.rejects(
+      client.query(
+        `UPDATE conversations SET retention_mode = 'standard' WHERE id = $1`,
+        [defaultConversationId],
+      ),
+      error => error?.constraint === 'conversations_retention_mode_valid',
+    );
+
+    const legacyConversation = await client.query(
+      `SELECT retention_mode FROM conversations WHERE id = $1`,
+      [conversationId],
+    );
+    assert.equal(legacyConversation.rows[0].retention_mode, 'standard');
+    const unchangedDefaultConversation = await client.query(
+      `SELECT retention_mode FROM conversations WHERE id = $1`,
+      [defaultConversationId],
+    );
+    assert.equal(unchangedDefaultConversation.rows[0].retention_mode, 'study');
 
     const columns = await client.query(
       `SELECT table_name, column_name, data_type, is_nullable, column_default

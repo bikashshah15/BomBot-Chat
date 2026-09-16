@@ -261,6 +261,15 @@ OSV_SCANNER_PATH=/usr/local/bin/osv-scanner  # Local binary path
 NODE_ENV=production                     # Runtime environment
 ```
 
+### Retention Modes
+
+`RETENTION` records the policy under which each conversation runs and accepts two values:
+
+- `study` is the configuration default and rollback mode. It retains encrypted raw session content under the applicable IRB protocol and participant consent. It is not the fielded participant mode.
+- `ephemeral` is the fielded participant mode. Raw session content becomes unrecoverable within 24 hours of the participant's last activity by destroying its per-session encryption key.
+
+Key destruction after the idle window is owned by the retention scheduler and is not implemented in this increment; until that scheduler is deployed, selecting `ephemeral` records the intended policy but does not by itself enforce the 24-hour deadline.
+
 ### OpenAI Responses Configuration
 ```yaml
 Responses API:

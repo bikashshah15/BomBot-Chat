@@ -38,7 +38,9 @@ CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    retention_mode TEXT NOT NULL DEFAULT 'standard'
+    retention_mode TEXT NOT NULL DEFAULT 'study',
+    CONSTRAINT conversations_retention_mode_valid
+        CHECK (retention_mode IN ('study', 'ephemeral'))
 );
 
 CREATE TABLE IF NOT EXISTS conversation_messages (
@@ -136,6 +138,30 @@ ALTER TABLE conversation_messages
     ADD COLUMN IF NOT EXISTS content_ciphertext BYTEA,
     ADD COLUMN IF NOT EXISTS content_nonce BYTEA,
     ADD COLUMN IF NOT EXISTS content_auth_tag BYTEA;
+
+-- CREATE TABLE IF NOT EXISTS does not update the default on databases created
+-- before the retention vocabulary was reconciled.
+ALTER TABLE conversations
+    ALTER COLUMN retention_mode SET DEFAULT 'study';
+
+-- Preserve legacy rows whose recorded mode is outside the current vocabulary,
+-- while rejecting values outside that vocabulary on every future insert or update. PostgreSQL
+-- has no ADD CONSTRAINT IF NOT EXISTS for CHECK constraints, so resolve the
+-- current search_path table and add the unvalidated constraint only when absent.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'conversations_retention_mode_valid'
+          AND conrelid = 'conversations'::regclass
+    ) THEN
+        ALTER TABLE conversations
+            ADD CONSTRAINT conversations_retention_mode_valid
+            CHECK (retention_mode IN ('study', 'ephemeral')) NOT VALID;
+    END IF;
+END;
+$$;
 
 -- PostgreSQL has no ADD CONSTRAINT IF NOT EXISTS for CHECK constraints. Resolve
 -- the current search_path table and add the invariant only when it is absent.
