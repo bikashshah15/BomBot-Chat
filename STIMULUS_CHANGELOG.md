@@ -3,6 +3,23 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-16 — INC-12c-2.1 (scan-count correction; declared G6)
+
+- Boundary: the forthcoming INC-12c-2.1 commit immediately following parent
+  `cfc87ebbd129e021c5d982310aeb74b1d02d2e28` (this entry ships in that boundary commit).
+- Scanned counts now mean entries actually submitted to the matcher/query path,
+  consistently in model-facing prose, structured context and captured provenance.
+  `scan_truncated` consequently includes ecosystem exclusions, not just the cap.
+- Coverage explanations distinguish cap exclusions, unsupported purl types,
+  undeterminable ecosystems and unsupported explicit ecosystems. Cap warning text
+  no longer attributes ecosystem skips to the 150-package cap.
+- Scan source is captured beside the encrypted pinned pre-scan, never added to
+  model input. Legacy source remains unknown; extraction still has no caller.
+- This is an accepted stimulus change: figures measured before this commit are
+  not strictly comparable with figures measured after it. Filename handling,
+  dependency relationship rules, pinned history replay, other prompt wording,
+  model/decoding settings and tool availability are unchanged.
+
 ## 2026-09-11 — INC-11a.1 (retired Supabase documentation surface)
 - No participant-facing stimulus changed. This increment removes retired Supabase setup, schema,
   and verification documentation from `HEAD`, preserves and renames the current self-hosted

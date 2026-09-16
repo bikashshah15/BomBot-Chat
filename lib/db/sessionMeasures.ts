@@ -20,7 +20,7 @@ export async function extractAndStoreSessionMeasures(sessionId: string): Promise
         const messages: MeasureMessage[] = [];
         for (const row of result.rows) {
           if (row.role !== 'assistant' && !(row.role === 'user' && row.pinned)) continue;
-          messages.push({ role: row.role, pinned: row.pinned,
+          messages.push({ role: row.role, pinned: row.pinned, scan_source: row.scan_source,
             content: await decryptStoredContent(sessionId, {
               plaintext: row.content, ciphertext: row.content_ciphertext,
               nonce: row.content_nonce, authTag: row.content_auth_tag,

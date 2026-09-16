@@ -1,3 +1,5 @@
+import { readCapturedScanSource } from '../context/scanProvenance.ts';
+import type { ScanSkipCounts } from '../context/scanProvenance.ts';
 export const REFERENCE_DEFINITION = 'alias-aware-pre-scan-v1';
 
 // Same occurrence grammar as the evaluation harness; repeated link labels and
@@ -8,13 +10,15 @@ export interface MeasureMessage {
   role: string;
   content: string;
   pinned: boolean;
+  scan_source?: unknown;
 }
 
 export interface ScanProvenance {
-  osv_mode: 'unknown';
-  snapshot_date: 'unknown';
+  osv_mode: 'unknown' | 'api' | 'offline';
+  snapshot_date: string;
   scan_truncated: boolean | 'unknown';
   scanned_package_count: number | 'unknown';
+  skip_counts?: ScanSkipCounts;
 }
 
 export interface ResolutionSource {
@@ -72,7 +76,8 @@ function reference(messages: MeasureMessage[]) {
           ids.add(vulnerability.id.toUpperCase());
         }
       }
-      provenance.push({
+      const captured = readCapturedScanSource(message.scan_source);
+      provenance.push(captured ?? {
         osv_mode: 'unknown', snapshot_date: 'unknown',
         scan_truncated: typeof context.scan_truncated === 'boolean' ? context.scan_truncated : 'unknown',
         scanned_package_count: Number.isSafeInteger(context.scanned_package_count)

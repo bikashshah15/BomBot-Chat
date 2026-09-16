@@ -7,6 +7,8 @@ import { config as environmentConfig } from '../../lib/config.ts';
 import { buildSoftwareContext } from '../../lib/context/softwareContext.ts';
 import { insertLog } from '../../lib/db/chatLogs.ts';
 import { dbPool } from '../../lib/db/client.ts';
+import { captureScanSource, withCapturedScanSource } from '../../lib/db/scanProvenance.ts';
+import type { ScanSkipCounts } from '../../lib/context/scanProvenance.ts';
 import {
   ConversationSequenceConflictError,
   createConversation,
@@ -35,6 +37,7 @@ interface SBOMPackage {
   version?: string;
   ecosystem: string;
   id?: string; // SPDX ID or component reference
+  scanSkipReason?: 'unsupported_purl_type' | 'undeterminable_ecosystem';
 }
 
 interface DependencyRelationship {
@@ -157,7 +160,10 @@ export function parseSBOMData(sbomContent: string, fileName: string): { packages
               name: pkg.name,
               version: pkg.versionInfo || pkg.version,
               ecosystem: ecosystem,
-              id: pkg.SPDXID
+              id: pkg.SPDXID,
+              ...(ecosystem === 'unknown' ? { scanSkipReason: purlReference
+                && /^pkg:[^/]+\//iu.test(purlReference.referenceLocator)
+                ? 'unsupported_purl_type' as const : 'undeterminable_ecosystem' as const } : {})
             });
           }
         });
@@ -198,11 +204,14 @@ export function parseSBOMData(sbomContent: string, fileName: string): { packages
       if (sbom.components) {
         sbom.components.forEach((component: any) => {
           if (component.name && component.purl) {
+            const ecosystem = ecosystemFromPurl(component.purl);
             packages.push({
               name: component.name,
               version: component.version,
-              ecosystem: ecosystemFromPurl(component.purl),
-              id: component['bom-ref'] || component.purl
+              ecosystem,
+              id: component['bom-ref'] || component.purl,
+              ...(ecosystem === 'unknown' ? { scanSkipReason: /^pkg:[^/]+\//iu.test(component.purl)
+                ? 'unsupported_purl_type' as const : 'undeterminable_ecosystem' as const } : {})
             });
           }
         });
@@ -385,6 +394,7 @@ interface UploadHandlerDependencies {
   matchOsvPackages: typeof matchOsvPackages;
   osvClient: OsvQueryClient;
   osvMode: typeof environmentConfig.OSV_MODE;
+  captureScanSource: typeof captureScanSource;
   createConversation: typeof createConversation;
   getConversationSessionId: typeof getConversationSessionId;
   appendConversationMessages: typeof appendConversationMessages;
@@ -415,6 +425,7 @@ export function createUploadHandler(
     matchOsvPackages,
     osvClient: dbPool,
     osvMode: environmentConfig.OSV_MODE,
+    captureScanSource,
     createConversation,
     getConversationSessionId,
     appendConversationMessages,
@@ -503,12 +514,22 @@ export function createUploadHandler(
     ).length;
     const packagesToScan = packagesWithinScanCap
       .filter(pkg => recognizedEcosystems.has(pkg.ecosystem));
+    const skipCounts: ScanSkipCounts = { cap: packages.length - packagesWithinScanCap.length,
+      unsupported_purl_type: 0, undeterminable_ecosystem: 0, unsupported_ecosystem: 0 };
+    for (const pkg of packagesWithinScanCap) {
+      if (!recognizedEcosystems.has(pkg.ecosystem)) {
+        skipCounts[pkg.scanSkipReason ?? (pkg.ecosystem === 'unknown'
+          ? 'undeterminable_ecosystem' : 'unsupported_ecosystem')]++;
+      }
+    }
     console.log(`Scanning ${packagesToScan.length} packages for vulnerabilities...`);
     const vulnerabilityResults: Array<{
       package: SBOMPackage;
       vulnerabilities: OSVVulnerability[];
     }> = [];
 
+    const scanSource = await handlerDependencies.captureScanSource(
+      handlerDependencies.osvMode, handlerDependencies.osvClient, async scanClient => {
     if (handlerDependencies.osvMode === 'offline') {
       const offlinePackages = packagesToScan.map(pkg => ({
         name: pkg.name,
@@ -516,7 +537,7 @@ export function createUploadHandler(
         ecosystem: pkg.ecosystem as OsvEcosystem,
       }));
       const offlineMatches = await handlerDependencies.matchOsvPackages(
-        handlerDependencies.osvClient,
+        scanClient,
         offlinePackages,
       );
       vulnerabilityResults.push(...offlineMatches.map((match, index) => ({
@@ -541,6 +562,8 @@ export function createUploadHandler(
       }
     }
 
+    });
+
     // Send the scan results to the assistant
     const totalVulns = vulnerabilityResults.reduce((sum, result) => sum + result.vulnerabilities.length, 0);
     const vulnPackages = vulnerabilityResults.filter(result => result.vulnerabilities.length > 0).length;
@@ -560,13 +583,18 @@ export function createUploadHandler(
       packages,
       dependencies,
       vulnerabilityResults,
-      scannedPackageCount: packagesWithinScanCap.length,
+      scannedPackageCount: packagesToScan.length,
     });
-    const truncationStatement = softwareContext.scan_truncated
-      ? `- Scan coverage warning: ${softwareContext.total_package_count - softwareContext.scanned_package_count} of ${softwareContext.total_package_count} packages were excluded by the 150-package cap.`
+    const truncationStatement = skipCounts.cap > 0
+      ? `- Scan coverage warning: ${skipCounts.cap} of ${softwareContext.total_package_count} packages were excluded by the 150-package cap.`
       : '';
     const unrecognizedEcosystemStatement = unrecognizedEcosystemCount > 0
-      ? `- Ecosystem coverage warning: ${unrecognizedEcosystemCount} package${unrecognizedEcosystemCount === 1 ? '' : 's'} admitted by the 150-package cap could not be scanned because the ecosystem was unrecognized or could not be derived.`
+      ? `- Ecosystem coverage warning: ${([
+        ['unsupported_purl_type', 'unsupported purl type'],
+        ['undeterminable_ecosystem', 'ecosystem could not be derived'],
+        ['unsupported_ecosystem', 'unsupported ecosystem'],
+      ] as const).filter(([cause]) => skipCounts[cause] > 0).map(([cause, explanation]) =>
+        `${skipCounts[cause]} package${skipCounts[cause] === 1 ? '' : 's'} not scanned: ${explanation}`).join('; ')}.`
       : '';
 
     const responseInput = `I've uploaded ${existingConversationId ? 'an additional' : 'an'} SBOM file "${fileName}" with ${packages.length} packages${existingConversationId ? ' for comparison with the previous SBOM(s)' : ''}. Here's the comprehensive analysis data:
@@ -588,11 +616,13 @@ ${existingConversationId ?
 
     const conversationId = existingConversationId
       ?? (await handlerDependencies.createConversation(sessionId)).id;
-    await handlerDependencies.appendConversationMessages({
+    await withCapturedScanSource({ ...scanSource, scanned_package_count: softwareContext.scanned_package_count,
+      scan_truncated: softwareContext.scan_truncated, skip_counts: skipCounts }, async () =>
+      handlerDependencies.appendConversationMessages({
       conversationId,
       messages: [{ role: 'user', content: responseInput }],
       pinned: true,
-    });
+    }));
 
     if (existingConversationId) {
       console.log(`Reusing existing conversation: ${conversationId} for SBOM upload`);

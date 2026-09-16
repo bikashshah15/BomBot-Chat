@@ -144,6 +144,9 @@ test('offline upload batch-matches the oversize scan window once without API pac
   let waits = 0;
   const handler = createUploadHandler({
     osvMode: 'offline',
+    async captureScanSource(mode, client, scan) {
+      await scan(client); return { osv_mode: mode, snapshot_date: '2026-09-07' };
+    },
     async parseForm() {
       return {
         fields: {
@@ -447,7 +450,7 @@ test('over-150 upload keeps cap truncation and unrecognized ecosystem counts dis
     );
     assert.match(
       capturedAppend.messages[0].content,
-      /Ecosystem coverage warning: 1 package admitted by the 150-package cap could not be scanned because the ecosystem was unrecognized or could not be derived\./,
+      /Ecosystem coverage warning: 1 package not scanned: unsupported ecosystem\./,
     );
 
     const contextHeading = '**Minimized Software Context:**\n';
@@ -461,7 +464,7 @@ test('over-150 upload keeps cap truncation and unrecognized ecosystem counts dis
       capturedAppend.messages[0].content.slice(contextStart, contextEnd),
     );
     assert.equal(softwareContext.total_package_count, 152);
-    assert.equal(softwareContext.scanned_package_count, 150);
+    assert.equal(softwareContext.scanned_package_count, 149);
     assert.equal(softwareContext.scan_truncated, true);
     assert.equal(softwareContext.packages_depends_on.length, 152);
   } finally {
@@ -527,7 +530,7 @@ test('mixed SPDX purls derive ecosystems end to end and keep unknown packages fr
     );
     assert.match(
       capturedAppend.messages[0].content,
-      /Ecosystem coverage warning: 2 packages admitted by the 150-package cap could not be scanned because the ecosystem was unrecognized or could not be derived\./,
+      /Ecosystem coverage warning: 1 package not scanned: unsupported purl type; 1 package not scanned: ecosystem could not be derived\./,
     );
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -701,6 +704,9 @@ test('upload fails when offline mode has no vulnerability matcher', async () => 
   let appended = false;
   const handler = createUploadHandler({
     osvMode: 'offline',
+    async captureScanSource(mode, client, scan) {
+      await scan(client); return { osv_mode: mode, snapshot_date: '2026-09-07' };
+    },
     async parseForm() {
       return {
         fields: {

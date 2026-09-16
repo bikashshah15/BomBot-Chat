@@ -1,6 +1,7 @@
 import { sessionKeyVault } from '../crypto/sessionKeyStore.ts';
 import { config } from '../config.ts';
 import { dbPool } from './client.ts';
+import { currentScanSource } from './scanProvenance.ts';
 import { decryptStoredContent, encryptStoredContent } from './encryptedContent.ts';
 import type {
   Conversation,
@@ -91,8 +92,9 @@ export async function appendConversationMessage(
       content_auth_tag,
       tool_call_id,
       tool_calls,
-      pinned
-    ) VALUES ($1, $2, $3, NULL, $4, $5, $6, $7, $8, $9)
+      pinned,
+      scan_source
+    ) VALUES ($1, $2, $3, NULL, $4, $5, $6, $7, $8, $9, $10::jsonb)
     ON CONFLICT (conversation_id, seq) DO NOTHING
     RETURNING conversation_id, seq, role, content,
       content_ciphertext, content_nonce, content_auth_tag,
@@ -107,6 +109,8 @@ export async function appendConversationMessage(
       message.tool_call_id,
       message.tool_calls === null ? null : JSON.stringify(message.tool_calls),
       message.pinned ?? false,
+      message.pinned && message.role === 'user' && currentScanSource()
+        ? JSON.stringify(currentScanSource()) : null,
     ],
   );
 

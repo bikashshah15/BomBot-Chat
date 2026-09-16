@@ -128,6 +128,11 @@ CREATE INDEX IF NOT EXISTS idx_osv_vulns_aliases
 ALTER TABLE conversation_messages
     ADD COLUMN IF NOT EXISTS pinned BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- No default or backfill: legacy scans retain NULL (unknown historical source).
+-- Counts/source only, beside encrypted content and excluded from model replay.
+ALTER TABLE conversation_messages
+    ADD COLUMN IF NOT EXISTS scan_source JSONB;
+
 -- Encryption envelopes are additive so replaying this schema prepares existing
 -- populated databases as well as fresh ones.
 ALTER TABLE chat_logs
