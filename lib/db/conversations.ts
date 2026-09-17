@@ -2,6 +2,7 @@ import { sessionKeyVault } from '../crypto/sessionKeyStore.ts';
 import { config } from '../config.ts';
 import { dbPool } from './client.ts';
 import { currentScanSource } from './scanProvenance.ts';
+import { withSessionContentWrite } from './sessionContentWrite.ts';
 import { decryptStoredContent, encryptStoredContent } from './encryptedContent.ts';
 import type {
   Conversation,
@@ -18,6 +19,13 @@ export class ConversationSequenceConflictError extends Error {
     this.name = 'ConversationSequenceConflictError';
     this.conversationId = conversationId;
     this.seq = seq;
+  }
+}
+
+export class SessionRetentionConflictError extends Error {
+  constructor() {
+    super('Session retention rule conflicts; use a new session');
+    this.name = 'SessionRetentionConflictError';
   }
 }
 
@@ -64,6 +72,7 @@ async function toConversationMessage(row: ConversationMessageRow): Promise<Conve
 }
 
 export async function createConversation(sessionId: string): Promise<Conversation> {
+  try {
   const result = await dbPool.query<ConversationRow>(
     `INSERT INTO conversations (session_id, retention_mode)
     VALUES ($1, $2)
@@ -72,6 +81,13 @@ export async function createConversation(sessionId: string): Promise<Conversatio
   );
 
   return toConversation(result.rows[0]);
+  } catch (error) {
+    if (error && typeof error === 'object' && 'constraint' in error
+      && error.constraint === 'session_retention_rule_matches') {
+      throw new SessionRetentionConflictError();
+    }
+    throw error;
+  }
 }
 
 export async function appendConversationMessage(
@@ -79,9 +95,10 @@ export async function appendConversationMessage(
 ): Promise<ConversationMessage | null> {
   const sessionId = await getConversationSessionId(message.conversation_id);
   if (sessionId === null) return null;
+  return withSessionContentWrite(sessionId, async client => {
   await sessionKeyVault.create(sessionId);
   const encrypted = await encryptStoredContent(sessionId, message.content);
-  const result = await dbPool.query<ConversationMessageRow>(
+  const result = await client.query<ConversationMessageRow>(
     `INSERT INTO conversation_messages (
       conversation_id,
       seq,
@@ -117,6 +134,7 @@ export async function appendConversationMessage(
   return result.rows[0]
     ? toConversationMessage({ ...result.rows[0], session_id: sessionId })
     : null;
+  });
 }
 
 export async function appendConversationMessageOrThrow(

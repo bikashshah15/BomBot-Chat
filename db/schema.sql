@@ -43,6 +43,80 @@ CREATE TABLE IF NOT EXISTS conversations (
         CHECK (retention_mode IN ('study', 'ephemeral'))
 );
 
+-- Session keys cover every conversation in a session. Keep this rule after
+-- conversation removal so an old session cannot be reused under another policy.
+-- No backfill: existing conversation records are checked when a new one is made.
+CREATE TABLE IF NOT EXISTS session_retention_rules (
+    session_id VARCHAR(255) PRIMARY KEY,
+    retention_mode TEXT NOT NULL CHECK (retention_mode IN ('study', 'ephemeral'))
+);
+
+-- No historical activity is inferred during replay. New content writes stamp
+-- this clock in their own transaction, independently of best-effort log clocks.
+ALTER TABLE session_retention_rules
+    ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ;
+ALTER TABLE session_retention_rules
+    ADD COLUMN IF NOT EXISTS retired_at TIMESTAMPTZ;
+ALTER TABLE session_retention_rules
+    ADD COLUMN IF NOT EXISTS purged_at TIMESTAMPTZ;
+
+CREATE OR REPLACE FUNCTION enforce_session_retention_rule()
+RETURNS TRIGGER AS $$
+DECLARE
+    recorded_mode TEXT;
+BEGIN
+    -- Preserve the existing conversation vocabulary CHECK and its diagnostics.
+    -- Invalid values must not reach the rule store or seed a new session rule.
+    IF NEW.retention_mode IS NULL OR NEW.retention_mode NOT IN ('study', 'ephemeral') THEN
+        RETURN NEW;
+    END IF;
+    -- The no-op upsert locks the rule and serializes concurrent first writers.
+    INSERT INTO session_retention_rules (session_id, retention_mode)
+    VALUES (NEW.session_id, NEW.retention_mode)
+    ON CONFLICT (session_id) DO UPDATE
+        SET retention_mode = session_retention_rules.retention_mode
+    RETURNING retention_mode INTO recorded_mode;
+
+    IF EXISTS (SELECT 1 FROM session_retention_rules WHERE session_id=NEW.session_id AND retired_at IS NOT NULL)
+    OR recorded_mode <> NEW.retention_mode OR EXISTS (
+        SELECT 1 FROM conversations
+        WHERE session_id = NEW.session_id AND retention_mode <> NEW.retention_mode
+    ) OR (TG_OP = 'UPDATE' AND (
+        OLD.session_id IS DISTINCT FROM NEW.session_id
+        OR OLD.retention_mode IS DISTINCT FROM NEW.retention_mode
+    )) THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            CONSTRAINT = 'session_retention_rule_matches',
+            MESSAGE = 'Session retention rule conflicts; use a new session';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION keep_session_retention_rule_immutable()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.session_id IS DISTINCT FROM NEW.session_id
+        OR OLD.retention_mode IS DISTINCT FROM NEW.retention_mode
+        OR (OLD.retired_at IS NOT NULL AND OLD.retired_at IS DISTINCT FROM NEW.retired_at) THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            CONSTRAINT = 'session_retention_rule_matches',
+            MESSAGE = 'Session retention rule conflicts; use a new session';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS session_retention_rule_immutable ON session_retention_rules;
+CREATE TRIGGER session_retention_rule_immutable
+    BEFORE UPDATE ON session_retention_rules
+    FOR EACH ROW EXECUTE FUNCTION keep_session_retention_rule_immutable();
+
+DROP TRIGGER IF EXISTS conversation_session_retention_rule ON conversations;
+CREATE TRIGGER conversation_session_retention_rule
+    BEFORE INSERT OR UPDATE OF session_id, retention_mode ON conversations
+    FOR EACH ROW EXECUTE FUNCTION enforce_session_retention_rule();
+
 CREATE TABLE IF NOT EXISTS conversation_messages (
     conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     seq INT NOT NULL,
@@ -259,22 +333,43 @@ GROUP BY session_id
 ORDER BY MAX(session_last_activity) DESC;
 
 -- Create a function to clean up old sessions (older than 30 days)
-CREATE OR REPLACE FUNCTION cleanup_old_sessions()
-RETURNS INTEGER AS $$
-DECLARE
-    deleted_count INTEGER;
-BEGIN
-    DELETE FROM chat_logs
-    WHERE session_last_activity < NOW() - INTERVAL '30 days';
-
-    GET DIAGNOSTICS deleted_count = ROW_COUNT;
-    RETURN deleted_count;
-END;
-$$ LANGUAGE plpgsql;
-
--- Optional: Create a scheduled job to run cleanup (requires pg_cron extension)
--- SELECT cron.schedule('cleanup-old-sessions', '0 2 * * *', 'SELECT cleanup_old_sessions();');
+-- Retire the obsolete wrong-clock, wrong-window row deleter explicitly.
+DROP FUNCTION IF EXISTS cleanup_old_sessions();
 
 COMMENT ON TABLE chat_logs IS 'Stores all chat information including user messages, AI responses, file uploads, and session data';
 COMMENT ON VIEW session_analytics IS 'Provides analytics view of chat sessions with aggregated statistics from the single chat_logs table';
-COMMENT ON FUNCTION cleanup_old_sessions() IS 'Cleans up chat records older than 30 days';
+
+CREATE OR REPLACE FUNCTION record_session_content_activity()
+RETURNS TRIGGER AS $$
+DECLARE
+    content_session VARCHAR(255);
+BEGIN
+    IF TG_TABLE_NAME = 'conversation_messages' THEN
+        SELECT session_id INTO content_session FROM conversations WHERE id = NEW.conversation_id;
+    ELSE
+        content_session := NEW.session_id;
+    END IF;
+    UPDATE session_retention_rules
+    SET last_activity_at = GREATEST(last_activity_at, clock_timestamp())
+    -- Expiry is checked by the row-locked application writer using configured
+    -- policy; this trigger atomically records activity and blocks tombstones.
+    WHERE session_id = content_session AND retired_at IS NULL;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING ERRCODE = '23514',
+            CONSTRAINT = 'session_content_activity_required',
+            MESSAGE = 'Content requires a recorded session retention rule';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS conversation_content_activity ON conversation_messages;
+CREATE TRIGGER conversation_content_activity
+    AFTER INSERT OR UPDATE OF content, content_ciphertext ON conversation_messages
+    FOR EACH ROW EXECUTE FUNCTION record_session_content_activity();
+
+DROP TRIGGER IF EXISTS log_content_activity ON chat_logs;
+CREATE TRIGGER log_content_activity
+    AFTER INSERT OR UPDATE OF user_message, user_message_ciphertext,
+        ai_response, ai_response_ciphertext, user_email, user_email_ciphertext, file_name
+    ON chat_logs FOR EACH ROW EXECUTE FUNCTION record_session_content_activity();

@@ -25,6 +25,25 @@ services:
       - model_private
       - data_private
 
+  retention-worker:
+    build: .
+    command: ["node", "--experimental-strip-types", "lib/db/retentionWorker.ts"]
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PROFILE: local
+      LLM_BASE_URL: http://model:11434/v1
+      DATABASE_URL: postgresql://bombot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/bombot
+      SESSION_KEY_DIRECTORY: /var/lib/bombot/session-keys
+    volumes:
+      - bombot_session_keys:/var/lib/bombot/session-keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data_private
+
   model:
     image: ${OLLAMA_IMAGE:?OLLAMA_IMAGE must be pinned by immutable digest}
     command: serve

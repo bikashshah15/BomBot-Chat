@@ -265,20 +265,63 @@ NODE_ENV=production                     # Runtime environment
 
 `RETENTION` records the policy under which each conversation runs and accepts two values:
 
+**Launch blocked:** the current storage writer still saves tool-call arguments
+and upload filenames in plaintext outside the content envelopes. Key destruction
+cannot make those values unrecoverable from database backups. The worker build
+below is not launch-ready until that storage-coverage gap is resolved; the
+24-hour statement is the required protocol, not a completed guarantee.
+
 - `study` is the configuration default and rollback mode. It retains encrypted raw session content under the applicable IRB protocol and participant consent. It is not the fielded participant mode.
 - `ephemeral` is the fielded participant mode. Raw session content becomes unrecoverable within 24 hours of the participant's last activity by destroying its per-session encryption key.
 
-Key destruction after the idle window is owned by the retention scheduler and is not implemented in this increment; until that scheduler is deployed, selecting `ephemeral` records the intended policy but does not by itself enforce the 24-hour deadline.
+Both Compose configurations automatically start the retention worker with the app's external session-key volume. Deploy the migration before starting it. The worker schedules ephemeral key destruction on the authoritative 24-hour clock; `study` sessions are not automatically destroyed. The worker, database and key volume must remain available: host downtime, database outage or a failed key unlink can miss the deadline and must be treated as an operational incident, not an extended retention window.
 
-### Derived Session Measures (Callable, No Caller)
+Content becomes unrecoverable within 24 hours, with retirement starting shortly before the deadline using the fixed five-second `RETIREMENT_LEAD`.
 
-INC-12c-2 provides `extractAndStoreSessionMeasures(sessionId)` in `lib/db/sessionMeasures.ts`, backed by the per-session pass in `lib/measures/`. It has **no production caller** and performs **zero per-turn work**. INC-12c-3 will invoke it before destroying a key; failures must prevent destruction. No retention window, deletion or expiry is implemented here.
+The idle window is configured by `RETENTION_IDLE_HOURS`; the fielded value is 24 hours, and the protocol and consent promise depend on that value. Changing it requires matching consent language before fielding. The worker logs `idle_window_ms` once at startup, and the status command prints it alongside the counts. The five-second retirement lead and ten-second storage cutoff remain absolute durations; a window no larger than the storage cutoff is rejected. The unchanged configuration contract requires positive integer hours, so sub-ten-second settings are already invalid.
+
+Destroyed keys and participant content cannot be rolled back.  
+Key unlink is irreversible; restoring ciphertext cannot recover it.  
+Operators must retain compatible deadline enforcement and tombstones while rolling back application code.
+
+Retention is fixed per session, since all its conversations share one encryption
+key. New conversations with a conflicting mode are rejected, including concurrent
+creation attempts. A different mode requires a new session ID and therefore a
+separate encryption key. Existing recorded modes are not rewritten; a conflicting
+or unknown legacy mode blocks new conversation creation in that session. The
+session rule survives removal of conversations. This does not weaken the
+24-hour deletion promise for ephemeral sessions. Retired sessions cannot recreate keys or receive new conversations or content.
+
+The authoritative session clock is `session_retention_rules.last_activity_at`.
+Every successful content save updates it transactionally, including log-only
+sessions and saved responses. Failed saves roll back their clock update too;
+best-effort `chat_logs.session_last_activity` is not the deletion clock. Migration
+does not invent a last-activity timestamp for historical content.
+
+### Derived Session Measures and Retention Worker
+
+`extractAndStoreSessionMeasures(sessionId)` is called only by the separate retention worker, never by a request route. Extraction starts in the last minute of the idle window with a bounded attempt; deadline deletion does not await it. An `unextracted` record is persisted before extraction begins and replaced on success. Recording uses a separate pool, takes no retirement-row lock, and is not cancelled at the deadline: contention cannot kill the failure write or postpone destruction. Database failure can still prevent recording; the absence-based count below exposes that gap. Records contain no participant-shaped error messages. This deliberately reverses INC-12c-2's earlier “failure prevents destruction” assumption: measurement must not extend the deletion deadline. Operators must read the aggregate counts daily during fielding. Sessions run and sessions measured can have different denominators. A failed failure-record write is logged as such, never as success.
 
 The pass reads full stored history, unions primary identifiers from all pinned pre-scans in the session, and counts advisory-identifier occurrences in assistant text (including repeated Markdown labels/destinations, as in the evaluation harness). It resolves aliases against the local snapshot only, never through HTTP. A configured snapshot-pin mismatch or missing snapshot is recorded as unavailable; absent/invalid scans are explicitly unresolved rather than negative evidence.
 
-`session_measures` retains only counts and completed categorical resolution outcomes (direct, alias-grounded, resolved-ungrounded, not-found, unresolved), not identifier strings, messages, filenames, hashes or package lists. These categories store the resolution result immediately; no later lookup is needed. Each result carries the reference definition, separate scan-source and resolution-source provenance, and scan coverage. Scan source is explicitly `unknown` for every session in this increment; known coverage is read from the stored pre-scan. INC-12c-2.1 owns future scan-source capture. Multiple scans retain separate coverage entries.
+`session_measures` retains only counts and completed categorical resolution outcomes (direct, alias-grounded, resolved-ungrounded, not-found, unresolved), not identifier strings, messages, filenames, hashes or package lists. These categories store the resolution result immediately; no later lookup is needed. Each result carries the reference definition, separate scan-source and resolution-source provenance, and scan coverage. Captured scan sources are read from their stored sidecars; legacy sources remain explicitly `unknown`, never inferred from today's configuration. Failure records retain a completed resolution's source when known; otherwise it is explicitly unavailable, never inferred from the current snapshot. Multiple scans retain separate coverage entries.
 
-Reading, local resolution and storage share a repeatable-read transaction. Re-running the pass replaces that session's result using the then-current local snapshot and records its source anew; a stored result itself needs no corpus to interpret. The date-granular snapshot pin cannot distinguish different ingests on the same date. The measure row has no cascading foreign key to raw content, so future content removal does not remove the result.
+`deleteSessionParticipantData(sessionId)` performs explicit session-scoped participant deletion in either mode: it commits a tombstone, destroys the external key, then removes chat logs and conversations (cascading messages). Results have no cascading foreign key and survive. A retired-session sweep retries incomplete ephemeral cleanup. This is a callable administrative operation, not a new unauthenticated HTTP endpoint. The obsolete 30-day `cleanup_old_sessions()` function is dropped by migration. Historical activity timestamps are never manufactured; legacy sessions lacking the authoritative clock need explicit disposition and are counted visibly.
+
+Reading and local resolution share a repeatable-read transaction. Storage checks the exact activity revision against current committed state without locking the retirement row. Production extraction attempts run in killable child processes with private database pools; deletion has its own pool and does not wait for them. Independent sessions extract concurrently, and unsuccessful attempts are retried while their window remains open. Re-running the pass replaces that session's result using the then-current local snapshot and records its source anew; a stored result itself needs no corpus to interpret. The date-granular snapshot pin cannot distinguish different ingests on the same date. The measure row has no cascading foreign key to raw content, so future content removal does not remove the result.
+
+During fielding, run this read-only check every day (and after worker downtime):
+
+```sh
+node --experimental-strip-types --import dotenv/config lib/db/retentionStatus.ts
+```
+
+It prints only numeric `unextracted_count`, `missing_measure_count`, `overdue_deletion_count`, `unknown_clock_count` and the effective `idle_window_ms`.
+Unextracted counts stored failure records; missing-measure counts retired or purged ephemeral sessions with no measure row of any kind, derived from the session registry rather than measure rows.
+Overdue means an ephemeral session still holds content after its known deadline;
+unknown-clock counts only sessions holding content, not empty conversations.
+Exit status is 1 when overdue deletion or missing measures exist, 0 otherwise, or 2 with no output
+when the check cannot reach the database. No session IDs or database errors are printed.
 
 ### OpenAI Responses Configuration
 ```yaml

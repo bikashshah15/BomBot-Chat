@@ -3,6 +3,7 @@ import { createHmac } from 'node:crypto';
 import { sessionKeyVault } from '../crypto/sessionKeyStore.ts';
 import { config } from '../config.ts';
 import { dbPool } from './client.ts';
+import { withSessionContentWrite } from './sessionContentWrite.ts';
 import { decryptStoredContent, encryptStoredContent } from './encryptedContent.ts';
 import type { ChatLog, NewChatLog } from './types.ts';
 
@@ -81,6 +82,7 @@ function participantIdForStorage(userEmail: string | null): string | null {
 }
 
 export async function insertLog(log: NewChatLog): Promise<ChatLog> {
+  return withSessionContentWrite(log.session_id, async client => {
   const participantId = participantIdForStorage(log.user_email);
   const protectedValues = [log.user_message, log.ai_response, participantId]
     .filter((value): value is string => value !== null);
@@ -90,7 +92,7 @@ export async function insertLog(log: NewChatLog): Promise<ChatLog> {
     log.ai_response === null ? null : encryptStoredContent(log.session_id, log.ai_response),
     participantId === null ? null : encryptStoredContent(log.session_id, participantId),
   ]);
-  const result = await dbPool.query<ChatLogRow>(
+  const result = await client.query<ChatLogRow>(
     `INSERT INTO chat_logs (
       id,
       session_id,
@@ -147,6 +149,7 @@ export async function insertLog(log: NewChatLog): Promise<ChatLog> {
   );
 
   return toChatLog(result.rows[0]);
+  });
 }
 
 export async function updateAiResponse(
@@ -154,9 +157,10 @@ export async function updateAiResponse(
   messageIndex: number,
   aiResponse: string,
 ): Promise<ChatLog[]> {
+  return withSessionContentWrite(sessionId, async client => {
   await sessionKeyVault.create(sessionId);
   const encrypted = await encryptStoredContent(sessionId, aiResponse);
-  const result = await dbPool.query<ChatLogRow>(
+  const result = await client.query<ChatLogRow>(
     `UPDATE chat_logs
     SET ai_response = NULL,
       ai_response_ciphertext = $1,
@@ -169,6 +173,7 @@ export async function updateAiResponse(
   );
 
   return Promise.all(result.rows.map(toChatLog));
+  });
 }
 
 export async function getSessionHistory(sessionId: string): Promise<ChatLog[]> {

@@ -21,6 +21,24 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
 
+  retention-worker:
+    build: .
+    command: ["node", "--experimental-strip-types", "lib/db/retentionWorker.ts"]
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PROFILE: local
+      LLM_BASE_URL: http://host.docker.internal:11434/v1
+      DATABASE_URL: postgresql://bombot@postgres:5432/bombot
+      PGPASSWORD: bombot_dev_password
+      SESSION_KEY_DIRECTORY: /var/lib/bombot/session-keys
+    volumes:
+      - bombot_session_keys:/var/lib/bombot/session-keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:16
     environment:

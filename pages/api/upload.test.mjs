@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -128,6 +128,7 @@ test('upload wiring retains the full oversize inventory and exposes scan truncat
     assert.ok(oversizePrompt.endsWith(
       'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", or "dependency analysis" for comprehensive information.',
     ));
+    await assert.rejects(access(uploadPath), { code: 'ENOENT' }, 'successful upload removes its raw fixture');
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -698,7 +699,7 @@ test('upload fails when offline mode has no vulnerability matcher', async () => 
   const fixturePath = new URL('../../tests/fixtures/small-spdx.json', import.meta.url);
   const fixtureContent = await readFile(fixturePath, 'utf8');
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'bombot-upload-offline-test-'));
-  const uploadPath = path.join(tempDir, 'small-spdx.json');
+  let uploadPath = path.join(tempDir, 'small-spdx.json');
   await copyFile(fixturePath, uploadPath);
 
   let appended = false;
@@ -707,7 +708,9 @@ test('upload fails when offline mode has no vulnerability matcher', async () => 
     async captureScanSource(mode, client, scan) {
       await scan(client); return { osv_mode: mode, snapshot_date: '2026-09-07' };
     },
-    async parseForm() {
+    async parseForm(_request, handlerDirectory) {
+      uploadPath = path.join(handlerDirectory, 'small-spdx.json');
+      await copyFile(fixturePath, uploadPath);
       return {
         fields: {
           sessionId: '00000000-0000-4000-8000-000000000001',
@@ -744,6 +747,7 @@ test('upload fails when offline mode has no vulnerability matcher', async () => 
     assert.equal(response.jsonBody.error, 'Internal server error');
     assert.match(response.jsonBody.details, /OSV vulnerability source is unavailable/);
     assert.equal(appended, false);
+    await assert.rejects(access(uploadPath), { code: 'ENOENT' }, 'failed scan removes its raw fixture too');
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
