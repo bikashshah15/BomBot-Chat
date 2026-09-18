@@ -1,7 +1,5 @@
 import { safeLog, safeValue } from '../logging/redact.ts';
 import { pathToFileURL } from 'node:url';
-import { fileURLToPath } from 'node:url';
-import { fork } from 'node:child_process';
 import pg from 'pg';
 import { dbPool } from './client.ts';
 import { sessionKeyVault } from '../crypto/sessionKeyStore.ts';
@@ -9,7 +7,12 @@ import { extractAndStoreSessionMeasures, recordUnextractedSession, MeasurePersis
 import { readRetentionCounts, RETIREMENT_CUTOFF_SQL, STORAGE_CUTOFF, RETIREMENT_LEAD, IDLE_WINDOW_MS } from './retentionStatus.ts';
 export { STORAGE_CUTOFF, RETIREMENT_LEAD, IDLE_WINDOW_MS } from './retentionStatus.ts';
 
-const PREPARE_MS = 60_000;
+// Three opportunities per activity epoch, not one crowded final-minute pass.
+export const EXTRACTION_ATTEMPTS = 3;
+export const FIRST_EXTRACTION_LEAD = IDLE_WINDOW_MS * 3 / 4;
+export function extractionOpportunityOffsets(windowMs = IDLE_WINDOW_MS): number[] {
+  return Array.from({ length: EXTRACTION_ATTEMPTS }, (_, index) => (index + 1) * windowMs / (EXTRACTION_ATTEMPTS + 1));
+}
 
 /** Bounded work: a stalled measurement is never a deletion prerequisite. */
 export async function boundedAttempt(work: () => Promise<unknown>, milliseconds: number): Promise<boolean> {
@@ -66,12 +69,12 @@ export async function prepareDeletion(deps: PreparationDependencies, budgetMs = 
 }
 
 /** Automatic worker, never imported by a request route. Uses DB time for deadlines.
- * Extraction starts in the last minute; deadline callbacks do not await it.
+ * Extraction starts after one idle quarter and has spaced opportunities; deletion never awaits it.
  */
 export async function startRetentionWorker(extract?: (id: string, activity: string) => Promise<unknown> | undefined): Promise<() => Promise<void>> {
   safeLog('warn', safeValue(JSON.stringify({ event: 'retention_worker_start', idle_window_ms: IDLE_WINDOW_MS })));
   // Extraction (including a stalled injected extractor) cannot borrow these
-  // connections. Production attempts additionally have killable private pools.
+  // connections. Production attempts have private connections and killable scoring threads.
   const deletionPool = new pg.Pool({ ...dbPool.options, max: 5 });
   // Failure writes have their own pool and are NOT cancelled at retirement.
   // They touch no retirement-row lock and cannot consume deletion connections.
@@ -87,34 +90,42 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
     void pending.then(() => { recordings.delete(pending); });
     return pending;
   };
-  const jobs = new Set<ReturnType<typeof fork>>();
-  const isolated = (kind: 'extract' | 'failure', id: string, revision: string, budget: number,
-    resolution?: MeasurePersistenceError['resolutionProvenance'],
-    captureResolution?: (source: MeasurePersistenceError['resolutionProvenance']) => void): Promise<boolean> => new Promise(resolve => {
-    const child = fork(fileURLToPath(import.meta.url), [], {
-      stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
-      env: { ...process.env, PGOPTIONS: dbPool.options.options ?? process.env.PGOPTIONS },
-    });
-    jobs.add(child);
-    let settled = false;
-    const finish = (ok: boolean) => {
-      if (settled) return;
-      settled = true; clearTimeout(timer); jobs.delete(child);
-      child.kill('SIGKILL'); resolve(ok);
-    };
-    const timer = setTimeout(() => finish(false), budget);
-    child.once('message', message => {
-      const failure = message as {resolution?: MeasurePersistenceError['resolutionProvenance']};
-      if (failure?.resolution) captureResolution?.(failure.resolution);
-      finish(message === 'ok');
-    });
-    child.once('error', () => finish(false));
-    child.once('exit', () => finish(false));
-    child.send({ kind, id, revision, resolution,
-      errorClass: Date.now() >= Number(revision && new Date(revision).getTime()) + IDLE_WINDOW_MS - STORAGE_CUTOFF
-        ? 'extraction_deadline' : 'extraction_failed' });
-  });
-  const scheduled = new Map<string, { revision: string; timer: ReturnType<typeof setTimeout>; done: boolean; running: boolean; retryAt: number; deadline: number; recording: Promise<boolean> }>();
+  // No full-worker cold fork and no shared extraction connection queue. Each
+  // attempt owns its SQL connection and a small killable scoring thread.
+  const cancellations = new Set<() => void>();
+  const extractions = new Set<Promise<boolean>>();
+  const isolated = (id: string, revision: string, budget: number,
+    captureResolution?: (source: MeasurePersistenceError['resolutionProvenance']) => void): Promise<boolean> => {
+    const pending = (async () => {
+      const pool = new pg.Pool({ ...dbPool.options, max: 1 });
+      const controller = new AbortController();
+      const clients = new Set<pg.PoolClient>();
+      pool.on('connect', client => { clients.add(client); });
+      pool.on('remove', client => { clients.delete(client); });
+      pool.on('error', () => {}); // Closing an idle private client is cancellation.
+      const cancel = () => {
+        controller.abort();
+        for (const client of clients) void client.end();
+      };
+      cancellations.add(cancel);
+      try {
+        return await boundedAttempt(async () => {
+          try { await extractAndStoreSessionMeasures(id, revision, pool, controller.signal); }
+          catch (error) {
+            if (error instanceof MeasurePersistenceError) captureResolution?.(error.resolutionProvenance);
+            throw error;
+          }
+        }, budget);
+      } finally {
+        cancellations.delete(cancel); cancel();
+        await pool.end();
+      }
+    })();
+    extractions.add(pending);
+    void pending.then(() => { extractions.delete(pending); }, () => { extractions.delete(pending); });
+    return pending;
+  };
+  const scheduled = new Map<string, { revision: string; timer: ReturnType<typeof setTimeout>; done: boolean; attempts: number; running: boolean; retryAt: number; deadline: number; recording?: Promise<boolean> }>();
   let stopped = false;
   let sweeping = false;
   let nextReport = 0;
@@ -130,25 +141,55 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
         EXTRACT(EPOCH FROM (${RETIREMENT_CUTOFF_SQL} - clock_timestamp()))*1000 AS remaining_ms
         FROM session_retention_rules WHERE retention_mode='ephemeral'
         AND purged_at IS NULL AND (retired_at IS NOT NULL OR last_activity_at IS NOT NULL)`);
+      const present = new Set<string>(result.rows.map(row => row.session_id));
+      for (const [id, entry] of scheduled) if (!present.has(id)) {
+        clearTimeout(entry.timer); scheduled.delete(id);
+      }
       for (const row of result.rows) {
-        if (row.retired_at) { void retire(row.session_id); continue; }
+        if (row.retired_at) {
+          const entry = scheduled.get(row.session_id);
+          if (entry) clearTimeout(entry.timer);
+          scheduled.delete(row.session_id);
+          void retire(row.session_id); continue;
+        }
         // Preserve PostgreSQL microseconds; JS Date would silently round them.
         const revision = row.activity_revision as string;
         const old = scheduled.get(row.session_id);
         const remaining = Number(row.remaining_ms);
         if (old && old.revision !== revision) { clearTimeout(old.timer); scheduled.delete(row.session_id); }
-        if (remaining > PREPARE_MS) { scheduled.delete(row.session_id); continue; }
         // The timer is installed FIRST. Even a never-settling extractor cannot
         // prevent deadline deletion. SQL rechecks activity under the writer lock.
         let entry = scheduled.get(row.session_id);
         if (!entry) {
-          const timer = setTimeout(() => { scheduled.delete(row.session_id); void retire(row.session_id); }, Math.max(0, Math.ceil(remaining)));
-          const errorClass = remaining + RETIREMENT_LEAD <= STORAGE_CUTOFF ? 'extraction_deadline' : 'extraction_failed';
-          entry = { revision, timer, done: false, running: false, retryAt: 0, deadline: Date.now() + remaining,
-            recording: record(row.session_id, revision, errorClass) };
+          // Keep this epoch admitted until retirement is visible to the sweep.
+          // Removing it in the callback lets an in-flight sweep re-admit the
+          // same epoch and overwrite its successful measure with a fallback.
+          const timer = setTimeout(() => { void retire(row.session_id); }, Math.max(0, Math.min(2_147_483_647, Math.ceil(remaining))));
+          entry = { revision, timer, done: false, attempts: 0, running: false, retryAt: 0, deadline: Date.now() + remaining,
+            recording: undefined };
           scheduled.set(row.session_id, entry);
         }
-        if (remaining <= 0 || entry.done || entry.running || Date.now() < entry.retryAt) continue;
+        // No history/provenance read or result row while activity keeps the
+        // epoch younger than its first idle quarter. Persist failure only when
+        // that opportunity is due, still before any extraction (even if late).
+        const firstDueAt = entry.deadline + RETIREMENT_LEAD - IDLE_WINDOW_MS
+          + extractionOpportunityOffsets()[0];
+        if (!entry.recording && Date.now() >= firstDueAt) {
+          const errorClass = remaining + RETIREMENT_LEAD <= STORAGE_CUTOFF ? 'extraction_deadline' : 'extraction_failed';
+          entry.recording = record(row.session_id, revision, errorClass);
+        }
+        // The locked DB-time recheck can refuse a timer firing a fraction early.
+        // Retry retirement from sweeps without re-admitting/recording this epoch.
+        if (remaining <= 0) { void retire(row.session_id); continue; }
+        // Storage closes before retirement. No useful extraction can start there.
+        if (remaining + RETIREMENT_LEAD <= STORAGE_CUTOFF) continue;
+        const opportunity = extractionOpportunityOffsets()[entry.attempts];
+        const dueAt = opportunity === undefined ? entry.retryAt
+          : entry.deadline + RETIREMENT_LEAD - IDLE_WINDOW_MS + opportunity;
+        // Even early success receives the remaining spaced passes. Once all
+        // three have run, only failed epochs retry; success stops further work.
+        if (!entry.recording || (entry.done && entry.attempts >= EXTRACTION_ATTEMPTS) || entry.running
+          || Date.now() < Math.max(dueAt, entry.retryAt)) continue;
         const attempt = entry;
         attempt.running = true;
         void (async () => {
@@ -161,19 +202,20 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
             attempt.running = false; attempt.retryAt = Date.now() + 100;
             return;
           }
+          attempt.attempts++;
           let persistenceFailure: MeasurePersistenceError | undefined;
           const budget = Math.max(1, Math.min(5_000, remaining - Math.min(500, remaining / 2)));
           const ok = extract ? await boundedAttempt(async () => {
             try {
               const overridden = extract(row.session_id, revision);
               if (overridden) return await overridden;
-              if (!await isolated('extract', row.session_id, revision, budget)) throw new Error('Extraction failed');
+              if (!await isolated(row.session_id, revision, budget)) throw new Error('Extraction failed');
             }
             catch (error) { if (error instanceof MeasurePersistenceError) persistenceFailure = error; throw error; }
-          }, budget) : await isolated('extract', row.session_id, revision, budget, undefined,
+          }, budget) : await isolated(row.session_id, revision, budget,
             source => { persistenceFailure = new MeasurePersistenceError(source); });
-          if (ok) attempt.done = true;
-          else if (!stopped && persistenceFailure && scheduled.get(row.session_id) === attempt)
+          attempt.done = ok;
+          if (!ok && !stopped && persistenceFailure && scheduled.get(row.session_id) === attempt)
             await record(row.session_id, revision, 'extraction_failed', persistenceFailure.resolutionProvenance);
           attempt.running = false;
           attempt.retryAt = Date.now() + 100;
@@ -192,25 +234,14 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
   return () => {
     stopped = true; clearInterval(interval);
     for (const entry of scheduled.values()) clearTimeout(entry.timer);
-    for (const job of jobs) job.kill('SIGKILL');
+    for (const cancel of cancellations) cancel();
     const deletionDrained = deletionPool.end();
     // Drain queued failure writes, including those outliving the deadline.
-    return Promise.all([deletionDrained, Promise.all([...recordings]).then(() => recordingPool.end())]).then(() => {});
+    return Promise.all([deletionDrained, Promise.all([...extractions]), Promise.all([...recordings]).then(() => recordingPool.end())]).then(() => {});
   };
 }
 
-if (process.send) {
-  process.once('message', async (message: {kind: string; id: string; revision: string; errorClass: 'extraction_failed' | 'extraction_deadline'; resolution?: MeasurePersistenceError['resolutionProvenance']}) => {
-    try {
-      if (message.kind === 'extract') await extractAndStoreSessionMeasures(message.id, message.revision);
-      else await recordUnextractedSession(message.id, message.errorClass, message.resolution, message.revision);
-      process.send?.('ok');
-    } catch (error) {
-      process.send?.({ resolution: error instanceof MeasurePersistenceError ? error.resolutionProvenance : undefined });
-    }
-    finally { await dbPool.end(); }
-  });
-} else if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   startRetentionWorker().then(stop => {
     const shutdown = () => { stop(); void dbPool.end(); };
     process.once('SIGTERM', shutdown);

@@ -1,3 +1,4 @@
+import { extractInThread } from './measureExtraction.ts';
 import { config } from '../config.ts';
 import { extractSessionMeasures } from '../measures/extract.ts';
 import type { MeasureMessage, SessionMeasure } from '../measures/extract.ts';
@@ -18,6 +19,9 @@ export class MeasurePersistenceError extends Error {
 }
 
 // The sole result writer serves both extraction and bounded failure records.
+// A fallback may replace an older activity epoch, never this epoch's success.
+// extracted_at is the storage transaction's timestamp; the activity token is
+// checked in the same statement. This also covers another worker/restart.
 async function writeResult(client: PoolClient, id: string, result: unknown, activity?: string) {
   const stored = await client.query(`INSERT INTO session_measures (session_id, result)
     SELECT $1::varchar, $2::jsonb WHERE ($3::timestamptz IS NULL OR EXISTS (
@@ -29,8 +33,12 @@ async function writeResult(client: PoolClient, id: string, result: unknown, acti
       AND (last_activity_at IS NULL OR clock_timestamp() >= ${idleDeadlineSQL()}
         - INTERVAL '${STORAGE_CUTOFF} milliseconds')))
     ON CONFLICT (session_id) DO UPDATE SET result = EXCLUDED.result, extracted_at = NOW()
-    WHERE session_measures.result->>'status' IS DISTINCT FROM 'unextracted' OR NOT EXISTS (
-      SELECT 1 FROM session_retention_rules WHERE session_id=$1::varchar AND retired_at IS NOT NULL)`,
+    WHERE (session_measures.result->>'status' IS DISTINCT FROM 'unextracted' OR NOT EXISTS (
+      SELECT 1 FROM session_retention_rules WHERE session_id=$1::varchar AND retired_at IS NOT NULL))
+    AND ($2::jsonb->>'status' IS DISTINCT FROM 'unextracted'
+      OR session_measures.result->>'status'='unextracted' OR NOT EXISTS (
+        SELECT 1 FROM session_retention_rules WHERE session_id=$1::varchar
+        AND last_activity_at <= session_measures.extracted_at))`,
   [id, JSON.stringify(result), activity ?? null]);
   return Boolean(stored.rowCount);
 }
@@ -66,14 +74,16 @@ export async function recordUnextractedSession(sessionId: string, errorClass: 'e
  * activity-token check guards storage without locking the retirement row.
  * Failures propagate to the worker, which records them without extending deletion.
  */
-export async function extractAndStoreSessionMeasures(sessionId: string, activity?: string): Promise<SessionMeasure> {
-  const client = await dbPool.connect();
+export async function extractAndStoreSessionMeasures(sessionId: string, activity?: string, pool: Pool = dbPool, signal?: AbortSignal): Promise<SessionMeasure> {
+  const client = await pool.connect();
   let completedResolution: SessionMeasure['resolution_provenance'];
   try {
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
     await client.query("SET LOCAL statement_timeout='4s'");
     await client.query("SET LOCAL idle_in_transaction_session_timeout='1s'");
-    const measure = await extractSessionMeasures(sessionId, {
+    const extraction = signal ? (id: string, deps: Parameters<typeof extractSessionMeasures>[1]) => extractInThread(id, deps, signal)
+      : extractSessionMeasures;
+    const measure = await extraction(sessionId, {
       async readMessages() {
         const result = await client.query(`SELECT m.* FROM conversation_messages m
           JOIN conversations c ON c.id = m.conversation_id
@@ -130,7 +140,8 @@ export async function extractAndStoreSessionMeasures(sessionId: string, activity
     await client.query('COMMIT');
     return measure;
   } catch (error) {
-    await client.query('ROLLBACK');
+    // A timed-out attempt may already have closed its private connection.
+    try { await client.query('ROLLBACK'); } catch {}
     if (completedResolution) throw new MeasurePersistenceError(completedResolution);
     throw error;
   } finally {
