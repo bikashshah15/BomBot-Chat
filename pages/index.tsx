@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from '../lib/logging/redact.ts';
 import { GetServerSideProps } from 'next';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -39,7 +40,7 @@ export const getServerSideProps: GetServerSideProps = async ({ res }) => {
     
     return { props: {} };
   } catch (error) {
-    console.error('Error serving React app:', error);
+    safeLog('error', safeValue("Error serving React app:"), safeValue(errorClass(error)));
     
     // Fallback error page
     const fallbackHtml = `

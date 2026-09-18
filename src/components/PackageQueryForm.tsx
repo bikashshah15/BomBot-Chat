@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
 import { useState } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { Button } from '@/components/ui/button';
@@ -239,9 +240,9 @@ const PackageQueryForm = () => {
         } catch (error) {
           addQuickQueryResponse();
           if (error instanceof AssistantStreamTimeoutError) {
-            console.log('AI stream timed out, but continuing to wait...');
+            safeLog('log', safeValue("AI stream timed out"));
           } else {
-            console.error('AI stream error:', error);
+            safeLog('error', safeValue("AI stream error:"), safeValue(errorClass(error)));
             addMessage({
               type: 'assistant',
               content: '⚠️ There was an issue getting the AI analysis, but the vulnerability data has been retrieved successfully.',
@@ -258,7 +259,7 @@ const PackageQueryForm = () => {
       });
 
     } catch (error) {
-      console.error('Query error:', error);
+      safeLog('error', safeValue("Query error:"), safeValue(errorClass(error)));
       addMessage({
         type: 'assistant',
         content: `❌ **Query failed:** ${error instanceof Error ? error.message : 'Unknown error occurred'}. Please check your input and try again.`,

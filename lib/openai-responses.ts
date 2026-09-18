@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from './logging/redact.ts';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { config } from './config.ts';
@@ -409,7 +410,7 @@ const defaultFunctionCallDependencies: FunctionCallDependencies = {
 const OFFLINE_OSV_SOURCE = 'offline_osv_snapshot';
 
 function offlineSourceFailure(error: unknown, query: Record<string, unknown>) {
-  console.error('Offline OSV model-tool lookup failed:', error);
+  safeLog('error', safeValue("Offline OSV model-tool lookup failed:"), safeValue(errorClass(error)));
   return JSON.stringify({
     success: false,
     source: OFFLINE_OSV_SOURCE,

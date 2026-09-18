@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { insertLog } from '../../lib/db/chatLogs.ts';
 import {
@@ -57,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         updated_at: now,
       });
     } catch (logError) {
-      console.error('Error logging user message:', logError);
+      safeLog('error', safeValue("Error logging user message:"), safeValue(errorClass(logError)));
       // Continue with the chat even if logging fails
     }
 
@@ -79,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (error instanceof ConversationSequenceConflictError) {
       return res.status(409).json({ error: 'Conversation changed while this message was submitted' });
     }
-    console.error('Chat API error:', error);
+    safeLog('error', safeValue("Chat API error:"), safeValue(errorClass(error)));
     res.status(500).json({ 
       error: 'Failed to send message to assistant',
       details: formatOpenAIError(error)

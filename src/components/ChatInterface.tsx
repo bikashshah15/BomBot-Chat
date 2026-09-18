@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import ChatMessage from '@/components/ChatMessage';
@@ -26,7 +27,6 @@ const ChatInterface = () => {
   // Handle Email submission
   const handleEmailSubmit = (email: string) => {
     setUserEmail(email);
-    console.log('User Email collected for survey:', email);
   };
 
   // Auto-scroll to bottom on new messages
@@ -207,7 +207,7 @@ const ChatInterface = () => {
               content: `⏱️ Analysis for "${file.name}" is taking longer than expected. The scan is still running in the background. You can ask me questions or try uploading the file again.`,
             });
           } else {
-            console.error('Upload stream error:', error);
+            safeLog('error', safeValue("Upload stream error:"), safeValue(errorClass(error)));
             addMessage({
               type: 'assistant',
               content: `⚠️ There was an issue getting the analysis results for "${file.name}".`,
@@ -219,7 +219,7 @@ const ChatInterface = () => {
       }
 
     } catch (error) {
-      console.error('Upload error:', error);
+      safeLog('error', safeValue("Upload error:"), safeValue(errorClass(error)));
       addMessage({
         type: 'assistant',
         content: `❌ Upload failed: ${error instanceof Error ? error.message : 'There was an error uploading your file. Please try again.'}`,
@@ -295,9 +295,9 @@ const ChatInterface = () => {
           });
         } catch (error) {
           if (error instanceof AssistantStreamTimeoutError) {
-            console.log('Chat stream timed out, but continuing to wait...');
+            safeLog('log', safeValue("Chat stream timed out"));
           } else {
-            console.error('Chat stream error:', error);
+            safeLog('error', safeValue("Chat stream error:"), safeValue(errorClass(error)));
             addMessage({
               type: 'assistant',
               content: '⚠️ There was an issue getting my response. Please try again.',
@@ -309,7 +309,7 @@ const ChatInterface = () => {
         return true;
       }
     } catch (error) {
-      console.error('Error sending to assistant:', error);
+      safeLog('error', safeValue("Error sending to assistant:"), safeValue(errorClass(error)));
       addMessage({
         type: 'assistant',
         content: '⚠️ Sorry, I encountered an issue processing your message. Please try again.',

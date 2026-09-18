@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { config } from '../../lib/config.ts';
 import { updateAiResponse } from '../../lib/db/chatLogs.ts';
@@ -56,14 +57,14 @@ async function buildToolResultMessages(
 
   for (const toolCall of toolCalls) {
     try {
-      console.log(`Executing function: ${toolCall.name}`);
+      safeLog('log', safeValue("Executing function"));
       messages.push({
         role: 'tool',
         toolCallId: toolCall.id,
         content: await executeTool(toolCall.name, toolCall.arguments),
       });
     } catch (error) {
-      console.error(`Function execution error for ${toolCall.name}:`, error);
+      safeLog('error', safeValue("Function execution error"), safeValue(errorClass(error)));
       messages.push({
         role: 'tool',
         toolCallId: toolCall.id,
@@ -178,7 +179,7 @@ export async function runAssistantTurn(
         throw new Error('No chat log row matched the AI response update');
       }
     } catch (logError) {
-      console.error('Error logging AI response:', logError);
+      safeLog('error', safeValue("Error logging AI response:"), safeValue(errorClass(logError)));
     }
   }
 
@@ -231,7 +232,7 @@ export function createStreamHandler(
         return res.status(403).json({ error: 'Conversation does not belong to this session' });
       }
     } catch (error) {
-      console.error('Stream binding check error:', error);
+      safeLog('error', safeValue("Stream binding check error:"), safeValue(errorClass(error)));
       return res.status(500).json({ error: 'Failed to validate conversation session' });
     }
 
@@ -251,7 +252,7 @@ export function createStreamHandler(
       await dependencies.runTurn({ conversationId, sessionId, messageIndex }, emit);
     } catch (error) {
       const sequenceConflict = error instanceof ConversationSequenceConflictError;
-      if (!sequenceConflict) console.error('Assistant stream error:', error);
+      if (!sequenceConflict) safeLog('error', safeValue("Assistant stream error:"), safeValue(errorClass(error)));
       emit('error', {
         error: sequenceConflict
           ? 'Conversation changed while the assistant response was streamed'

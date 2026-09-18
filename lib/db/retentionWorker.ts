@@ -1,3 +1,4 @@
+import { safeLog, safeValue } from '../logging/redact.ts';
 import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 import { fork } from 'node:child_process';
@@ -59,7 +60,7 @@ export interface PreparationDependencies {
 export async function prepareDeletion(deps: PreparationDependencies, budgetMs = 5_000): Promise<void> {
   if (!await boundedAttempt(deps.extract, budgetMs)) {
     if (!await boundedAttempt(deps.recordFailure, Math.min(budgetMs, 1_000))) {
-      console.error(JSON.stringify({ event: 'retention_failure_record_unavailable' }));
+      safeLog('error', safeValue(JSON.stringify({ event: 'retention_failure_record_unavailable' })));
     }
   }
 }
@@ -68,7 +69,7 @@ export async function prepareDeletion(deps: PreparationDependencies, budgetMs = 
  * Extraction starts in the last minute; deadline callbacks do not await it.
  */
 export async function startRetentionWorker(extract?: (id: string, activity: string) => Promise<unknown> | undefined): Promise<() => Promise<void>> {
-  console.warn(JSON.stringify({ event: 'retention_worker_start', idle_window_ms: IDLE_WINDOW_MS }));
+  safeLog('warn', safeValue(JSON.stringify({ event: 'retention_worker_start', idle_window_ms: IDLE_WINDOW_MS })));
   // Extraction (including a stalled injected extractor) cannot borrow these
   // connections. Production attempts additionally have killable private pools.
   const deletionPool = new pg.Pool({ ...dbPool.options, max: 5 });
@@ -80,7 +81,7 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
     resolution?: MeasurePersistenceError['resolutionProvenance']) => {
     const pending = (async () => {
       try { return await recordUnextractedSession(id, errorClass, resolution, revision, recordingPool); }
-      catch { console.error('{"event":"retention_failure_record_unavailable"}'); return false; }
+      catch { safeLog('error', safeValue('{"event":"retention_failure_record_unavailable"}')); return false; }
     })();
     recordings.add(pending);
     void pending.then(() => { recordings.delete(pending); });
@@ -119,7 +120,7 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
   let nextReport = 0;
   const retire = async (id: string) => {
     try { await deleteSessionParticipantData(id, true, deletionPool); }
-    catch { console.error(JSON.stringify({ event: 'retention_deletion_failed' })); }
+    catch { safeLog('error', safeValue(JSON.stringify({ event: 'retention_deletion_failed' }))); }
   };
   const sweep = async () => {
     if (stopped || sweeping) return;
@@ -180,10 +181,10 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
       }
       if (Date.now() >= nextReport) {
         const counts = await readRetentionCounts(deletionPool);
-        console.warn(JSON.stringify({ event: 'retention_daily_counts', ...counts }));
+        safeLog('warn', safeValue(JSON.stringify({ event: 'retention_daily_counts', ...counts })));
         nextReport = Date.now() + IDLE_WINDOW_MS;
       }
-    } catch { console.error(JSON.stringify({ event: 'retention_worker_database_unavailable' })); }
+    } catch { safeLog('error', safeValue(JSON.stringify({ event: 'retention_worker_database_unavailable' }))); }
     finally { sweeping = false; }
   };
   await sweep();
@@ -214,5 +215,5 @@ if (process.send) {
     const shutdown = () => { stop(); void dbPool.end(); };
     process.once('SIGTERM', shutdown);
     process.once('SIGINT', shutdown);
-  }).catch(() => { console.error('{"event":"retention_worker_start_failed"}'); process.exitCode = 1; });
+  }).catch(() => { safeLog('error', safeValue('{"event":"retention_worker_start_failed"}')); process.exitCode = 1; });
 }

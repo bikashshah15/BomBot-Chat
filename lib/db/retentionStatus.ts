@@ -1,3 +1,4 @@
+import { safeLog, safeValue } from '../logging/redact.ts';
 import { pathToFileURL } from 'node:url';
 import pg from 'pg';
 import { config } from '../config.ts';
@@ -54,7 +55,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     if (!process.env.DATABASE_URL) throw new Error('Unavailable');
     const counts = await readRetentionCounts(pool);
-    console.log(JSON.stringify({ ...counts, idle_window_ms: IDLE_WINDOW_MS }));
+    safeLog('log', safeValue(JSON.stringify({ ...counts, idle_window_ms: IDLE_WINDOW_MS })));
     process.exitCode = counts.overdue_deletion_count > 0 || counts.missing_measure_count > 0 ? 1 : 0;
   } catch {
     // No fabricated zero counts, database errors, or participant-shaped output.

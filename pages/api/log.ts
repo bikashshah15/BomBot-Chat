@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
@@ -52,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const parsedRequest = logRequestSchema.safeParse(req.body);
   if (!parsedRequest.success) {
-    console.error('Log API rejected an invalid request body');
+    safeLog('error', safeValue("Log API rejected an invalid request body"));
     return res.status(400).json({ error: 'Invalid log request' });
   }
 
@@ -85,7 +86,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(201).json({ success: true, log });
   } catch (error) {
-    console.error('Log API database write failed:', safeErrorDetails(error));
+    safeLog('error', safeValue("Log API database write failed:"), safeValue(errorClass(error)));
     return res.status(500).json({ error: 'Failed to persist log entry' });
   }
 }

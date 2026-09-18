@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
 import formidable from 'formidable';
 import fs from 'fs';
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -265,7 +266,7 @@ export function parseSBOMData(sbomContent: string, fileName: string): { packages
 
     return { packages, dependencies };
   } catch (error) {
-    console.error('Error parsing SBOM:', error);
+    safeLog('error', safeValue("Error parsing SBOM:"), safeValue(errorClass(error)));
     throw new Error('Invalid SBOM format. Please ensure the file is valid JSON.');
   }
 }
@@ -370,7 +371,7 @@ async function queryOSVForPackage(pkg: SBOMPackage): Promise<OSVVulnerability[]>
     });
 
     if (!response.ok) {
-      console.warn(`OSV query failed for ${pkg.name}: ${response.status}`);
+      safeLog('warn', safeValue("OSV query failed"), safeValue(response.status));
       return [];
     }
 
@@ -380,7 +381,7 @@ async function queryOSVForPackage(pkg: SBOMPackage): Promise<OSVVulnerability[]>
     if (error instanceof OSVSourceUnavailableError) {
       throw error;
     }
-    console.warn(`Error querying OSV for ${pkg.name}:`, error);
+    safeLog('warn', safeValue("Error querying OSV"), safeValue(errorClass(error)));
     return [];
   }
 }
@@ -522,7 +523,7 @@ export function createUploadHandler(
           ? 'undeterminable_ecosystem' : 'unsupported_ecosystem')]++;
       }
     }
-    console.log(`Scanning ${packagesToScan.length} packages for vulnerabilities...`);
+    safeLog('log', safeValue("Scanning packages for vulnerabilities"), safeValue(packagesToScan.length));
     const vulnerabilityResults: Array<{
       package: SBOMPackage;
       vulnerabilities: OSVVulnerability[];
@@ -625,9 +626,9 @@ ${existingConversationId ?
     }));
 
     if (existingConversationId) {
-      console.log(`Reusing existing conversation: ${conversationId} for SBOM upload`);
+      safeLog('log', safeValue("Reusing existing conversation for SBOM upload"));
     } else {
-      console.log(`Created new conversation: ${conversationId} for SBOM upload`);
+      safeLog('log', safeValue("Created new conversation for SBOM upload"));
     }
 
     // Log file upload to the application-owned datastore if session info is provided.
@@ -650,7 +651,7 @@ ${existingConversationId ?
           updated_at: now,
         });
       } catch (logError) {
-        console.error('Error logging file upload:', logError);
+        safeLog('error', safeValue("Error logging file upload:"), safeValue(errorClass(logError)));
         // Continue even if logging fails
       }
     }
@@ -659,7 +660,7 @@ ${existingConversationId ?
     try {
       fs.unlinkSync(filePath);
     } catch (cleanupError) {
-      console.warn('Failed to cleanup uploaded file:', cleanupError);
+      safeLog('warn', safeValue("Failed to cleanup uploaded file:"), safeValue(errorClass(cleanupError)));
     }
 
     res.status(200).json({ 
@@ -698,7 +699,7 @@ ${existingConversationId ?
     if (error instanceof ConversationSequenceConflictError) {
       return res.status(409).json({ error: 'Conversation changed while this upload was submitted' });
     }
-    console.error('Upload handler error:', error);
+    safeLog('error', safeValue("Upload handler error:"), safeValue(errorClass(error)));
     res.status(500).json({ 
       error: 'Internal server error',
       details: formatOpenAIError(error)
@@ -708,7 +709,7 @@ ${existingConversationId ?
     try {
       tmpDir.removeCallback();
     } catch (cleanupError) {
-      console.warn('Failed to cleanup temp directory:', cleanupError);
+      safeLog('warn', safeValue("Failed to cleanup temp directory:"), safeValue(errorClass(cleanupError)));
     }
   }
   };

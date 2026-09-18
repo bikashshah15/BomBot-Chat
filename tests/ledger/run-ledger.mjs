@@ -10,6 +10,7 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 
 import { startLedgerSink } from './sink.mjs';
+import { assertNoPackageLogs, fixturePackageNames } from './log-redaction.mjs';
 
 const { buildBombotInstructions } = await import('../../lib/openai-responses.ts');
 
@@ -344,6 +345,10 @@ const sink = await startLedgerSink();
 const appPort = await reservePort();
 const appOrigin = `http://127.0.0.1:${appPort}`;
 const childLogs = [];
+const logPackageNames = fixturePackageNames(await Promise.all(
+  ['small-spdx.json', 'small-cyclonedx.json', 'oversize-spdx.json', 'malformed.json']
+    .map(async name => JSON.parse(await readFile(path.join(fixturesDir, name), 'utf8'))),
+));
 const nextBinary = path.join(repoRoot, 'node_modules/next/dist/bin/next');
 const nodeOptions = [
   process.env.NODE_OPTIONS,
@@ -395,7 +400,7 @@ const child = spawn(process.execPath, [nextBinary, 'dev', '-H', '127.0.0.1', '-p
 
 const collectLog = chunk => {
   childLogs.push(chunk.toString());
-  if (childLogs.join('').length > 40_000) childLogs.shift();
+  // Keep the entire run: early leaks and chunk boundaries must remain observable.
 };
 child.stdout.on('data', collectLog);
 child.stderr.on('data', collectLog);
@@ -437,6 +442,14 @@ try {
     assert.ok(snapshotProof.vulnerabilityRows > 0);
   }
   await waitForApplication(appOrigin, child, readLogs);
+
+  // Exercise participant-bearing parser errors as well as successful uploads.
+  const invalidJsonForm = new FormData();
+  invalidJsonForm.append('file', new Blob(['lodash'], { type: 'application/json' }), 'invalid.json');
+  invalidJsonForm.append('sessionId', sessionId);
+  const invalidJsonResponse = await fetch(`${appOrigin}/api/upload`, { method: 'POST', body: invalidJsonForm });
+  assert.equal(invalidJsonResponse.status, 400);
+  await invalidJsonResponse.text();
 
   const malformed = await uploadFixture(appOrigin, 'malformed.json', { sessionId }, [400]);
   assert.match(malformed.error, /No packages found/);
@@ -610,6 +623,8 @@ try {
     await sink.close();
   }
 }
+
+assertNoPackageLogs(readLogs(), logPackageNames);
 
 const interceptRecords = parseInterceptLog(interceptLog);
 const destinations = aggregateDestinations(interceptRecords);

@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatLogger } from '@/lib/chatLogger';
@@ -146,7 +147,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         userEmail,
       });
     } catch (error) {
-      console.error('Error logging chat message:', error);
+      safeLog('error', safeValue("Error logging chat message:"), safeValue(errorClass(error)));
     }
   };
 

@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
 import type { ChatLog } from '../../lib/db/types.ts';
 
 export interface LogChatMessageParams {
@@ -26,14 +27,14 @@ export class ChatLogger {
       });
 
       if (!response.ok) {
-        console.error(`Chat logging request failed with HTTP ${response.status}`);
+        safeLog('error', safeValue("Chat logging request failed"), safeValue(response.status));
         return null;
       }
 
       const body = await response.json();
       return body.log ?? null;
     } catch (error) {
-      console.error('Error in ChatLogger.logMessage:', error);
+      safeLog('error', safeValue("Error in ChatLogger.logMessage:"), safeValue(errorClass(error)));
       return null;
     }
   }
@@ -50,13 +51,13 @@ export class ChatLogger {
       });
 
       if (!response.ok) {
-        console.error(`Session initialization request failed with HTTP ${response.status}`);
+        safeLog('error', safeValue("Session initialization request failed"), safeValue(response.status));
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Error in ChatLogger.initializeSession:', error);
+      safeLog('error', safeValue("Error in ChatLogger.initializeSession:"), safeValue(errorClass(error)));
       return false;
     }
   }

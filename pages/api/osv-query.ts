@@ -1,3 +1,4 @@
+import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { config as environmentConfig } from '../../lib/config.ts';
 import { dbPool } from '../../lib/db/client.ts';
@@ -285,7 +286,7 @@ async function handleOsvQuery(
         if (assistantError instanceof ConversationSequenceConflictError) {
           return res.status(409).json({ error: 'Conversation changed while this query was submitted' });
         }
-        console.error('Failed to send to assistant:', assistantError);
+        safeLog('error', safeValue("Failed to send to assistant:"), safeValue(errorClass(assistantError)));
         // Still return the OSV data even if assistant fails
         return res.status(200).json({ 
           result: data,
@@ -305,7 +306,7 @@ async function handleOsvQuery(
     });
 
   } catch (error) {
-    console.error('OSV query error:', error);
+    safeLog('error', safeValue("OSV query error:"), safeValue(errorClass(error)));
     res.status(500).json({ 
       error: 'Failed to fetch data from OSV database',
       details: error instanceof Error ? error.message : 'Unknown error'
