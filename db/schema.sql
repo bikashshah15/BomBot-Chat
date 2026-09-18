@@ -226,6 +226,41 @@ ALTER TABLE conversation_messages
     ADD COLUMN IF NOT EXISTS content_nonce BYTEA,
     ADD COLUMN IF NOT EXISTS content_auth_tag BYTEA;
 
+-- Metadata envelopes: legacy plaintext and presence remain untouched. NULL
+-- presence selects the legacy replay predicate; new writes always set the flag.
+ALTER TABLE chat_logs
+    ADD COLUMN IF NOT EXISTS file_name_ciphertext BYTEA,
+    ADD COLUMN IF NOT EXISTS file_name_nonce BYTEA,
+    ADD COLUMN IF NOT EXISTS file_name_auth_tag BYTEA;
+ALTER TABLE conversation_messages
+    ADD COLUMN IF NOT EXISTS tool_calls_ciphertext BYTEA,
+    ADD COLUMN IF NOT EXISTS tool_calls_nonce BYTEA,
+    ADD COLUMN IF NOT EXISTS tool_calls_auth_tag BYTEA,
+    ADD COLUMN IF NOT EXISTS has_tool_calls BOOLEAN;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint
+        WHERE conname = 'chat_logs_file_name_envelope'
+        AND conrelid = 'chat_logs'::regclass) THEN
+        ALTER TABLE chat_logs ADD CONSTRAINT chat_logs_file_name_envelope CHECK (
+            (file_name_ciphertext IS NULL AND file_name_nonce IS NULL AND file_name_auth_tag IS NULL)
+            OR (file_name IS NULL AND file_name_ciphertext IS NOT NULL
+                AND file_name_nonce IS NOT NULL AND file_name_auth_tag IS NOT NULL));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint
+        WHERE conname = 'conversation_messages_tool_calls_envelope'
+        AND conrelid = 'conversation_messages'::regclass) THEN
+        ALTER TABLE conversation_messages ADD CONSTRAINT conversation_messages_tool_calls_envelope CHECK (
+            (tool_calls_ciphertext IS NULL AND tool_calls_nonce IS NULL AND tool_calls_auth_tag IS NULL
+                AND (has_tool_calls IS NULL OR has_tool_calls = (jsonb_array_length(COALESCE(tool_calls, '[]'::jsonb)) > 0)))
+            OR (tool_calls IS NULL AND tool_calls_ciphertext IS NOT NULL
+                AND tool_calls_nonce IS NOT NULL AND tool_calls_auth_tag IS NOT NULL
+                AND has_tool_calls IS NOT NULL));
+    END IF;
+END;
+$$;
+
 -- CREATE TABLE IF NOT EXISTS does not update the default on databases created
 -- before the retention vocabulary was reconciled.
 ALTER TABLE conversations
@@ -365,11 +400,13 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS conversation_content_activity ON conversation_messages;
 CREATE TRIGGER conversation_content_activity
-    AFTER INSERT OR UPDATE OF content, content_ciphertext ON conversation_messages
+    AFTER INSERT OR UPDATE OF content, content_ciphertext, tool_calls,
+        tool_calls_ciphertext, tool_calls_nonce, tool_calls_auth_tag ON conversation_messages
     FOR EACH ROW EXECUTE FUNCTION record_session_content_activity();
 
 DROP TRIGGER IF EXISTS log_content_activity ON chat_logs;
 CREATE TRIGGER log_content_activity
     AFTER INSERT OR UPDATE OF user_message, user_message_ciphertext,
-        ai_response, ai_response_ciphertext, user_email, user_email_ciphertext, file_name
+        ai_response, ai_response_ciphertext, user_email, user_email_ciphertext, file_name,
+        file_name_ciphertext, file_name_nonce, file_name_auth_tag
     ON chat_logs FOR EACH ROW EXECUTE FUNCTION record_session_content_activity();

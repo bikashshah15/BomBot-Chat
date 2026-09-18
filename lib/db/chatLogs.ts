@@ -14,6 +14,9 @@ interface ChatLogRow extends Omit<ChatLog, 'file_size' | 'session_started_at' | 
   ai_response_ciphertext: Buffer | null;
   ai_response_nonce: Buffer | null;
   ai_response_auth_tag: Buffer | null;
+  file_name_ciphertext: Buffer | null;
+  file_name_nonce: Buffer | null;
+  file_name_auth_tag: Buffer | null;
   user_email_ciphertext: Buffer | null;
   user_email_nonce: Buffer | null;
   user_email_auth_tag: Buffer | null;
@@ -47,7 +50,12 @@ async function toChatLog(row: ChatLogRow): Promise<ChatLog> {
       nonce: row.ai_response_nonce,
       authTag: row.ai_response_auth_tag,
     }, true),
-    file_name: row.file_name,
+    file_name: await decryptStoredContent(row.session_id, {
+      plaintext: row.file_name,
+      ciphertext: row.file_name_ciphertext,
+      nonce: row.file_name_nonce,
+      authTag: row.file_name_auth_tag,
+    }, true),
     file_size: row.file_size === null ? null : Number(row.file_size),
     vulnerability_count: row.vulnerability_count,
     user_email: await decryptStoredContent(row.session_id, {
@@ -84,13 +92,14 @@ function participantIdForStorage(userEmail: string | null): string | null {
 export async function insertLog(log: NewChatLog): Promise<ChatLog> {
   return withSessionContentWrite(log.session_id, async client => {
   const participantId = participantIdForStorage(log.user_email);
-  const protectedValues = [log.user_message, log.ai_response, participantId]
+  const protectedValues = [log.user_message, log.ai_response, participantId, log.file_name]
     .filter((value): value is string => value !== null);
   if (protectedValues.length > 0) await sessionKeyVault.create(log.session_id);
-  const [userMessage, aiResponse, userEmail] = await Promise.all([
+  const [userMessage, aiResponse, userEmail, fileName] = await Promise.all([
     log.user_message === null ? null : encryptStoredContent(log.session_id, log.user_message),
     log.ai_response === null ? null : encryptStoredContent(log.session_id, log.ai_response),
     participantId === null ? null : encryptStoredContent(log.session_id, participantId),
+    log.file_name === null ? null : encryptStoredContent(log.session_id, log.file_name),
   ]);
   const result = await client.query<ChatLogRow>(
     `INSERT INTO chat_logs (
@@ -108,6 +117,9 @@ export async function insertLog(log: NewChatLog): Promise<ChatLog> {
       ai_response_nonce,
       ai_response_auth_tag,
       file_name,
+      file_name_ciphertext,
+      file_name_nonce,
+      file_name_auth_tag,
       file_size,
       vulnerability_count,
       user_email,
@@ -120,7 +132,7 @@ export async function insertLog(log: NewChatLog): Promise<ChatLog> {
       $1, $2, $3, $4, $5,
       NULL, $6, $7, $8,
       NULL, $9, $10, $11,
-      $12, $13, $14,
+      NULL, $12, $20, $21, $13, $14,
       NULL, $15, $16, $17,
       $18, $19
     )
@@ -137,7 +149,7 @@ export async function insertLog(log: NewChatLog): Promise<ChatLog> {
       aiResponse?.ciphertext ?? null,
       aiResponse?.nonce ?? null,
       aiResponse?.authTag ?? null,
-      log.file_name,
+      fileName?.ciphertext ?? null,
       log.file_size,
       log.vulnerability_count,
       userEmail?.ciphertext ?? null,
@@ -145,6 +157,8 @@ export async function insertLog(log: NewChatLog): Promise<ChatLog> {
       userEmail?.authTag ?? null,
       log.created_at,
       log.updated_at,
+      fileName?.nonce ?? null,
+      fileName?.authTag ?? null,
     ],
   );
 

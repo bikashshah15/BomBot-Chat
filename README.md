@@ -265,11 +265,21 @@ NODE_ENV=production                     # Runtime environment
 
 `RETENTION` records the policy under which each conversation runs and accepts two values:
 
-**Launch blocked:** the current storage writer still saves tool-call arguments
-and upload filenames in plaintext outside the content envelopes. Key destruction
-cannot make those values unrecoverable from database backups. The worker build
-below is not launch-ready until that storage-coverage gap is resolved; the
-24-hour statement is the required protocol, not a completed guarantee.
+New writes encrypt message content, AI responses, participant identifiers,
+upload filenames, and complete tool-call payloads (including arguments) under
+the session key in the external key vault. Destroying that key also makes retained
+ciphertext for filenames and tool calls unreadable in WAL and database backups.
+Legacy plaintext rows remain readable and are not backfilled: their historical
+WAL and backups are outside this crypto-shredding guarantee.
+
+Operational metadata remains outside the envelopes: row/session/conversation
+identifiers, message indexes and roles/types, tool-result correlation IDs,
+content-free tool-call presence, pinning, file sizes, vulnerability counts,
+activity/creation/update timestamps, and scan-source provenance (mode and snapshot
+date). Derived measures and their provenance remain retained separately. These
+fields reveal linkage, timing and counts, but not message text, filenames or
+tool-call arguments. Client exports and data already disclosed to the hosted
+model are also outside database key destruction.
 
 - `study` is the configuration default and rollback mode. It retains encrypted raw session content under the applicable IRB protocol and participant consent. It is not the fielded participant mode.
 - `ephemeral` is the fielded participant mode. Raw session content becomes unrecoverable within 24 hours of the participant's last activity by destroying its per-session encryption key.
