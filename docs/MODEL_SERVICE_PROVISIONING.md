@@ -25,6 +25,47 @@ pre-provisioned model leaves the service unhealthy and prevents the app from
 starting instead of silently attempting a download or falling back to a hosted
 provider.
 
+## Bounded model keep-alive
+
+The runtime service sets `OLLAMA_KEEP_ALIVE=12h`, replacing Ollama's five-minute
+idle default. A loaded model can therefore preserve its prompt cache across the
+pauses expected while a participant reads, thinks, and completes questionnaire
+pages. This changes timing only: it does not alter application requests, model
+weights, instructions, decoding, or generated output.
+
+The value is deliberately bounded. While the model is loaded, cached prompt
+tokens remain in memory and can be decoded back to text. An indefinite value
+such as `-1` could retain the last participant's context indefinitely, which is
+incompatible with the promise that raw session content becomes unrecoverable
+within 24 hours of last activity. Twelve hours covers a study block while still
+forcing unload twelve hours after the model's last request, which keeps the last
+session before an idle period inside that 24-hour bound. While other sessions
+keep using the model it stays loaded under any keep-alive value, exactly as it
+did under the five-minute default; whether an earlier session's cached tokens
+are then overwritten depends on the runtime's cache reuse, which this
+repository neither controls nor verifies.
+
+## Operator preload before a study block
+
+After the stack is healthy and before each study block, issue this request from
+an operator-controlled HTTP client already attached to the internal
+`model_private` network (replace `<LLM_MODEL>` with the provisioned model name):
+
+```sh
+curl --fail --show-error --silent \
+  -H 'Content-Type: application/json' \
+  --data '{"model":"<LLM_MODEL>","keep_alive":"12h"}' \
+  http://model:11434/api/generate
+```
+
+The omitted `prompt` is intentional: this preload loads weights and carries no
+participant content. Do not publish the model port merely to perform preload.
+
+For the host-native Mac development setup, the operator must set
+`OLLAMA_KEEP_ALIVE=12h` in the Ollama app's launch environment and restart the
+app before the study block. This is an operator action; repository setup does
+not change the Mac's global Ollama configuration.
+
 Container-image downloads and the provisioning-only weight download are
 provisioning-time egress. They must be accounted for in the egress table from
 INC-11 and the AWS provisioning network and records built in INC-13; they are

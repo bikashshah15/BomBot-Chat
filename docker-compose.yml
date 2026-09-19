@@ -49,6 +49,7 @@ services:
     command: serve
     environment:
       OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: "12h"
       OLLAMA_MODEL: ${LLM_MODEL:?LLM_MODEL must name the provisioned model}
     volumes:
       - bombot_model_weights:/root/.ollama

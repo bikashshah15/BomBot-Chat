@@ -26,6 +26,50 @@ Label this evidence **“Airplane mode on the Mac, model host-native.”** It de
 offline completion in the development environment. It does not demonstrate model-service
 containment because host-native Ollama is outside the Compose network boundary.
 
+## Bounded keep-alive timing (`INC-17`, Mac development, 2026-09-19)
+
+These are Mac development figures, not AWS research measurements. AWS timing
+figures remain to be measured at INC-13.
+
+Host-native Ollama `0.33.3` served
+`bombot-qwen2.5-14b-instruct-q4_K_M:latest` through the native `/api/chat`,
+`/api/generate`, `/api/ps`, and `/api/tags` endpoints. The streamed request used
+the complete public `Instruction Prompt.md` as its system message and a compact,
+deterministic SBOM summary containing 40 invented packages, invented versions,
+empty vulnerability arrays, and zero dependency edges. Options were
+`temperature: 0`, `top_p: 1`, `num_predict: 128`, and `stream: true`, with no
+seed. Ollama reported 4,321 prompt tokens and 128 evaluated output tokens in
+every measured run. The required system prompt alone was 3,689 tokens, so a
+total near 3,000 was not possible; the synthetic package encoding was minimized
+while retaining every required record.
+
+For each S1 run, the model was unloaded with `keep_alive: 0` and `/api/ps`
+confirmed its absence; the matching S2 request followed immediately. S3 and S4
+were primed with `5m` and `12h` respectively, left genuinely idle for 330
+seconds, checked with `/api/ps`, and then measured. Times are seconds; first and
+final are wall-clock times to the first and final streamed chunks, while load,
+prompt-eval, eval, and total are Ollama's reported durations.
+
+| Scenario | Run | First | Final | Load | Prompt eval | Eval | Total | Prompt count | Eval count |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| S1 cold after unload | 1 | 50.901 | 65.135 | 7.959 | 42.902 | 14.232 | 65.132 | 4,321 | 128 |
+| S1 cold after unload | 2 | 53.605 | 67.245 | 8.990 | 44.536 | 13.651 | 67.242 | 4,321 | 128 |
+| S1 cold after unload | 3 | 53.405 | 66.487 | 9.905 | 43.474 | 13.079 | 66.484 | 4,321 | 128 |
+| S2 warm, same prompt | 1 | 0.274 | 13.768 | 0.012 | 0.108 | 13.483 | 13.752 | 4,321 | 128 |
+| S2 warm, same prompt | 2 | 0.153 | 13.720 | 0.010 | 0.117 | 13.566 | 13.714 | 4,321 | 128 |
+| S2 warm, same prompt | 3 | 0.153 | 13.218 | 0.007 | 0.107 | 13.064 | 13.207 | 4,321 | 128 |
+| S3 5m prime | 1 | 0.145 | 13.316 | 0.003 | 0.106 | 13.170 | 13.310 | 4,321 | 128 |
+| S3 after 330s idle | 1 | 50.486 | 63.482 | 9.309 | 41.116 | 13.008 | 63.474 | 4,321 | 128 |
+| S4 12h prime | 1 | 0.176 | 13.148 | 0.020 | 0.112 | 12.971 | 13.134 | 4,321 | 128 |
+| S4 after 330s idle | 1 | 0.324 | 13.406 | 0.032 | 0.140 | 13.072 | 13.399 | 4,321 | 128 |
+
+After S3's idle interval `/api/ps` was empty. After S4's interval it still
+listed the model. S4 improved time to first chunk by **50.162 seconds** versus
+S3, clearing the five-second ship threshold. Every one of the three S1 outputs
+was compared byte-for-byte with every S2 output and with the measured S3 and S4
+outputs (15 comparisons); all were identical, with no differing position. The
+run ended with `keep_alive: 0`, and `/api/ps` was empty.
+
 ## AWS research measurement (`V1`)
 
 Run `scripts/verify-egress.sh` only on the Linux/AWS stack after its model weights and required

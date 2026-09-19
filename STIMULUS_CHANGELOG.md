@@ -3,6 +3,27 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-19 — INC-17 (bounded model keep-alive; timing only; declared G6)
+
+- Boundary: the forthcoming INC-17 commit immediately following the INC-16
+  commit `3c89ad288b8ef27c796c0d5c5d69579e15f0215a`.
+- Changed: an idle model now stays loaded for up to 12 hours instead of five
+  minutes. A participant who pauses for more than five minutes and less than
+  twelve hours no longer pays a cold model load on the next question, and
+  avoids full context reprocessing when no other session used the model in
+  between. Of the measured saving, about 41 seconds was prompt reprocessing
+  and about 9 seconds was model loading.
+- Measured effect: in Mac development figures, time to first streamed chunk
+  after 330 seconds idle was 50.486 seconds with the five-minute default (S3)
+  and 0.324 seconds with the bounded 12-hour keep-alive (S4), a 50.162-second
+  improvement.
+- Unchanged: model weights, decoding, instructions, tools, history, stored
+  content, and every application request; the request ledger is byte-identical.
+  All 15 byte-for-byte comparisons of cold S1 output against the S2, S3, and S4
+  warm/bounded outputs were identical.
+- Comparability: timing measures collected before this commit, for turns
+  following an idle pause, are not comparable with those collected after it.
+
 ## 2026-09-19 — INC-16 (truthful progress status and inactivity-based stream timeout; declared G6)
 
 - Boundary: the forthcoming INC-16 commit immediately following parent
