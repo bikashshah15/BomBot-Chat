@@ -3,6 +3,27 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-19 — INC-16 (truthful progress status and inactivity-based stream timeout; declared G6)
+
+- Boundary: the forthcoming INC-16 commit immediately following parent
+  `c88f29f8f6cbac64c1beb807f47749b52898cdf4`.
+- Removed: the rotating status labels, which claimed database and vulnerability checks whether or
+  not any occurred.
+- Added: `Uploading and scanning your SBOM…`, `Preparing response…`, `This response is taking
+  longer than usual. Please keep this page open.`, and `Still waiting for the server…`, plus
+  elapsed time in the response phase. These are identical whether model tool calling is on or off;
+  only their duration differs. Tool, package and lookup information is deliberately not shown.
+- Timeout: the fixed 3-minute limit is replaced by a 120-second inactivity limit, reset by server
+  heartbeats every 15 seconds and by all stream events, with a 30-minute overall maximum.
+  Responses that previously disappeared silently after 3 minutes now complete and display. A
+  response that does time out now shows a visible message. This affects the tools-enabled arm far
+  more than the default arm, because only its turns routinely exceeded 3 minutes in development
+  testing.
+- Comparability: this is an accepted stimulus change. Perceived-thoroughness, trust, waiting and
+  workload measures collected before this commit are not comparable with those collected after it.
+- Unchanged: model input, instructions, tools, decoding, conversation history, stored content,
+  server-side timestamps and scan coverage.
+
 ## 2026-09-16 — INC-12c-2.1 (scan-count correction; declared G6)
 
 - Boundary: the forthcoming INC-12c-2.1 commit immediately following parent

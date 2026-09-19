@@ -14,7 +14,7 @@ import {
 } from '@/hooks/useAssistantStream';
 
 const PackageQueryForm = () => {
-  const { addMessage, setLoading, isLoading, currentConversationId, setCurrentConversationId, sessionId, userEmail } = useChat();
+  const { addMessage, setLoading, beginResponse, markActivity, isLoading, currentConversationId, setCurrentConversationId, sessionId, userEmail } = useChat();
   const [formData, setFormData] = useState({
     packageName: '',
     ecosystem: '',
@@ -223,9 +223,11 @@ const PackageQueryForm = () => {
       if (conversationId) {
         setCurrentConversationId(conversationId);
         try {
+          beginResponse();
           await startStream({
             conversationId,
             sessionId,
+            onActivity: markActivity,
             onDone(responseText) {
               addQuickQueryResponse();
               if (responseText) {
@@ -240,7 +242,10 @@ const PackageQueryForm = () => {
         } catch (error) {
           addQuickQueryResponse();
           if (error instanceof AssistantStreamTimeoutError) {
-            safeLog('log', safeValue("AI stream timed out"));
+            addMessage({
+              type: 'assistant',
+              content: '⏱️ BOMbot could not finish this response. Please try asking again.',
+            });
           } else {
             safeLog('error', safeValue("AI stream error:"), safeValue(errorClass(error)));
             addMessage({

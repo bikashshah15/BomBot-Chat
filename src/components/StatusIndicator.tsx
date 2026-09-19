@@ -1,35 +1,39 @@
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useChat } from '@/contexts/ChatContext';
+import { getProgressStatus } from '@/hooks/progressStatus';
 
 const StatusIndicator = () => {
-  const [currentStatus, setCurrentStatus] = useState(0);
+  const { loadingPhase, responseStartedAt, lastActivityAt } = useChat();
+  const [now, setNow] = useState(() => Date.now());
 
-  const statuses = [
-    { icon: '🤔', text: 'Thinking...' },
-    { icon: '🔍', text: 'Analyzing your request...' },
-    { icon: '📦', text: 'Querying package database...' },
-    { icon: '🛡️', text: 'Checking for vulnerabilities...' },
-  ];
-  // Keep this latency affordance profile-neutral: elapsed time alone drives it in
-  // both hosted and local study arms, never the configured provider/profile.
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentStatus((prev) => (prev + 1) % statuses.length);
-    }, 2000);
-
-    return () => clearInterval(interval);
+    setNow(Date.now());
+    const interval = globalThis.setInterval(() => setNow(Date.now()), 1_000);
+    return () => globalThis.clearInterval(interval);
   }, []);
 
+  const status = getProgressStatus({
+    phase: loadingPhase ?? 'response',
+    elapsedMs: responseStartedAt === null ? 0 : now - responseStartedAt,
+    msSinceActivity: lastActivityAt === null ? 0 : now - lastActivityAt,
+  });
+
   return (
-    <div className="flex items-center space-x-3 text-gray-600 py-2">
-      <div className="flex items-center space-x-2">
-        <div className="animate-pulse flex space-x-1">
-          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+    <div className="flex items-start space-x-3 text-gray-600 py-2">
+      <div className="animate-pulse flex space-x-1 pt-1.5" aria-hidden="true">
+        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+      </div>
+      <div className="text-sm">
+        <div role="status" aria-live="polite">
+          <div className="font-medium">{status.primary}</div>
+          {status.notices.map((notice) => (
+            <div key={notice}>{notice}</div>
+          ))}
         </div>
-        <span className="text-2xl">{statuses[currentStatus].icon}</span>
-        <span className="text-sm font-medium">{statuses[currentStatus].text}</span>
+        {status.elapsed !== null ? <div>{status.elapsed}</div> : null}
       </div>
     </div>
   );

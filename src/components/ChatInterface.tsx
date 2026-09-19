@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Shield, Send, Paperclip, Plus, MessageSquare } from 'lucide-react';
 
 const ChatInterface = () => {
-  const { messages, isLoading, addMessage, clearChat, currentConversationId, sessionId, messageIndex, setLoading, setCurrentConversationId, addUploadedFile, logChatMessage, userEmail, setUserEmail } = useChat();
+  const { messages, isLoading, addMessage, clearChat, currentConversationId, sessionId, messageIndex, setLoading, beginResponse, markActivity, setCurrentConversationId, addUploadedFile, logChatMessage, userEmail, setUserEmail } = useChat();
   const [inputText, setInputText] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -89,7 +89,7 @@ const ChatInterface = () => {
       content: `📎 Uploaded: ${file.name}`,
     });
 
-    setLoading(true);
+    setLoading(true, 'upload');
 
     try {
       // Create FormData for file upload
@@ -188,9 +188,11 @@ const ChatInterface = () => {
 
       if (uploadConversationId) {
         try {
+          beginResponse();
           await startStream({
             conversationId: uploadConversationId,
             sessionId,
+            onActivity: markActivity,
             onDone(response) {
               addQuickUploadResponse();
               addMessage({
@@ -279,10 +281,12 @@ const ChatInterface = () => {
       if (conversationId) {
         setCurrentConversationId(conversationId);
         try {
+          beginResponse();
           await startStream({
             conversationId,
             sessionId,
             messageIndex,
+            onActivity: markActivity,
             onDone(responseText) {
               if (responseText) {
                 addMessage({
@@ -295,7 +299,10 @@ const ChatInterface = () => {
           });
         } catch (error) {
           if (error instanceof AssistantStreamTimeoutError) {
-            safeLog('log', safeValue("Chat stream timed out"));
+            addMessage({
+              type: 'assistant',
+              content: '⏱️ BOMbot could not finish this response. Please try asking again.',
+            });
           } else {
             safeLog('error', safeValue("Chat stream error:"), safeValue(errorClass(error)));
             addMessage({

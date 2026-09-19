@@ -1,7 +1,12 @@
 import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatLogger } from '@/lib/chatLogger';
+import {
+  loadingTimestamps,
+  shouldCommitActivity,
+  type LoadingPhase,
+} from '@/hooks/progressStatus';
 
 interface DependencyGraphNode {
   id: string;
@@ -52,11 +57,16 @@ interface ChatContextType {
   sessionId: string;
   messageIndex: number;
   isLoading: boolean;
+  loadingPhase: LoadingPhase | null;
+  responseStartedAt: number | null;
+  lastActivityAt: number | null;
   userEmail: string | null;
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
   addUploadedFile: (file: UploadedFile) => void;
   setCurrentConversationId: (conversationId: string | null) => void;
-  setLoading: (loading: boolean) => void;
+  setLoading: (loading: boolean, phase?: LoadingPhase) => void;
+  beginResponse: () => void;
+  markActivity: () => void;
   setUserEmail: (email: string) => void;
   clearChat: () => void;
   logChatMessage: (
@@ -78,6 +88,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [sessionId] = useState<string>(() => uuidv4());
   const [messageIndex, setMessageIndex] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState<LoadingPhase | null>(null);
+  const [responseStartedAt, setResponseStartedAt] = useState<number | null>(null);
+  const [lastActivityAt, setLastActivityAt] = useState<number | null>(null);
+  const lastActivityAtRef = useRef<number | null>(null);
+  const lastActivityCommittedAtRef = useRef<number | null>(null);
   const [userEmail, setUserEmailState] = useState<string | null>(null);
 
   // Initialize session and check for stored email on component mount
@@ -108,8 +123,40 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     setUploadedFiles(prev => [...prev, file]);
   };
 
-  const setLoading = (loading: boolean) => {
+  const setLoading = (loading: boolean, phase: LoadingPhase = 'response') => {
     setIsLoading(loading);
+    if (loading) {
+      const timestamps = loadingTimestamps(phase, Date.now());
+      setLoadingPhase(phase);
+      setResponseStartedAt(timestamps.responseStartedAt);
+      setLastActivityAt(timestamps.lastActivityAt);
+      lastActivityAtRef.current = timestamps.lastActivityAt;
+      lastActivityCommittedAtRef.current = timestamps.lastActivityAt;
+      return;
+    }
+    setLoadingPhase(null);
+    setResponseStartedAt(null);
+    setLastActivityAt(null);
+    lastActivityAtRef.current = null;
+    lastActivityCommittedAtRef.current = null;
+  };
+
+  const beginResponse = () => {
+    const timestamps = loadingTimestamps('response', Date.now());
+    setIsLoading(true);
+    setLoadingPhase('response');
+    setResponseStartedAt(timestamps.responseStartedAt);
+    setLastActivityAt(timestamps.lastActivityAt);
+    lastActivityAtRef.current = timestamps.lastActivityAt;
+    lastActivityCommittedAtRef.current = timestamps.lastActivityAt;
+  };
+
+  const markActivity = () => {
+    const now = Date.now();
+    lastActivityAtRef.current = now;
+    if (!shouldCommitActivity(lastActivityCommittedAtRef.current, now)) return;
+    lastActivityCommittedAtRef.current = now;
+    setLastActivityAt(lastActivityAtRef.current);
   };
 
   const setUserEmail = (email: string) => {
@@ -159,11 +206,16 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       sessionId,
       messageIndex,
       isLoading,
+      loadingPhase,
+      responseStartedAt,
+      lastActivityAt,
       userEmail,
       addMessage,
       addUploadedFile,
       setCurrentConversationId,
       setLoading,
+      beginResponse,
+      markActivity,
       setUserEmail,
       clearChat,
       logChatMessage,

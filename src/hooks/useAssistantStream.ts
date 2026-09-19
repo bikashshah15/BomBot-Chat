@@ -1,11 +1,73 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-export const ASSISTANT_STREAM_TIMEOUT_MS = 180_000;
+export const ASSISTANT_STREAM_INACTIVITY_TIMEOUT_MS = 120_000;
+export const ASSISTANT_STREAM_MAX_DURATION_MS = 1_800_000;
+
+export type AssistantStreamTimeoutReason = 'inactivity' | 'max_duration';
+
+type TimerHandle = ReturnType<typeof globalThis.setTimeout>;
+
+interface CreateStreamWatchdogOptions {
+  inactivityMs: number;
+  maxDurationMs: number;
+  onExpire: (reason: AssistantStreamTimeoutReason) => void;
+  setTimer?: (callback: () => void, delay: number) => TimerHandle;
+  clearTimer?: (handle: TimerHandle) => void;
+}
+
+export function createStreamWatchdog({
+  inactivityMs,
+  maxDurationMs,
+  onExpire,
+  setTimer = globalThis.setTimeout,
+  clearTimer = globalThis.clearTimeout,
+}: CreateStreamWatchdogOptions) {
+  let inactivityTimer: TimerHandle | undefined;
+  let maxDurationTimer: TimerHandle | undefined;
+  let stopped = false;
+  let expired = false;
+
+  const clear = (handle: TimerHandle | undefined) => {
+    if (handle !== undefined) clearTimer(handle);
+  };
+
+  const expire = (reason: AssistantStreamTimeoutReason) => {
+    if (stopped || expired) return;
+    expired = true;
+    clear(inactivityTimer);
+    clear(maxDurationTimer);
+    onExpire(reason);
+  };
+
+  const armInactivityTimer = () => {
+    inactivityTimer = setTimer(() => expire('inactivity'), inactivityMs);
+  };
+
+  armInactivityTimer();
+  maxDurationTimer = setTimer(() => expire('max_duration'), maxDurationMs);
+
+  return {
+    touch() {
+      if (stopped || expired) return;
+      clear(inactivityTimer);
+      armInactivityTimer();
+    },
+    stop() {
+      if (stopped) return;
+      stopped = true;
+      clear(inactivityTimer);
+      clear(maxDurationTimer);
+    },
+  };
+}
 
 export class AssistantStreamTimeoutError extends Error {
-  constructor() {
-    super('Assistant response timed out after 3 minutes');
+  reason: AssistantStreamTimeoutReason;
+
+  constructor(reason: AssistantStreamTimeoutReason) {
+    super(`Assistant response timed out due to ${reason === 'inactivity' ? 'inactivity' : 'maximum duration'}`);
     this.name = 'AssistantStreamTimeoutError';
+    this.reason = reason;
   }
 }
 
@@ -14,6 +76,7 @@ export interface StartAssistantStreamOptions {
   sessionId: string;
   messageIndex?: number;
   onDone: (response: string) => void;
+  onActivity?: () => void;
   onToolStart?: (round: number) => void;
   onToolEnd?: (round: number) => void;
 }
@@ -83,12 +146,18 @@ export async function consumeAssistantEventStream(
     }
   };
 
+  const handleFrame = (frame: string) => {
+    if (!frame) return;
+    options.onActivity?.();
+    handleEvent(parseEvent(frame));
+  };
+
   while (!completed) {
     const { value, done } = await reader.read();
     pending += decoder.decode(value, { stream: !done }).replace(/\r\n/g, '\n');
     const frames = pending.split('\n\n');
     pending = frames.pop() ?? '';
-    for (const frame of frames) handleEvent(parseEvent(frame));
+    for (const frame of frames) handleFrame(frame);
     if (done) break;
   }
 
@@ -105,7 +174,8 @@ export function useAssistantStream() {
     activeController.current?.abort();
     const controller = new AbortController();
     activeController.current = controller;
-    const timeout = window.setTimeout(() => controller.abort(), ASSISTANT_STREAM_TIMEOUT_MS);
+    let timeoutReason: AssistantStreamTimeoutReason | null = null;
+    let watchdog: ReturnType<typeof createStreamWatchdog> | null = null;
 
     try {
       const search = new URLSearchParams({
@@ -116,6 +186,14 @@ export function useAssistantStream() {
         search.set('messageIndex', String(options.messageIndex));
       }
 
+      watchdog = createStreamWatchdog({
+        inactivityMs: ASSISTANT_STREAM_INACTIVITY_TIMEOUT_MS,
+        maxDurationMs: ASSISTANT_STREAM_MAX_DURATION_MS,
+        onExpire(reason) {
+          timeoutReason = reason;
+          controller.abort();
+        },
+      });
       const response = await fetch(`/api/stream?${search.toString()}`, {
         headers: { Accept: 'text/event-stream' },
         signal: controller.signal,
@@ -124,14 +202,20 @@ export function useAssistantStream() {
         const error = await response.json().catch(() => ({})) as { error?: string };
         throw new Error(error.error || 'Failed to start assistant stream');
       }
-      await consumeAssistantEventStream(response, options);
+      await consumeAssistantEventStream(response, {
+        ...options,
+        onActivity() {
+          watchdog?.touch();
+          options.onActivity?.();
+        },
+      });
     } catch (error) {
       if (controller.signal.aborted) {
-        throw new AssistantStreamTimeoutError();
+        throw new AssistantStreamTimeoutError(timeoutReason ?? 'inactivity');
       }
       throw error;
     } finally {
-      window.clearTimeout(timeout);
+      watchdog?.stop();
       if (activeController.current === controller) activeController.current = null;
     }
   }, []);
