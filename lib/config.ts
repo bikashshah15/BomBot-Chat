@@ -99,6 +99,8 @@ const environmentSchema = z.object({
   OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY: z.string().trim().min(1)
     .refine(value => path.isAbsolute(value), 'must be an absolute path')
     .default(DEFAULT_OSV_SCANNER_CACHE_DIRECTORY),
+  MEASURE_PROVIDER_MODULE: z.string().trim().min(1).optional(),
+  INSTRUCTIONS_FILE: z.string().trim().min(1).optional(),
   RETENTION: z.enum(['study', 'ephemeral']).default('study'),
   RETENTION_IDLE_HOURS: numericEnvironmentVariable(z.number().finite().int().positive()),
   SESSION_KEY_DIRECTORY: z.string().trim().min(1)

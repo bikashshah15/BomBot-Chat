@@ -3,16 +3,17 @@ import { pathToFileURL } from 'node:url';
 import pg from 'pg';
 import { dbPool } from './client.ts';
 import { sessionKeyVault } from '../crypto/sessionKeyStore.ts';
-import { extractAndStoreSessionMeasures, recordUnextractedSession, MeasurePersistenceError } from './sessionMeasures.ts';
+import { config } from '../config.ts';
+import {
+  loadMeasureProvider,
+  MeasureProviderError,
+  noMeasureProvider,
+  type MeasureFailureClass,
+  type MeasureProvider,
+  type MeasureResolutionProvenance,
+} from '../measures/provider.ts';
 import { readRetentionCounts, RETIREMENT_CUTOFF_SQL, STORAGE_CUTOFF, RETIREMENT_LEAD, IDLE_WINDOW_MS } from './retentionStatus.ts';
 export { STORAGE_CUTOFF, RETIREMENT_LEAD, IDLE_WINDOW_MS } from './retentionStatus.ts';
-
-// Three opportunities per activity epoch, not one crowded final-minute pass.
-export const EXTRACTION_ATTEMPTS = 3;
-export const FIRST_EXTRACTION_LEAD = IDLE_WINDOW_MS * 3 / 4;
-export function extractionOpportunityOffsets(windowMs = IDLE_WINDOW_MS): number[] {
-  return Array.from({ length: EXTRACTION_ATTEMPTS }, (_, index) => (index + 1) * windowMs / (EXTRACTION_ATTEMPTS + 1));
-}
 
 /** Bounded work: a stalled measurement is never a deletion prerequisite. */
 export async function boundedAttempt(work: () => Promise<unknown>, milliseconds: number): Promise<boolean> {
@@ -71,54 +72,41 @@ export async function prepareDeletion(deps: PreparationDependencies, budgetMs = 
 /** Automatic worker, never imported by a request route. Uses DB time for deadlines.
  * Extraction starts after one idle quarter and has spaced opportunities; deletion never awaits it.
  */
-export async function startRetentionWorker(extract?: (id: string, activity: string) => Promise<unknown> | undefined): Promise<() => Promise<void>> {
+export async function startRetentionWorker(provider: MeasureProvider = noMeasureProvider): Promise<() => Promise<void>> {
   safeLog('warn', safeValue(JSON.stringify({ event: 'retention_worker_start', idle_window_ms: IDLE_WINDOW_MS })));
   // Extraction (including a stalled injected extractor) cannot borrow these
   // connections. Production attempts have private connections and killable scoring threads.
   const deletionPool = new pg.Pool({ ...dbPool.options, max: 5 });
-  // Failure writes have their own pool and are NOT cancelled at retirement.
-  // They touch no retirement-row lock and cannot consume deletion connections.
-  const recordingPool = new pg.Pool({ ...dbPool.options, max: 5, connectionTimeoutMillis: 0 });
   const recordings = new Set<Promise<boolean>>();
-  const record = (id: string, revision: string, errorClass: 'extraction_failed' | 'extraction_deadline',
-    resolution?: MeasurePersistenceError['resolutionProvenance']) => {
+  const record = (id: string, revision: string, errorClass: MeasureFailureClass,
+    resolution?: MeasureResolutionProvenance) => {
     const pending = (async () => {
-      try { return await recordUnextractedSession(id, errorClass, resolution, revision, recordingPool); }
+      try { return await provider.recordFailure(id, revision, errorClass, resolution); }
       catch { safeLog('error', safeValue('{"event":"retention_failure_record_unavailable"}')); return false; }
     })();
     recordings.add(pending);
     void pending.then(() => { recordings.delete(pending); });
     return pending;
   };
-  // No full-worker cold fork and no shared extraction connection queue. Each
-  // attempt owns its SQL connection and a small killable scoring thread.
   const cancellations = new Set<() => void>();
   const extractions = new Set<Promise<boolean>>();
   const isolated = (id: string, revision: string, budget: number,
-    captureResolution?: (source: MeasurePersistenceError['resolutionProvenance']) => void): Promise<boolean> => {
+    captureResolution?: (source: MeasureResolutionProvenance) => void): Promise<boolean> => {
     const pending = (async () => {
-      const pool = new pg.Pool({ ...dbPool.options, max: 1 });
       const controller = new AbortController();
-      const clients = new Set<pg.PoolClient>();
-      pool.on('connect', client => { clients.add(client); });
-      pool.on('remove', client => { clients.delete(client); });
-      pool.on('error', () => {}); // Closing an idle private client is cancellation.
-      const cancel = () => {
-        controller.abort();
-        for (const client of clients) void client.end();
-      };
+      const cancel = () => { controller.abort(); };
       cancellations.add(cancel);
       try {
         return await boundedAttempt(async () => {
-          try { await extractAndStoreSessionMeasures(id, revision, pool, controller.signal); }
+          try { await provider.extract(id, revision, controller.signal); }
           catch (error) {
-            if (error instanceof MeasurePersistenceError) captureResolution?.(error.resolutionProvenance);
+            if (error instanceof MeasureProviderError && error.resolutionProvenance)
+              captureResolution?.(error.resolutionProvenance);
             throw error;
           }
         }, budget);
       } finally {
         cancellations.delete(cancel); cancel();
-        await pool.end();
       }
     })();
     extractions.add(pending);
@@ -169,26 +157,29 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
             recording: undefined };
           scheduled.set(row.session_id, entry);
         }
+        // Public mode still installs and executes the same retirement timer;
+        // it simply has no measurement opportunities or result writer.
+        if (remaining <= 0) { void retire(row.session_id); continue; }
+        if (!provider.enabled) continue;
         // No history/provenance read or result row while activity keeps the
         // epoch younger than its first idle quarter. Persist failure only when
         // that opportunity is due, still before any extraction (even if late).
         const firstDueAt = entry.deadline + RETIREMENT_LEAD - IDLE_WINDOW_MS
-          + extractionOpportunityOffsets()[0];
+          + provider.opportunityOffsets[0];
         if (!entry.recording && Date.now() >= firstDueAt) {
           const errorClass = remaining + RETIREMENT_LEAD <= STORAGE_CUTOFF ? 'extraction_deadline' : 'extraction_failed';
           entry.recording = record(row.session_id, revision, errorClass);
         }
         // The locked DB-time recheck can refuse a timer firing a fraction early.
         // Retry retirement from sweeps without re-admitting/recording this epoch.
-        if (remaining <= 0) { void retire(row.session_id); continue; }
         // Storage closes before retirement. No useful extraction can start there.
         if (remaining + RETIREMENT_LEAD <= STORAGE_CUTOFF) continue;
-        const opportunity = extractionOpportunityOffsets()[entry.attempts];
+        const opportunity = provider.opportunityOffsets[entry.attempts];
         const dueAt = opportunity === undefined ? entry.retryAt
           : entry.deadline + RETIREMENT_LEAD - IDLE_WINDOW_MS + opportunity;
         // Even early success receives the remaining spaced passes. Once all
         // three have run, only failed epochs retry; success stops further work.
-        if (!entry.recording || (entry.done && entry.attempts >= EXTRACTION_ATTEMPTS) || entry.running
+        if (!entry.recording || (entry.done && entry.attempts >= provider.opportunityOffsets.length) || entry.running
           || Date.now() < Math.max(dueAt, entry.retryAt)) continue;
         const attempt = entry;
         attempt.running = true;
@@ -203,17 +194,10 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
             return;
           }
           attempt.attempts++;
-          let persistenceFailure: MeasurePersistenceError | undefined;
+          let persistenceFailure: MeasureProviderError | undefined;
           const budget = Math.max(1, Math.min(5_000, remaining - Math.min(500, remaining / 2)));
-          const ok = extract ? await boundedAttempt(async () => {
-            try {
-              const overridden = extract(row.session_id, revision);
-              if (overridden) return await overridden;
-              if (!await isolated(row.session_id, revision, budget)) throw new Error('Extraction failed');
-            }
-            catch (error) { if (error instanceof MeasurePersistenceError) persistenceFailure = error; throw error; }
-          }, budget) : await isolated(row.session_id, revision, budget,
-            source => { persistenceFailure = new MeasurePersistenceError(source); });
+          const ok = await isolated(row.session_id, revision, budget,
+            source => { persistenceFailure = new MeasureProviderError(source); });
           attempt.done = ok;
           if (!ok && !stopped && persistenceFailure && scheduled.get(row.session_id) === attempt)
             await record(row.session_id, revision, 'extraction_failed', persistenceFailure.resolutionProvenance);
@@ -222,7 +206,7 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
         })();
       }
       if (Date.now() >= nextReport) {
-        const counts = await readRetentionCounts(deletionPool);
+        const counts = await readRetentionCounts(deletionPool, provider.enabled);
         safeLog('warn', safeValue(JSON.stringify({ event: 'retention_daily_counts', ...counts })));
         nextReport = Date.now() + IDLE_WINDOW_MS;
       }
@@ -237,12 +221,13 @@ export async function startRetentionWorker(extract?: (id: string, activity: stri
     for (const cancel of cancellations) cancel();
     const deletionDrained = deletionPool.end();
     // Drain queued failure writes, including those outliving the deadline.
-    return Promise.all([deletionDrained, Promise.all([...extractions]), Promise.all([...recordings]).then(() => recordingPool.end())]).then(() => {});
+    return Promise.all([deletionDrained, Promise.all([...extractions]),
+      Promise.all([...recordings]).then(() => provider.close())]).then(() => {});
   };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  startRetentionWorker().then(stop => {
+  loadMeasureProvider(config.MEASURE_PROVIDER_MODULE).then(startRetentionWorker).then(stop => {
     const shutdown = () => { stop(); void dbPool.end(); };
     process.once('SIGTERM', shutdown);
     process.once('SIGINT', shutdown);

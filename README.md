@@ -276,7 +276,7 @@ Operational metadata remains outside the envelopes: row/session/conversation
 identifiers, message indexes and roles/types, tool-result correlation IDs,
 content-free tool-call presence, pinning, file sizes, vulnerability counts,
 activity/creation/update timestamps, and scan-source provenance (mode and snapshot
-date). Derived measures and their provenance remain retained separately. These
+date). Provider-produced measures and their provenance, when configured, remain retained separately. These
 fields reveal linkage, timing and counts, but not message text, filenames or
 tool-call arguments. Client exports and data already disclosed to the hosted
 model are also outside database key destruction.
@@ -308,17 +308,24 @@ sessions and saved responses. Failed saves roll back their clock update too;
 best-effort `chat_logs.session_last_activity` is not the deletion clock. Migration
 does not invent a last-activity timestamp for historical content.
 
-### Derived Session Measures and Retention Worker
+### Optional Measurement Provider and Retention Worker
 
-`extractAndStoreSessionMeasures(sessionId)` is called only by the separate retention worker, never by a request route. Extraction starts in the last minute of the idle window with a bounded attempt; deadline deletion does not await it. An `unextracted` record is persisted before extraction begins and replaced on success. Recording uses a separate pool, takes no retirement-row lock, and is not cancelled at the deadline: contention cannot kill the failure write or postpone destruction. Database failure can still prevent recording; the absence-based count below exposes that gap. Records contain no participant-shaped error messages. This deliberately reverses INC-12c-2's earlier “failure prevents destruction” assumption: measurement must not extend the deletion deadline. Operators must read the aggregate counts daily during fielding. Sessions run and sessions measured can have different denominators. A failed failure-record write is logged as such, never as success.
+The retention worker always enforces retirement, key destruction, and content
+purging. Measurement is an optional provider seam and is never a prerequisite
+for deletion. With `MEASURE_PROVIDER_MODULE` unset, the worker performs no
+measurement work and writes no `session_measures` rows. When set, it must be an
+absolute filesystem path to a module exporting `createMeasureProvider`; a
+missing or invalid configured provider stops worker startup rather than falling
+back to no measurement. Research deployments overlay their provider and its
+private modules at their current `/app/lib/` paths.
 
-The pass reads full stored history, unions primary identifiers from all pinned pre-scans in the session, and counts advisory-identifier occurrences in assistant text (including repeated Markdown labels/destinations, as in the evaluation harness). It resolves aliases against the local snapshot only, never through HTTP. A configured snapshot-pin mismatch or missing snapshot is recorded as unavailable; absent/invalid scans are explicitly unresolved rather than negative evidence.
-
-`session_measures` retains only counts and completed categorical resolution outcomes (direct, alias-grounded, resolved-ungrounded, not-found, unresolved), not identifier strings, messages, filenames, hashes or package lists. These categories store the resolution result immediately; no later lookup is needed. Each result carries the reference definition, separate scan-source and resolution-source provenance, and scan coverage. Captured scan sources are read from their stored sidecars; legacy sources remain explicitly `unknown`, never inferred from today's configuration. Failure records retain a completed resolution's source when known; otherwise it is explicitly unavailable, never inferred from the current snapshot. Multiple scans retain separate coverage entries.
+Provider work is bounded and isolated from the deletion pool. A stalled or
+failed provider cannot postpone retirement, key destruction, or purge. Provider
+implementations own their result format and schedule; this public interface does
+not define research measures. The status command includes measure completeness
+counts only when a provider is configured.
 
 `deleteSessionParticipantData(sessionId)` performs explicit session-scoped participant deletion in either mode: it commits a tombstone, destroys the external key, then removes chat logs and conversations (cascading messages). Results have no cascading foreign key and survive. A retired-session sweep retries incomplete ephemeral cleanup. This is a callable administrative operation, not a new unauthenticated HTTP endpoint. The obsolete 30-day `cleanup_old_sessions()` function is dropped by migration. Historical activity timestamps are never manufactured; legacy sessions lacking the authoritative clock need explicit disposition and are counted visibly.
-
-Reading and local resolution share a repeatable-read transaction. Storage checks the exact activity revision against current committed state without locking the retirement row. Production extraction attempts run in killable child processes with private database pools; deletion has its own pool and does not wait for them. Independent sessions extract concurrently, and unsuccessful attempts are retried while their window remains open. Re-running the pass replaces that session's result using the then-current local snapshot and records its source anew; a stored result itself needs no corpus to interpret. The date-granular snapshot pin cannot distinguish different ingests on the same date. The measure row has no cascading foreign key to raw content, so future content removal does not remove the result.
 
 During fielding, run this read-only check every day (and after worker downtime):
 
@@ -326,12 +333,20 @@ During fielding, run this read-only check every day (and after worker downtime):
 node --experimental-strip-types --import dotenv/config lib/db/retentionStatus.ts
 ```
 
-It prints only numeric `unextracted_count`, `missing_measure_count`, `overdue_deletion_count`, `unknown_clock_count` and the effective `idle_window_ms`.
-Unextracted counts stored failure records; missing-measure counts retired or purged ephemeral sessions with no measure row of any kind, derived from the session registry rather than measure rows.
+It always prints numeric `overdue_deletion_count`, `unknown_clock_count`, and the effective `idle_window_ms`. With a measurement provider configured it also prints numeric `unextracted_count` and `missing_measure_count`.
 Overdue means an ephemeral session still holds content after its known deadline;
 unknown-clock counts only sessions holding content, not empty conversations.
-Exit status is 1 when overdue deletion or missing measures exist, 0 otherwise, or 2 with no output
+Exit status is always 1 for overdue deletion. Missing measures also produce exit 1 only when a measurement provider is configured. Otherwise it exits 0, or 2 with no output
 when the check cannot reach the database. No session IDs or database errors are printed.
+
+### Instruction File
+
+`INSTRUCTIONS_FILE` optionally selects an injected instruction file by absolute
+filesystem path. Its content
+is used verbatim, regardless of `OSV_MODE`, so operators must supply text that
+matches the deployment mode. Unset uses the built-in instructions. A configured
+file that is missing, unreadable, empty, or whitespace-only stops application
+startup; it never silently falls back to the built-in text.
 
 ### OpenAI Responses Configuration
 ```yaml

@@ -1,6 +1,8 @@
 import { safeLog, safeValue, errorClass } from './logging/redact.ts';
 import OpenAI from 'openai';
 import { z } from 'zod';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { config } from './config.ts';
 import { dbPool } from './db/client.ts';
 import type { LlmToolDef } from './llm/types.ts';
@@ -164,7 +166,23 @@ Remember: You are the user's trusted security advisor. Provide confidence throug
 Vulnerability facts must come from OSV data supplied in the conversation or returned by the OSV-backed functions. Never invent vulnerability IDs, affected versions, severity, or remediation versions. If OSV data is unavailable or inconclusive, say so explicitly.`;
 }
 
-export const BOMBOT_INSTRUCTIONS = buildBombotInstructions(config.OSV_MODE);
+export function resolveBombotInstructions(
+  osvMode: typeof config.OSV_MODE,
+  instructionsFile: string | undefined = config.INSTRUCTIONS_FILE,
+): string {
+  if (instructionsFile === undefined) return buildBombotInstructions(osvMode);
+  try {
+    if (!path.isAbsolute(instructionsFile)) throw new Error('Relative instructions path');
+    const instructions = readFileSync(instructionsFile, 'utf8');
+    if (instructions.trim() === '') throw new Error('Empty instructions');
+    return instructions;
+  } catch {
+    safeLog('error', safeValue('{"event":"instructions_file_unavailable"}'));
+    throw new Error('Configured instructions unavailable');
+  }
+}
+
+export const BOMBOT_INSTRUCTIONS = resolveBombotInstructions(config.OSV_MODE);
 
 export const BOMBOT_TOOLS: OpenAI.Responses.FunctionTool[] = [
   {
