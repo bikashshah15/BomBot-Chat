@@ -178,7 +178,9 @@ const ChatInterface = () => {
               severity: vuln.severity,
               package: pkg.package,
               version: pkg.version,
-              description: vuln.summary
+              description: vuln.summary,
+              fixedVersions: vuln.fixedVersions,
+              affectedRanges: vuln.affectedRanges,
             }))
           );
         }

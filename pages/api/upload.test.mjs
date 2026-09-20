@@ -84,7 +84,13 @@ test('dependency graph keeps vulnerability results distinct for duplicate packag
             id: 'OSV-TEST-1',
             summary: 'Synthetic advisory for the higher version',
             details: 'Synthetic test data',
-            affected: [],
+            affected: [{
+              package: { name: 'acme-lib', ecosystem: 'PyPI' },
+              ranges: [{
+                type: 'ECOSYSTEM',
+                events: [{ introduced: '0' }, { fixed: '2.0.1' }],
+              }],
+            }],
             references: [],
           }]
           : [],
@@ -128,6 +134,12 @@ test('dependency graph keeps vulnerability results distinct for duplicate packag
     assert.equal(githubNode.skipReason, 'unsupported_purl_type');
     assert.equal(response.jsonBody.packagesScanned, 3);
     assert.equal(response.jsonBody.uniqueScannedPairs, 3);
+    const summaryVulnerability = response.jsonBody.quickSummary.topVulnerabilities[0].vulns[0];
+    assert.deepEqual(summaryVulnerability.fixedVersions, ['2.0.1']);
+    assert.deepEqual(summaryVulnerability.affectedRanges, [{
+      type: 'ECOSYSTEM',
+      events: [{ introduced: '0' }, { fixed: '2.0.1' }],
+    }]);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

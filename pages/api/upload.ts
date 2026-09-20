@@ -6,7 +6,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import tmp from 'tmp';
 import path from 'path';
 import { config as environmentConfig } from '../../lib/config.ts';
-import { buildSoftwareContext } from '../../lib/context/softwareContext.ts';
+import { buildSoftwareContext, minimizeVulnerability } from '../../lib/context/softwareContext.ts';
 import { insertLog } from '../../lib/db/chatLogs.ts';
 import { dbPool } from '../../lib/db/client.ts';
 import { captureScanSource, withCapturedScanSource } from '../../lib/db/scanProvenance.ts';
@@ -717,11 +717,16 @@ ${existingConversationId ?
           .map(result => ({
             package: result.package.name,
             version: result.package.version || 'unknown',
-            vulns: result.vulnerabilities.slice(0, 3).map(vuln => ({
-              id: vuln.id,
-              severity: extractSeverity(vuln),
-              summary: vuln.summary || 'No summary available'
-            }))
+            vulns: result.vulnerabilities.slice(0, 3).map(vuln => {
+              const minimized = minimizeVulnerability(vuln);
+              return {
+                id: vuln.id,
+                severity: extractSeverity(vuln),
+                summary: vuln.summary || 'No summary available',
+                fixedVersions: minimized.fixed_versions,
+                affectedRanges: minimized.affected_version_ranges,
+              };
+            })
           }))
       }
     });

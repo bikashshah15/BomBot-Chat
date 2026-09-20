@@ -217,6 +217,15 @@ const ChatMessage = ({ message }: ChatMessageProps) => {
                           {vuln.package}@{vuln.version}
                         </code>
                       </div>
+
+                      {Array.isArray(vuln.fixedVersions) && vuln.fixedVersions.length > 0 ? (
+                        <div className="text-sm text-gray-600">
+                          <span className="font-medium text-gray-700">Fixed in:</span>{' '}
+                          {vuln.fixedVersions.join(', ')}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-600">No fix version supplied</div>
+                      )}
                       
                       {vuln.description && (
                         <p className="text-sm text-gray-600 mt-2 leading-relaxed">

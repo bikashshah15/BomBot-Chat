@@ -101,7 +101,7 @@ function packageIdentity(pkg: NormalizedSoftwarePackage): string {
   return [pkg.id ?? '', pkg.name, pkg.version ?? '', pkg.ecosystem].join('\u0000');
 }
 
-function minimizeVulnerability(vulnerability: OsvVulnerability): SoftwareContextVulnerability {
+export function minimizeVulnerability(vulnerability: OsvVulnerability): SoftwareContextVulnerability {
   const affectedVersionRanges = (vulnerability.affected ?? []).flatMap(affected => (
     affected.ranges ?? []
   )).map(range => ({
