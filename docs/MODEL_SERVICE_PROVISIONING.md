@@ -6,6 +6,11 @@ service is attached to no other network. It therefore has no default route to
 the internet at runtime. The application reaches it at
 `http://model:11434/v1`; the model port is not published to the host.
 
+Under `PROFILE=local`, the application sends the fixed, non-secret placeholder
+`local-openai-compatible` and never sends `LLM_API_KEY` to the model server.
+Compose's `env_file` still places that key in the app container environment,
+where the local profile leaves it unused.
+
 ## Weight delivery decision
 
 Model weights will be stored in the external `bombot_model_weights` volume.

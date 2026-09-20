@@ -52,7 +52,6 @@ export function selectLlmProvider(
     return createOpenAICompatibleProvider({
       model: settings.LLM_MODEL,
       baseURL: settings.LLM_BASE_URL,
-      apiKey: settings.LLM_API_KEY,
       transport: openAICompatible.transport,
     });
   }
