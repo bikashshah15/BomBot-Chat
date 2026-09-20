@@ -55,6 +55,8 @@ interface DependencyGraphNode {
   ecosystem: string;
   hasVulnerabilities: boolean;
   vulnerabilityCount: number;
+  scanned: boolean;
+  skipReason?: string;
 }
 
 interface DependencyGraphEdge {
@@ -316,7 +318,9 @@ function generateDependencyGraph(
       version: pkg.version,
       ecosystem: pkg.ecosystem,
       hasVulnerabilities: wasScanned && vulnCount > 0,
-      vulnerabilityCount: vulnCount
+      vulnerabilityCount: vulnCount,
+      scanned: wasScanned,
+      ...(pkg.scanSkipReason ? { skipReason: pkg.scanSkipReason } : {})
     };
   });
 

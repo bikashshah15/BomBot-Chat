@@ -3,6 +3,7 @@ import { DataSet, Network } from 'vis-network/standalone/esm/vis-network';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ZoomIn, ZoomOut, Maximize2, HelpCircle } from 'lucide-react';
+import { formatGraphNodeVulnerabilityStatus } from '@/lib/dependencyGraphLabels';
 
 interface DependencyGraphNode {
   id: string;
@@ -11,6 +12,8 @@ interface DependencyGraphNode {
   ecosystem: string;
   hasVulnerabilities: boolean;
   vulnerabilityCount: number;
+  scanned?: boolean;
+  skipReason?: string;
 }
 
 interface DependencyGraphEdge {
@@ -44,7 +47,7 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ data, className = '' 
       data.nodes.map(node => ({
         id: node.id,
         label: `${node.label}\n${node.version ? `v${node.version}` : ''}`,
-        title: `${node.label}@${node.version || 'unknown'}\nEcosystem: ${node.ecosystem}\nVulnerabilities: ${node.vulnerabilityCount}`,
+        title: `${node.label}@${node.version || 'unknown'}\nEcosystem: ${node.ecosystem}\nVulnerabilities: ${formatGraphNodeVulnerabilityStatus(node)}`,
         color: {
           background: node.vulnerabilityCount === -1 
             ? '#6b7280' // gray for not scanned
@@ -176,7 +179,7 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ data, className = '' 
           <CardTitle className="text-lg">📊 Dependency Graph</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600">No dependency relationships found in this SBOM.</p>
+          <p className="text-gray-600">No packages found in this SBOM.</p>
         </CardContent>
       </Card>
     );
@@ -186,7 +189,11 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ data, className = '' 
     <Card className={`${className} border-gray-200 ${isExpanded ? 'fixed inset-4 z-50 bg-white' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">📊 Dependency Graph ({data.nodes.length} packages)</CardTitle>
+          <CardTitle className="text-lg">
+            {data.edges.length > 0
+              ? `📊 Dependency Graph (${data.nodes.length} packages, ${data.edges.length} dependency relationships)`
+              : `📊 SBOM Component Map (${data.nodes.length} components)`}
+          </CardTitle>
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" onClick={handleZoomOut}>
               <ZoomOut className="h-4 w-4" />
@@ -202,6 +209,12 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ data, className = '' 
             </Button>
           </div>
         </div>
+
+        {data.edges.length === 0 && (
+          <p className="text-sm text-gray-600">
+            {data.nodes.length} components • No dependency relationships available
+          </p>
+        )}
         
         <div className="flex items-start space-x-4 text-sm text-gray-600">
           <div className="flex items-center space-x-2">
@@ -237,7 +250,7 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ data, className = '' 
               <p className="text-xs text-gray-600">Version: {selectedNode.version || 'unknown'}</p>
               <p className="text-xs text-gray-600">Ecosystem: {selectedNode.ecosystem}</p>
               <p className="text-xs text-gray-600">
-                Vulnerabilities: {selectedNode.vulnerabilityCount}
+                Vulnerabilities: {formatGraphNodeVulnerabilityStatus(selectedNode)}
                 {selectedNode.hasVulnerabilities && (
                   <span className="ml-1 text-red-600 font-medium">⚠️</span>
                 )}
@@ -253,10 +266,20 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ data, className = '' 
               <p className="font-medium mb-1">Need help understanding this graph?</p>
               <p>Click on nodes to see details, or ask me questions like:</p>
               <ul className="list-disc list-inside text-xs mt-1 space-y-0.5">
-                <li><em>"What does package X depend on?"</em></li>
-                <li><em>"Which packages depend on Y?"</em></li>
-                <li><em>"Explain the dependency relationships"</em></li>
-                <li><em>"What would happen if I update package Z?"</em></li>
+                {data.edges.length > 0 ? (
+                  <>
+                    <li><em>"What does package X depend on?"</em></li>
+                    <li><em>"Which packages depend on Y?"</em></li>
+                    <li><em>"Explain the dependency relationships"</em></li>
+                    <li><em>"What would happen if I update package Z?"</em></li>
+                  </>
+                ) : (
+                  <>
+                    <li><em>"Which packages have known vulnerabilities?"</em></li>
+                    <li><em>"Show details for the vulnerable package."</em></li>
+                    <li><em>"What does the severity of this finding mean?"</em></li>
+                  </>
+                )}
               </ul>
             </div>
           </div>
@@ -274,4 +297,4 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ data, className = '' 
   );
 };
 
-export default DependencyGraph; 
+export default DependencyGraph;

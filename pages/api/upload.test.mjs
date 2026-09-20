@@ -113,13 +113,19 @@ test('dependency graph keeps vulnerability results distinct for duplicate packag
     const higherVersion = duplicateNodes.find(node => node.version === '2.0.0');
     assert.equal(lowerVersion.vulnerabilityCount, 0);
     assert.equal(lowerVersion.hasVulnerabilities, false);
+    assert.equal(lowerVersion.scanned, true);
+    assert.equal(lowerVersion.skipReason, undefined);
     assert.equal(higherVersion.vulnerabilityCount, 1);
     assert.equal(higherVersion.hasVulnerabilities, true);
+    assert.equal(higherVersion.scanned, true);
+    assert.equal(higherVersion.skipReason, undefined);
     assert.notEqual(lowerVersion.vulnerabilityCount, higherVersion.vulnerabilityCount);
 
     const githubNode = response.jsonBody.dependencyGraph.nodes
       .find(node => node.label === 'github-only');
     assert.equal(githubNode.vulnerabilityCount, -1);
+    assert.equal(githubNode.scanned, false);
+    assert.equal(githubNode.skipReason, 'unsupported_purl_type');
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
