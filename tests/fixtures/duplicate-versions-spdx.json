@@ -1,0 +1,57 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Duplicate package versions fixture",
+  "documentNamespace": "https://example.invalid/bombot/duplicate-versions",
+  "creationInfo": {
+    "created": "2026-09-20T00:00:00Z",
+    "creators": ["Tool: BOMbot test fixture"]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-acme-lib-1",
+      "name": "acme-lib",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [{
+        "referenceCategory": "PACKAGE-MANAGER",
+        "referenceType": "purl",
+        "referenceLocator": "pkg:pypi/acme-lib@1.0.0"
+      }]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-acme-lib-2",
+      "name": "acme-lib",
+      "versionInfo": "2.0.0",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [{
+        "referenceCategory": "PACKAGE-MANAGER",
+        "referenceType": "purl",
+        "referenceLocator": "pkg:pypi/acme-lib@2.0.0"
+      }]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-helper-lib",
+      "name": "helper-lib",
+      "versionInfo": "3.0.0",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [{
+        "referenceCategory": "PACKAGE-MANAGER",
+        "referenceType": "purl",
+        "referenceLocator": "pkg:pypi/helper-lib@3.0.0"
+      }]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-github-only",
+      "name": "github-only",
+      "versionInfo": "4.0.0",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [{
+        "referenceCategory": "PACKAGE-MANAGER",
+        "referenceType": "purl",
+        "referenceLocator": "pkg:github/example/github-only@4.0.0"
+      }]
+    }
+  ]
+}

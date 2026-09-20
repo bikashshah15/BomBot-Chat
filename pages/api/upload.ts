@@ -308,12 +308,12 @@ function generateDependencyGraph(
   dependencies: DependencyRelationship[], 
   vulnerabilityResults: Array<{ package: SBOMPackage; vulnerabilities: OSVVulnerability[] }>
 ): DependencyGraph {
-  const vulnMap = new Map(vulnerabilityResults.map(vr => [vr.package.name, vr.vulnerabilities.length]));
+  const vulnMap = new Map<SBOMPackage, number>(vulnerabilityResults.map(vr => [vr.package, vr.vulnerabilities.length]));
   
   // Create nodes for all packages
   const nodes: DependencyGraphNode[] = packages.map(pkg => {
-    const wasScanned = vulnMap.has(pkg.name);
-    const vulnCount = wasScanned ? vulnMap.get(pkg.name)! : -1; // -1 indicates not scanned
+    const wasScanned = vulnMap.has(pkg);
+    const vulnCount = wasScanned ? vulnMap.get(pkg)! : -1; // -1 indicates not scanned
     
     return {
       id: pkg.id || pkg.name,

@@ -48,6 +48,83 @@ function responseRecorder() {
   };
 }
 
+test('dependency graph keeps vulnerability results distinct for duplicate package versions', async () => {
+  const fixturePath = new URL('../../tests/fixtures/duplicate-versions-spdx.json', import.meta.url);
+  const fixtureContent = await readFile(fixturePath, 'utf8');
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'bombot-upload-duplicate-versions-test-'));
+  const uploadPath = path.join(tempDir, 'duplicate-versions-spdx.json');
+  await copyFile(fixturePath, uploadPath);
+
+  const handler = createUploadHandler({
+    osvMode: 'offline',
+    async captureScanSource(mode, client, scan) {
+      await scan(client);
+      return { osv_mode: mode, snapshot_date: 'synthetic' };
+    },
+    async parseForm() {
+      return {
+        fields: {
+          sessionId: '00000000-0000-4000-8000-000000000001',
+          messageIndex: '1',
+        },
+        files: {
+          file: {
+            filepath: uploadPath,
+            originalFilename: 'duplicate-versions-spdx.json',
+            size: Buffer.byteLength(fixtureContent),
+          },
+        },
+      };
+    },
+    async matchOsvPackages(_client, packages) {
+      return packages.map(package_ => ({
+        package: package_,
+        vulnerabilities: package_.name === 'acme-lib' && package_.version === '2.0.0'
+          ? [{
+            id: 'OSV-TEST-1',
+            summary: 'Synthetic advisory for the higher version',
+            details: 'Synthetic test data',
+            affected: [],
+            references: [],
+          }]
+          : [],
+      }));
+    },
+    async createConversation() {
+      return { id: 'conversation_duplicate_versions_synthetic' };
+    },
+    async appendConversationMessages() {
+      return [];
+    },
+    async insertLog() {},
+    async wait() {},
+  });
+
+  try {
+    const response = responseRecorder();
+    await handler({ method: 'POST' }, response);
+
+    assert.equal(response.statusCode, 200);
+    const duplicateNodes = response.jsonBody.dependencyGraph.nodes
+      .filter(node => node.label === 'acme-lib');
+    assert.equal(duplicateNodes.length, 2);
+
+    const lowerVersion = duplicateNodes.find(node => node.version === '1.0.0');
+    const higherVersion = duplicateNodes.find(node => node.version === '2.0.0');
+    assert.equal(lowerVersion.vulnerabilityCount, 0);
+    assert.equal(lowerVersion.hasVulnerabilities, false);
+    assert.equal(higherVersion.vulnerabilityCount, 1);
+    assert.equal(higherVersion.hasVulnerabilities, true);
+    assert.notEqual(lowerVersion.vulnerabilityCount, higherVersion.vulnerabilityCount);
+
+    const githubNode = response.jsonBody.dependencyGraph.nodes
+      .find(node => node.label === 'github-only');
+    assert.equal(githubNode.vulnerabilityCount, -1);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('upload wiring retains the full oversize inventory and exposes scan truncation in the prompt', async () => {
   const fixturePath = new URL('../../tests/fixtures/oversize-spdx.json', import.meta.url);
   const fixtureContent = await readFile(fixturePath, 'utf8');
