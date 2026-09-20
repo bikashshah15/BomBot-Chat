@@ -16,7 +16,7 @@ import type {
 
 export type LlmGatewayRequest = Omit<
   LlmRequest,
-  'temperature' | 'topP' | 'maxOutputTokens' | 'seed'
+  'temperature' | 'topP' | 'maxOutputTokens' | 'reasoningEffort' | 'seed'
 >;
 
 export type LlmGatewayConfig = Pick<
@@ -28,6 +28,7 @@ export type LlmGatewayConfig = Pick<
   | 'LLM_TEMPERATURE'
   | 'LLM_TOP_P'
   | 'LLM_MAX_OUTPUT_TOKENS'
+  | 'LLM_REASONING_EFFORT'
   | 'LLM_SEED'
 >;
 
@@ -77,6 +78,7 @@ function applyPinnedDecoding(
     temperature: settings.LLM_TEMPERATURE,
     topP: settings.LLM_TOP_P,
     maxOutputTokens: settings.LLM_MAX_OUTPUT_TOKENS,
+    reasoningEffort: settings.LLM_REASONING_EFFORT,
     seed: settings.LLM_SEED,
   };
 }

@@ -113,6 +113,7 @@ const environmentSchema = z.object({
   LLM_TEMPERATURE: numericEnvironmentVariable(z.number().finite().min(0).max(2)),
   LLM_TOP_P: numericEnvironmentVariable(z.number().finite().min(0).max(1)),
   LLM_MAX_OUTPUT_TOKENS: numericEnvironmentVariable(z.number().finite().int().positive()),
+  LLM_REASONING_EFFORT: z.enum(['none', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
   LLM_SEED: nullableNumber,
 }).superRefine((value, context) => {
   if (value.PROFILE === 'hosted' && !value.LLM_API_KEY) {

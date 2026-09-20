@@ -19,6 +19,7 @@ export interface LlmRequest {
   temperature: number;
   topP: number;
   maxOutputTokens: number;
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   seed?: number | null;
 }
 

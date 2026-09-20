@@ -177,6 +177,8 @@ function baseRequest(
   options: OpenAICompatibleProviderOptions,
   req: LlmRequest,
 ): ChatCompletionRequest {
+  // Reasoning effort is a hosted Responses API setting; local requests ignore it.
+  void req.reasoningEffort;
   return {
     model: options.model,
     messages: toCompatibleMessages(req.messages),

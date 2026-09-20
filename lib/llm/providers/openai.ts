@@ -133,8 +133,11 @@ export function createOpenAIProvider(options: OpenAIProviderOptions): OpenAIProv
       instructions: getInstructions(req.messages),
       input: toOpenAIInput(req.messages),
       tools: toOpenAITools(req.tools),
-      temperature: req.temperature,
-      top_p: req.topP,
+      ...(req.reasoningEffort ? { reasoning: { effort: req.reasoningEffort } } : {}),
+      ...(req.reasoningEffort === undefined || req.reasoningEffort === 'none' ? {
+        temperature: req.temperature,
+        top_p: req.topP,
+      } : {}),
       max_output_tokens: req.maxOutputTokens,
       store: false,
       parallel_tool_calls: true,
