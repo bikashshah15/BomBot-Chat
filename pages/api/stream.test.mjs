@@ -317,3 +317,268 @@ test('failed terminal responses retain their status and error detail', async () 
     },
   }]);
 });
+
+function captureConsoleOutput() {
+  const entries = [];
+  const originals = {};
+  for (const level of ['log', 'warn', 'error']) {
+    originals[level] = console[level];
+    console[level] = (...values) => entries.push(values.map(String).join(' '));
+  }
+  return {
+    entries,
+    restore() {
+      for (const level of ['log', 'warn', 'error']) console[level] = originals[level];
+    },
+  };
+}
+
+function withoutCallbacks(options) {
+  return Object.fromEntries(Object.entries(options).filter(([, value]) => typeof value !== 'function'));
+}
+
+test('tools-off turn emits one content-free timing line with deterministic phases (no Postgres)', async () => {
+  const canaries = [
+    'CANARY-participant-text',
+    'lodash@4.17.20',
+    'pkg:npm/left-pad@1.3.0',
+    'CVE-2021-44228',
+    '{"package":"x"}',
+    'session-7f3c',
+  ];
+  const capture = captureConsoleOutput();
+  const calls = [];
+  let tick = 0;
+  try {
+    await runAssistantTurn(
+      { conversationId: canaries[5], sessionId: canaries[5] },
+      () => {},
+      {
+        async loadHistory() {
+          return {
+            rows: [{ role: 'user', content: canaries[0], tool_calls: null }],
+            messages: [{ role: 'user', content: canaries[0] }],
+            nextSeq: 2,
+          };
+        },
+        async streamMessages(options) {
+          calls.push(options);
+          options.onTiming?.('model_request_start');
+          await options.onChunk?.({ delta: canaries[1], done: false });
+          options.onTiming?.('model_stream_end');
+          return {
+            content: canaries[1],
+            toolCalls: [],
+            done: true,
+            responseId: canaries[2],
+            status: 'completed',
+            usage: { inputTokens: 6, outputTokens: 7, totalTokens: 13 },
+          };
+        },
+        async executeTool() {
+          throw new Error('tool must not execute');
+        },
+        async updateAiResponse() {
+          return [];
+        },
+        enableModelToolCalls: false,
+        now: () => tick++,
+      },
+    );
+  } finally {
+    capture.restore();
+  }
+
+  const timingLines = capture.entries.filter(line => line.includes('"event":"timing_v1"'));
+  assert.equal(timingLines.length, 1);
+  assert.deepEqual(JSON.parse(timingLines[0]), {
+    event: 'timing_v1',
+    kind: 'chat_turn',
+    tools_enabled: false,
+    outcome: 'completed',
+    history_load_ms: 1,
+    rounds: [{
+      db_prep_ms: 2,
+      model_first_chunk_ms: 2,
+      model_stream_ms: 4,
+      db_append_ms: 2,
+      input_tokens: 6,
+      output_tokens: 7,
+      tool_calls_requested: 0,
+    }],
+    tools: [],
+    persist_ms: null,
+    total_ms: 10,
+  });
+  for (const canary of canaries) {
+    assert.equal(capture.entries.some(line => line.includes(canary)), false);
+  }
+
+  const { BOMBOT_INSTRUCTIONS } = await import('../../lib/openai-responses.ts');
+  assert.deepEqual(withoutCallbacks(calls[0]), {
+    conversationId: canaries[5],
+    instructions: BOMBOT_INSTRUCTIONS,
+    messages: [],
+  });
+});
+
+test('tools-on two-round turn records a failed tool without logging canaries (no Postgres)', async () => {
+  const canaries = [
+    'CANARY-participant-text',
+    'lodash@4.17.20',
+    'pkg:npm/left-pad@1.3.0',
+    'CVE-2021-44228',
+    '{"package":"x"}',
+    'session-7f3c',
+  ];
+  const capture = captureConsoleOutput();
+  const calls = [];
+  let tick = 0;
+  try {
+    await runAssistantTurn(
+      { conversationId: canaries[5], sessionId: canaries[5] },
+      () => {},
+      {
+        async loadHistory() {
+          return {
+            rows: [{ role: 'user', content: canaries[0], tool_calls: null }],
+            messages: [{ role: 'user', content: canaries[0] }],
+            nextSeq: 2,
+          };
+        },
+        async streamMessages(options) {
+          calls.push(options);
+          options.onTiming?.('model_request_start');
+          if (calls.length === 1) {
+            await options.onChunk?.({
+              toolCalls: [{ id: canaries[3], name: 'query_cve_details', arguments: canaries[4] }],
+              done: false,
+            });
+            options.onTiming?.('model_stream_end');
+            return {
+              content: '',
+              toolCalls: [{ id: canaries[3], name: 'query_cve_details', arguments: canaries[4] }],
+              done: true,
+              responseId: canaries[2],
+              status: 'completed',
+              usage: { inputTokens: 10, outputTokens: 1, totalTokens: 11 },
+            };
+          }
+          await options.onChunk?.({ delta: canaries[1], done: false });
+          options.onTiming?.('model_stream_end');
+          return {
+            content: canaries[1],
+            toolCalls: [],
+            done: true,
+            responseId: 'response_final',
+            status: 'completed',
+            usage: { inputTokens: 20, outputTokens: 2, totalTokens: 22 },
+          };
+        },
+        async executeTool(_name, arguments_) {
+          assert.equal(arguments_, canaries[4]);
+          throw new Error(canaries[0]);
+        },
+        async updateAiResponse() {
+          return [];
+        },
+        enableModelToolCalls: true,
+        now: () => tick++,
+      },
+    );
+  } finally {
+    capture.restore();
+  }
+
+  const timingLines = capture.entries.filter(line => line.includes('"event":"timing_v1"'));
+  assert.equal(timingLines.length, 1);
+  const timing = JSON.parse(timingLines[0]);
+  assert.equal(timing.outcome, 'completed');
+  assert.deepEqual(timing.rounds, [{
+    db_prep_ms: 2,
+    model_first_chunk_ms: 2,
+    model_stream_ms: 4,
+    db_append_ms: 2,
+    input_tokens: 10,
+    output_tokens: 1,
+    tool_calls_requested: 1,
+  }, {
+    db_prep_ms: 2,
+    model_first_chunk_ms: 2,
+    model_stream_ms: 4,
+    db_append_ms: 2,
+    input_tokens: 20,
+    output_tokens: 2,
+    tool_calls_requested: 0,
+  }]);
+  assert.deepEqual(timing.tools, [{ round: 1, tool: 'query_cve_details', ms: 1, ok: false }]);
+  assert.equal(timing.total_ms, 19);
+  for (const canary of canaries) {
+    assert.equal(capture.entries.some(line => line.includes(canary)), false);
+  }
+
+  const { BOMBOT_INSTRUCTIONS, BOMBOT_LLM_TOOLS } = await import('../../lib/openai-responses.ts');
+  assert.deepEqual(withoutCallbacks(calls[0]), {
+    conversationId: canaries[5],
+    instructions: BOMBOT_INSTRUCTIONS,
+    messages: [],
+    tools: BOMBOT_LLM_TOOLS,
+  });
+  assert.deepEqual(withoutCallbacks(calls[1]), {
+    conversationId: canaries[5],
+    instructions: BOMBOT_INSTRUCTIONS,
+    messages: [{
+      role: 'tool',
+      toolCallId: canaries[3],
+      content: JSON.stringify({ error: canaries[0], success: false }),
+    }],
+    tools: BOMBOT_LLM_TOOLS,
+    continuation: {
+      round: 1,
+      predecessorResponseId: canaries[2],
+      idempotencyKey: `bombot-tool-successor-${canaries[2]}`,
+    },
+  });
+});
+
+test('history-load exception emits exactly one exception timing line (no Postgres)', async () => {
+  const capture = captureConsoleOutput();
+  let tick = 0;
+  try {
+    await assert.rejects(runAssistantTurn(
+      { conversationId: 'synthetic', sessionId: 'synthetic' },
+      () => {},
+      {
+        async loadHistory() {
+          throw new Error('synthetic history failure');
+        },
+        async streamMessages() {
+          throw new Error('must not stream');
+        },
+        async executeTool() {
+          throw new Error('must not execute');
+        },
+        async updateAiResponse() {
+          return [];
+        },
+        enableModelToolCalls: false,
+        now: () => tick++,
+      },
+    ), /synthetic history failure/);
+  } finally {
+    capture.restore();
+  }
+
+  const timingLines = capture.entries.filter(line => line.includes('"event":"timing_v1"'));
+  assert.equal(timingLines.length, 1);
+  const timing = JSON.parse(timingLines[0]);
+  assert.equal(timing.outcome, 'exception');
+  assert.equal(timing.history_load_ms, null);
+});
+
+test('timing tool names and round cap remain in parity with model tools (no Postgres)', async () => {
+  const { TIMING_ROUNDS_CAP, TIMING_TOOL_NAMES } = await import('../../lib/logging/timing.ts');
+  const { BOMBOT_LLM_TOOLS, MAX_FUNCTION_CALL_ROUNDS } = await import('../../lib/openai-responses.ts');
+  assert.deepEqual([...TIMING_TOOL_NAMES], BOMBOT_LLM_TOOLS.map(tool => tool.name));
+  assert.equal(TIMING_ROUNDS_CAP, MAX_FUNCTION_CALL_ROUNDS + 1);
+});

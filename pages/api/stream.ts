@@ -1,4 +1,5 @@
 import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
+import { createTimer, logTiming, timingToolName } from '../../lib/logging/timing.ts';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { config } from '../../lib/config.ts';
 import { updateAiResponse } from '../../lib/db/chatLogs.ts';
@@ -30,6 +31,7 @@ interface AssistantTurnDependencies {
   executeTool: typeof executeFunctionCall;
   updateAiResponse: typeof updateAiResponse;
   enableModelToolCalls: boolean;
+  now?: () => number;
 }
 
 const defaultTurnDependencies: AssistantTurnDependencies = {
@@ -38,7 +40,15 @@ const defaultTurnDependencies: AssistantTurnDependencies = {
   executeTool: executeFunctionCall,
   updateAiResponse,
   enableModelToolCalls: config.ENABLE_MODEL_TOOL_CALLS,
+  now: () => performance.now(),
 };
+
+interface ToolTimingRecord {
+  round: number;
+  tool: ReturnType<typeof timingToolName>;
+  ms: number;
+  ok: boolean;
+}
 
 function getResponseErrorMessage(response: LlmResult): string {
   if (response.error?.message) return response.error.message;
@@ -52,10 +62,15 @@ function getResponseErrorMessage(response: LlmResult): string {
 async function buildToolResultMessages(
   toolCalls: LlmToolCall[],
   executeTool: typeof executeFunctionCall,
+  round: number,
+  timer: ReturnType<typeof createTimer>,
+  timingRecords: ToolTimingRecord[],
 ): Promise<LlmMessage[]> {
   const messages: LlmMessage[] = [];
 
   for (const toolCall of toolCalls) {
+    const startedAt = timer.start();
+    let ok = false;
     try {
       safeLog('log', safeValue("Executing function"));
       messages.push({
@@ -63,6 +78,7 @@ async function buildToolResultMessages(
         toolCallId: toolCall.id,
         content: await executeTool(toolCall.name, toolCall.arguments),
       });
+      ok = true;
     } catch (error) {
       safeLog('error', safeValue("Function execution error"), safeValue(errorClass(error)));
       messages.push({
@@ -72,6 +88,13 @@ async function buildToolResultMessages(
           error: error instanceof Error ? error.message : 'Function execution failed',
           success: false,
         }),
+      });
+    } finally {
+      timingRecords.push({
+        round,
+        tool: timingToolName(toolCall.name),
+        ms: timer.since(startedAt),
+        ok,
       });
     }
   }
@@ -88,7 +111,26 @@ export async function runAssistantTurn(
   emit: EmitEvent,
   dependencies: AssistantTurnDependencies = defaultTurnDependencies,
 ): Promise<void> {
+  const timer = createTimer(dependencies.now ?? (() => performance.now()));
+  const totalStartedAt = timer.start();
+  let historyLoadMs: number | null = null;
+  let persistMs: number | null = null;
+  let outcome: 'completed' | 'model_error' | 'exception' | 'sequence_conflict' = 'exception';
+  const rounds: Array<{
+    db_prep_ms: number | null;
+    model_first_chunk_ms: number | null;
+    model_stream_ms: number | null;
+    db_append_ms: number | null;
+    input_tokens: number | null;
+    output_tokens: number | null;
+    tool_calls_requested: number | null;
+  }> = [];
+  const tools: ToolTimingRecord[] = [];
+
+  try {
+  const historyStartedAt = timer.start();
   const history = await dependencies.loadHistory(options.conversationId);
+  historyLoadMs = timer.since(historyStartedAt);
   const latestMessage = history.rows.at(-1);
   if (!latestMessage || latestMessage.role !== 'user') {
     throw new Error('Conversation has no pending user message to stream');
@@ -101,20 +143,55 @@ export async function runAssistantTurn(
     .length;
   let currentRound = Math.max(storedToolCallResponses - 1, 0);
 
-  const streamMessages = (messages: LlmMessage[], continuation?: {
+  const streamMessages = async (messages: LlmMessage[], continuation?: {
     round: number;
     predecessorResponseId: string;
     idempotencyKey: string;
-  }) => dependencies.streamMessages({
-    conversationId: options.conversationId,
-    instructions: BOMBOT_INSTRUCTIONS,
-    messages,
-    ...(dependencies.enableModelToolCalls ? { tools: BOMBOT_LLM_TOOLS } : {}),
-    ...(continuation ? { continuation } : {}),
-    onChunk(chunk) {
-      if (chunk.delta) emit('delta', { delta: chunk.delta });
-    },
-  });
+  }) => {
+    const callStartedAt = timer.start();
+    let modelStartedAt: number | null = null;
+    let modelEndedAt: number | null = null;
+    let dbPrepMs: number | null = null;
+    let firstChunkMs: number | null = null;
+    let modelStreamMs: number | null = null;
+    let response: LlmResult | undefined;
+    try {
+      response = await dependencies.streamMessages({
+        conversationId: options.conversationId,
+        instructions: BOMBOT_INSTRUCTIONS,
+        messages,
+        ...(dependencies.enableModelToolCalls ? { tools: BOMBOT_LLM_TOOLS } : {}),
+        ...(continuation ? { continuation } : {}),
+        onChunk(chunk) {
+          if (firstChunkMs === null && modelStartedAt !== null
+            && (Boolean(chunk.delta) || (chunk.toolCalls?.length ?? 0) > 0)) {
+            firstChunkMs = timer.since(modelStartedAt);
+          }
+          if (chunk.delta) emit('delta', { delta: chunk.delta });
+        },
+        onTiming(mark) {
+          if (mark === 'model_request_start') {
+            modelStartedAt = timer.start();
+            dbPrepMs = timer.since(callStartedAt);
+          } else if (modelStartedAt !== null) {
+            modelEndedAt = timer.start();
+            modelStreamMs = timer.since(modelStartedAt);
+          }
+        },
+      });
+      return response;
+    } finally {
+      rounds.push({
+        db_prep_ms: dbPrepMs,
+        model_first_chunk_ms: firstChunkMs,
+        model_stream_ms: modelStreamMs,
+        db_append_ms: modelEndedAt === null ? null : timer.since(modelEndedAt),
+        input_tokens: response?.usage?.inputTokens ?? null,
+        output_tokens: response?.usage?.outputTokens ?? null,
+        tool_calls_requested: response?.toolCalls.length ?? null,
+      });
+    }
+  };
 
   let response = await streamMessages([]);
   let toolCallsProcessed = 0;
@@ -135,6 +212,9 @@ export async function runAssistantTurn(
     const toolResultMessages = await buildToolResultMessages(
       response.toolCalls,
       dependencies.executeTool,
+      nextRound,
+      timer,
+      tools,
     );
     toolCallsProcessed += response.toolCalls.length;
     response = await streamMessages(toolResultMessages, {
@@ -147,6 +227,7 @@ export async function runAssistantTurn(
   }
 
   if (response.status === 'failed' || response.status === 'cancelled' || response.status === 'incomplete') {
+    outcome = 'model_error';
     emit('error', {
       error: getResponseErrorMessage(response),
       responseStatus: response.status,
@@ -156,6 +237,7 @@ export async function runAssistantTurn(
   }
 
   if (response.status !== 'completed') {
+    outcome = 'model_error';
     emit('error', {
       error: `Response ended with non-terminal status: ${response.status}`,
       responseStatus: response.status,
@@ -169,6 +251,7 @@ export async function runAssistantTurn(
   }
 
   if (options.messageIndex && response.content) {
+    const persistStartedAt = timer.start();
     try {
       const updatedRows = await dependencies.updateAiResponse(
         options.sessionId,
@@ -180,9 +263,12 @@ export async function runAssistantTurn(
       }
     } catch (logError) {
       safeLog('error', safeValue("Error logging AI response:"), safeValue(errorClass(logError)));
+    } finally {
+      persistMs = timer.since(persistStartedAt);
     }
   }
 
+  outcome = 'completed';
   emit('done', {
     conversationId: options.conversationId,
     responseId: response.responseId,
@@ -190,6 +276,23 @@ export async function runAssistantTurn(
     status: response.status,
     toolCallsProcessed,
   });
+  } catch (error) {
+    outcome = error instanceof ConversationSequenceConflictError
+      ? 'sequence_conflict'
+      : 'exception';
+    throw error;
+  } finally {
+    logTiming({
+      kind: 'chat_turn',
+      tools_enabled: Boolean(dependencies.enableModelToolCalls),
+      outcome,
+      history_load_ms: historyLoadMs,
+      rounds,
+      tools,
+      persist_ms: persistMs,
+      total_ms: timer.since(totalStartedAt),
+    });
+  }
 }
 
 interface StreamHandlerDependencies {

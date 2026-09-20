@@ -1,4 +1,5 @@
 import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
+import { createTimer, logTiming } from '../../lib/logging/timing.ts';
 import formidable from 'formidable';
 import fs from 'fs';
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -401,6 +402,7 @@ interface UploadHandlerDependencies {
   appendConversationMessages: typeof appendConversationMessages;
   insertLog: typeof insertLog;
   wait: (milliseconds: number) => Promise<void>;
+  now?: () => number;
 }
 
 async function parseUploadForm(req: NextApiRequest, uploadDir: string) {
@@ -432,6 +434,7 @@ export function createUploadHandler(
     appendConversationMessages,
     insertLog,
     wait: milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
+    now: () => performance.now(),
     ...overrides,
   };
 
@@ -439,6 +442,15 @@ export function createUploadHandler(
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
+
+  const timer = createTimer(handlerDependencies.now ?? (() => performance.now()));
+  const totalStartedAt = timer.start();
+  let parseMs: number | null = null;
+  let scanMs: number | null = null;
+  let persistMs: number | null = null;
+  let packagesScanned: number | null = null;
+  let packagesTotal: number | null = null;
+  const parseStartedAt = timer.start();
 
   // Create temporary directory for uploads
   const tmpDir = tmp.dirSync({ unsafeCleanup: true });
@@ -494,6 +506,8 @@ export function createUploadHandler(
       const parsedData = parseSBOMData(sbomContent, fileName);
       packages = parsedData.packages;
       dependencies = parsedData.dependencies;
+      parseMs = timer.since(parseStartedAt);
+      packagesTotal = packages.length;
     } catch (parseError) {
       return res.status(400).json({ 
         error: 'Failed to parse SBOM file. Please ensure it follows SPDX or CycloneDX format.',
@@ -515,6 +529,7 @@ export function createUploadHandler(
     ).length;
     const packagesToScan = packagesWithinScanCap
       .filter(pkg => recognizedEcosystems.has(pkg.ecosystem));
+    packagesScanned = packagesToScan.length;
     const skipCounts: ScanSkipCounts = { cap: packages.length - packagesWithinScanCap.length,
       unsupported_purl_type: 0, undeterminable_ecosystem: 0, unsupported_ecosystem: 0 };
     for (const pkg of packagesWithinScanCap) {
@@ -529,8 +544,11 @@ export function createUploadHandler(
       vulnerabilities: OSVVulnerability[];
     }> = [];
 
-    const scanSource = await handlerDependencies.captureScanSource(
-      handlerDependencies.osvMode, handlerDependencies.osvClient, async scanClient => {
+    const scanStartedAt = timer.start();
+    let scanSource: Awaited<ReturnType<typeof captureScanSource>>;
+    try {
+      scanSource = await handlerDependencies.captureScanSource(
+        handlerDependencies.osvMode, handlerDependencies.osvClient, async scanClient => {
     if (handlerDependencies.osvMode === 'offline') {
       const offlinePackages = packagesToScan.map(pkg => ({
         name: pkg.name,
@@ -563,7 +581,10 @@ export function createUploadHandler(
       }
     }
 
-    });
+      });
+    } finally {
+      scanMs = timer.since(scanStartedAt);
+    }
 
     // Send the scan results to the assistant
     const totalVulns = vulnerabilityResults.reduce((sum, result) => sum + result.vulnerabilities.length, 0);
@@ -615,45 +636,51 @@ ${existingConversationId ?
   'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Since this is an additional SBOM, you can also compare it with previously uploaded SBOMs. Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", "dependency analysis", or "SBOM comparison" for comprehensive information.' :
   'Please provide a QUICK summary of the most critical findings with OSV.dev links (NOT NVD links). Use osv.dev format for vulnerability links. Keep it brief and actionable. Suggest that I can ask for "executive summary", "detailed analysis", or "dependency analysis" for comprehensive information.'}`;
 
-    const conversationId = existingConversationId
-      ?? (await handlerDependencies.createConversation(sessionId)).id;
-    await withCapturedScanSource({ ...scanSource, scanned_package_count: softwareContext.scanned_package_count,
-      scan_truncated: softwareContext.scan_truncated, skip_counts: skipCounts }, async () =>
-      handlerDependencies.appendConversationMessages({
-      conversationId,
-      messages: [{ role: 'user', content: responseInput }],
-      pinned: true,
-    }));
+    const persistStartedAt = timer.start();
+    let conversationId: string;
+    try {
+      conversationId = existingConversationId
+        ?? (await handlerDependencies.createConversation(sessionId)).id;
+      await withCapturedScanSource({ ...scanSource, scanned_package_count: softwareContext.scanned_package_count,
+        scan_truncated: softwareContext.scan_truncated, skip_counts: skipCounts }, async () =>
+        handlerDependencies.appendConversationMessages({
+        conversationId,
+        messages: [{ role: 'user', content: responseInput }],
+        pinned: true,
+      }));
 
-    if (existingConversationId) {
-      safeLog('log', safeValue("Reusing existing conversation for SBOM upload"));
-    } else {
-      safeLog('log', safeValue("Created new conversation for SBOM upload"));
-    }
-
-    // Log file upload to the application-owned datastore if session info is provided.
-    if (sessionId && messageIndex !== undefined) {
-      try {
-        const now = new Date().toISOString();
-        await handlerDependencies.insertLog({
-          id: uuidv4(),
-          session_id: sessionId,
-          conversation_id: conversationId,
-          message_index: messageIndex,
-          message_type: 'file_upload',
-          user_message: `Uploaded SBOM file: ${fileName}`,
-          ai_response: null,
-          file_name: fileName,
-          file_size: file.size,
-          vulnerability_count: totalVulns,
-          user_email: userEmail ?? null,
-          created_at: now,
-          updated_at: now,
-        });
-      } catch (logError) {
-        safeLog('error', safeValue("Error logging file upload:"), safeValue(errorClass(logError)));
-        // Continue even if logging fails
+      if (existingConversationId) {
+        safeLog('log', safeValue("Reusing existing conversation for SBOM upload"));
+      } else {
+        safeLog('log', safeValue("Created new conversation for SBOM upload"));
       }
+
+      // Log file upload to the application-owned datastore if session info is provided.
+      if (sessionId && messageIndex !== undefined) {
+        try {
+          const now = new Date().toISOString();
+          await handlerDependencies.insertLog({
+            id: uuidv4(),
+            session_id: sessionId,
+            conversation_id: conversationId,
+            message_index: messageIndex,
+            message_type: 'file_upload',
+            user_message: `Uploaded SBOM file: ${fileName}`,
+            ai_response: null,
+            file_name: fileName,
+            file_size: file.size,
+            vulnerability_count: totalVulns,
+            user_email: userEmail ?? null,
+            created_at: now,
+            updated_at: now,
+          });
+        } catch (logError) {
+          safeLog('error', safeValue("Error logging file upload:"), safeValue(errorClass(logError)));
+          // Continue even if logging fails
+        }
+      }
+    } finally {
+      persistMs = timer.since(persistStartedAt);
     }
 
     // Clean up the uploaded file
@@ -711,6 +738,24 @@ ${existingConversationId ?
     } catch (cleanupError) {
       safeLog('warn', safeValue("Failed to cleanup temp directory:"), safeValue(errorClass(cleanupError)));
     }
+    const outcome = res.statusCode >= 200 && res.statusCode < 300
+      ? 'ok'
+      : res.statusCode === 400 || res.statusCode === 403
+        ? 'client_error'
+        : res.statusCode === 409
+          ? 'conflict'
+          : 'exception';
+    logTiming({
+      kind: 'upload',
+      osv_mode: handlerDependencies.osvMode,
+      outcome,
+      parse_ms: parseMs,
+      scan_ms: scanMs,
+      persist_ms: persistMs,
+      total_ms: timer.since(totalStartedAt),
+      packages_scanned: packagesScanned,
+      packages_total: packagesTotal,
+    });
   }
   };
 }

@@ -538,6 +538,107 @@ test('mixed SPDX purls derive ecosystems end to end and keep unknown packages fr
   }
 });
 
+test('offline upload timing reports counts and a 400 path without logging canaries (no Postgres)', async () => {
+  const canaries = [
+    'CANARY-participant-text',
+    'lodash@4.17.20',
+    'pkg:npm/left-pad@1.3.0',
+    'CVE-2021-44228',
+    '{"package":"x"}',
+    'session-7f3c',
+  ];
+  const fixture = JSON.stringify({
+    bomFormat: 'CycloneDX',
+    metadata: { component: { name: canaries[0] } },
+    components: [{
+      name: canaries[1],
+      version: '4.17.20',
+      purl: canaries[2],
+      'bom-ref': canaries[3],
+    }, {
+      name: canaries[4],
+      version: '1.0.0',
+      purl: 'pkg:npm/canary-package@1.0.0',
+      'bom-ref': canaries[5],
+    }],
+    dependencies: [],
+  });
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'bombot-upload-timing-test-'));
+  const fileName = `${canaries[0]}-${canaries[5]}.json`;
+  const uploadPath = path.join(tempDir, fileName);
+  await writeFile(uploadPath, fixture);
+
+  const entries = [];
+  const originals = {};
+  for (const level of ['log', 'warn', 'error']) {
+    originals[level] = console[level];
+    console[level] = (...values) => entries.push(values.map(String).join(' '));
+  }
+  let tick = 0;
+  try {
+    const successHandler = createUploadHandler({
+      osvMode: 'offline',
+      async captureScanSource(mode, client, scan) {
+        await scan(client);
+        return { osv_mode: mode, snapshot_date: '2026-09-07' };
+      },
+      async parseForm() {
+        return {
+          fields: { sessionId: canaries[5], messageIndex: '1' },
+          files: {
+            file: {
+              filepath: uploadPath,
+              originalFilename: fileName,
+              size: Buffer.byteLength(fixture),
+            },
+          },
+        };
+      },
+      async matchOsvPackages(_client, packages) {
+        return packages.map(package_ => ({ package: package_, vulnerabilities: [] }));
+      },
+      async createConversation() {
+        return { id: canaries[5] };
+      },
+      async appendConversationMessages() {},
+      async insertLog() {},
+      async wait() {},
+      now: () => tick++,
+    });
+    const successResponse = responseRecorder();
+    await successHandler({ method: 'POST' }, successResponse);
+    assert.equal(successResponse.statusCode, 200);
+
+    const clientErrorHandler = createUploadHandler({
+      osvMode: 'offline',
+      async parseForm() {
+        return { fields: {}, files: {} };
+      },
+      now: () => tick++,
+    });
+    const clientErrorResponse = responseRecorder();
+    await clientErrorHandler({ method: 'POST' }, clientErrorResponse);
+    assert.equal(clientErrorResponse.statusCode, 400);
+  } finally {
+    for (const level of ['log', 'warn', 'error']) console[level] = originals[level];
+    await rm(tempDir, { recursive: true, force: true });
+  }
+
+  const timingLines = entries
+    .filter(line => line.includes('"event":"timing_v1"'))
+    .map(line => JSON.parse(line));
+  assert.equal(timingLines.length, 2);
+  assert.equal(timingLines[0].kind, 'upload');
+  assert.equal(timingLines[0].outcome, 'ok');
+  assert.equal(timingLines[0].osv_mode, 'offline');
+  assert.equal(timingLines[0].packages_scanned, 2);
+  assert.equal(timingLines[0].packages_total, 2);
+  assert.equal(timingLines[1].outcome, 'client_error');
+  for (const canary of canaries) {
+    assert.equal(entries.some(line => line.includes(canary)), false);
+  }
+});
+
 test('generic JSON packages without an ecosystem remain unknown', () => {
   const parsed = parseSBOMData(JSON.stringify({
     packages: [{ name: 'generic-without-ecosystem', version: '1.0.0' }],

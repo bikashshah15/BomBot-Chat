@@ -116,6 +116,7 @@ export async function streamConversationMessages(options: {
   tools?: LlmToolDef[];
   continuation?: LlmContinuation;
   onChunk?: (chunk: LlmChunk) => void | Promise<void>;
+  onTiming?: (mark: 'model_request_start' | 'model_stream_end') => void;
 }): Promise<LlmResult> {
   const history = await loadConversationHistory(options.conversationId);
   const nextSeq = await appendMessages(
@@ -128,6 +129,7 @@ export async function streamConversationMessages(options: {
   const streamedToolCalls = [] as LlmResult['toolCalls'];
   let response: LlmResult | undefined;
 
+  try { options.onTiming?.('model_request_start'); } catch { /* Timing is best effort. */ }
   for await (const chunk of gateway.stream({
     messages: [
       { role: 'system', content: options.instructions },
@@ -142,6 +144,7 @@ export async function streamConversationMessages(options: {
     if (chunk.result) response = chunk.result;
     await options.onChunk?.(chunk);
   }
+  try { options.onTiming?.('model_stream_end'); } catch { /* Timing is best effort. */ }
 
   response ??= {
     content: streamedContent,
