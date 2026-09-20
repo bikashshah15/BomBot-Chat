@@ -11,7 +11,6 @@ export interface LogChatMessageParams {
   fileName?: string | null;
   fileSize?: number | null;
   vulnerabilityCount?: number | null;
-  userEmail?: string | null;
 }
 
 export class ChatLogger {

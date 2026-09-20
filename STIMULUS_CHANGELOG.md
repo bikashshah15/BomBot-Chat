@@ -3,6 +3,21 @@
 Every entry records a change to participant-facing system behavior.
 Columns: date · increment · what changed · why · effect on the study.
 
+## 2026-09-19 — INC-20 (email dialog removed; no participant identifier; declared G6)
+
+- Boundary: this build begins from INC-19 commit
+  `47db7ab9fbdb219c2424b862e301c3e0b7887816`.
+- Removed: the blocking email dialog and all client requests for, persistence of,
+  and transmission of participant identifiers. Sessions are anonymous and cannot
+  be linked to an external survey.
+- Legacy cleanup: each client load removes the former `bombot-user-email`
+  localStorage entry so identifiers saved by older versions are purged from
+  shared browsers.
+- Server behavior: legacy clients may still send the old field, but it is ignored
+  without logging and every newly written `user_email` value is null.
+- Unchanged: model-facing input, instructions, tools, decoding, conversation
+  history, vulnerability scanning, and the disclosure ledger.
+
 ## 2026-09-19 — INC-17 (bounded model keep-alive; timing only; declared G6)
 
 - Boundary: the forthcoming INC-17 commit immediately following the INC-16

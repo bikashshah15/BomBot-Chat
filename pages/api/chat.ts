@@ -23,7 +23,6 @@ interface ChatRequest {
   threadId?: string;
   sessionId: string;
   messageIndex: number;
-  userEmail?: string;
 }
 
 interface ChatHandlerDependencies {
@@ -60,7 +59,7 @@ export function createChatHandler(overrides: Partial<ChatHandlerDependencies> = 
     return res.status(400).json({ error: 'Provider may only be selected when creating a conversation' });
   }
 
-  const { message, conversationId: requestedConversationId, threadId, sessionId, messageIndex, userEmail }: ChatRequest = req.body;
+  const { message, conversationId: requestedConversationId, threadId, sessionId, messageIndex }: ChatRequest = req.body;
   const conversationId = requestedConversationId || threadId;
 
   if (typeof message === 'string' && message.length > appConfig.MAX_USER_MESSAGE_CHARACTERS) {
@@ -113,7 +112,7 @@ export function createChatHandler(overrides: Partial<ChatHandlerDependencies> = 
         file_name: null,
         file_size: null,
         vulnerability_count: null,
-        user_email: userEmail ?? null,
+        user_email: null,
         created_at: now,
         updated_at: now,
       });

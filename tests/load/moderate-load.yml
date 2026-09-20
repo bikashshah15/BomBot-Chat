@@ -17,9 +17,6 @@ config:
       User-Agent: 'BOMbot-LoadTest-Moderate/1.0'
       Content-Type: 'application/json'
   payload:
-    - path: "./test-data/sample-emails.csv"
-      fields:
-        - email
     - path: "./test-data/test-packages.csv"
       fields:
         - packageName
@@ -47,7 +44,6 @@ scenarios:
             name: "{{ packageName }}"
             ecosystem: "{{ ecosystem }}"
             version: "{{ version }}"
-            userEmail: "{{ email }}"
           capture:
             - json: "$.threadId"
               as: "threadId"
@@ -76,14 +72,12 @@ scenarios:
           json:
             name: "express"
             ecosystem: "npm"
-            userEmail: "{{ email }}"
       - think: 0.5
       
       - post:
           url: "/api/osv-query"
           json:
             cve: "CVE-2023-26136"
-            userEmail: "{{ email }}"
       - think: 0.5
       
       - post:
@@ -92,7 +86,6 @@ scenarios:
             name: "lodash"
             ecosystem: "npm"
             version: "4.17.20"
-            userEmail: "{{ email }}"
 
   - name: "Chat Simulation"
     weight: 20
@@ -105,7 +98,6 @@ scenarios:
             threadId: "thread_placeholder"
             sessionId: "load-test-session-{{ $uuid }}"
             messageIndex: 1
-            userEmail: "{{ email }}"
           expect:
             - statusCode: [200, 400] # 400 is ok if no valid thread
       - think: 3 

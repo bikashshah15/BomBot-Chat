@@ -481,7 +481,6 @@ export function createUploadHandler(
     const messageIndex = Array.isArray(fields.messageIndex) ? 
       parseInt(fields.messageIndex[0]) : 
       parseInt(fields.messageIndex || '0');
-    const userEmail = Array.isArray(fields.userEmail) ? fields.userEmail[0] : fields.userEmail;
     const conversationField = fields.conversationId || fields.threadId;
     const existingConversationId = Array.isArray(conversationField) ? conversationField[0] : conversationField;
     const providerField = Array.isArray(fields.providerId) ? fields.providerId[0] : fields.providerId;
@@ -696,7 +695,7 @@ ${existingConversationId ?
             file_name: fileName,
             file_size: file.size,
             vulnerability_count: totalVulns,
-            user_email: userEmail ?? null,
+            user_email: null,
             created_at: now,
             updated_at: now,
           });

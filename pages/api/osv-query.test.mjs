@@ -81,6 +81,42 @@ function responseRecorder() {
   };
 }
 
+async function captureConsole(action) {
+  const methods = ['log', 'error', 'warn', 'info', 'debug'];
+  const originals = new Map(methods.map(method => [method, console[method]]));
+  const output = [];
+  for (const method of methods) console[method] = (...args) => output.push(args);
+  try {
+    await action();
+  } finally {
+    for (const [method, original] of originals) console[method] = original;
+  }
+  return output;
+}
+
+test('osv-query ignores a legacy email field without logging it (no Postgres)', async () => {
+  const legacyEmail = 'participant@example.invalid';
+  const requestedIdentifier = 'CVE-2024-0001';
+  const handler = createOsvQueryHandler(offlineDependencies({
+    async getOsvAdvisoryByIdentifier() {
+      return syntheticAdvisory(requestedIdentifier);
+    },
+  }));
+  const response = responseRecorder();
+
+  const output = await captureConsole(() => handler({
+    method: 'POST',
+    body: {
+      cve: requestedIdentifier,
+      sessionId: '00000000-0000-4000-8000-000000000001',
+      userEmail: legacyEmail,
+    },
+  }, response));
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(output.flat().some(value => String(value).includes(legacyEmail)), false);
+});
+
 function syntheticAdvisory(id, aliases = []) {
   return {
     id,

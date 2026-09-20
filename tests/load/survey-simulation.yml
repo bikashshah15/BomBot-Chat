@@ -18,9 +18,6 @@ config:
       Content-Type: 'application/json'
     timeout: 45 # Extended timeout for production
   payload:
-    - path: "./test-data/sample-emails.csv"
-      fields:
-        - email
     - path: "./test-data/test-packages.csv"
       fields:
         - packageName
@@ -31,14 +28,14 @@ scenarios:
   - name: "Survey User Journey - SBOM Upload"
     weight: 40
     flow:
-      # 1. User arrives and sees email dialog
+      # 1. User arrives
       - get:
           url: "/"
           expect:
             - statusCode: 200
-      - think: 3 # Time to read and enter email
+      - think: 3 # Time to read the page
       
-      # 2. Navigate to chat after email entry
+      # 2. Navigate to chat
       - get:
           url: "/chat"
           expect:
@@ -51,7 +48,6 @@ scenarios:
           json:
             name: "numpy"
             ecosystem: "PyPI" 
-            userEmail: "{{ email }}"
           capture:
             - json: "$.threadId"
               as: "uploadThreadId"
@@ -72,7 +68,6 @@ scenarios:
             threadId: "{{ uploadThreadId }}"
             sessionId: "survey-session-{{ $uuid }}"
             messageIndex: 2
-            userEmail: "{{ email }}"
           ifTrue: "uploadThreadId"
           expect:
             - statusCode: [200, 400, 429]
@@ -102,7 +97,6 @@ scenarios:
             name: "{{ packageName }}"
             ecosystem: "{{ ecosystem }}"
             version: "{{ version }}"
-            userEmail: "{{ email }}"
           capture:
             - json: "$.threadId"
               as: "queryThreadId"
@@ -118,7 +112,6 @@ scenarios:
           json:
             cve: "CVE-2023-26136"
             threadId: "{{ queryThreadId }}"
-            userEmail: "{{ email }}"
           ifTrue: "queryThreadId"
           expect:
             - statusCode: [200, 400, 429]
@@ -132,7 +125,6 @@ scenarios:
             threadId: "{{ queryThreadId }}"
             sessionId: "survey-query-{{ $uuid }}"
             messageIndex: 1
-            userEmail: "{{ email }}"
           ifTrue: "queryThreadId"
           expect:
             - statusCode: [200, 400, 429]
@@ -160,7 +152,6 @@ scenarios:
           json:
             name: "numpy"
             ecosystem: "PyPI"
-            userEmail: "{{ email }}"
           expect:
             - statusCode: [200, 400, 429]
       - think: 5
@@ -171,7 +162,6 @@ scenarios:
           json:
             name: "requests"
             ecosystem: "PyPI"
-            userEmail: "{{ email }}"
           expect:
             - statusCode: [200, 400, 429]
       - think: 3

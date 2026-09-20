@@ -7,10 +7,6 @@ config:
   defaults:
     headers:
       User-Agent: 'BOMbot-LoadTest/1.0'
-  payload:
-    - path: "./test-data/sample-emails.csv"
-      fields:
-        - email
 
 scenarios:
   - name: "Frontend Page Load"
@@ -30,7 +26,6 @@ scenarios:
           json:
             name: "lodash"
             ecosystem: "npm"
-            userEmail: "{{ email }}"
       - think: 1
 
   - name: "CVE Query"
@@ -40,7 +35,6 @@ scenarios:
           url: "/api/osv-query"
           json:
             cve: "CVE-2023-26136"
-            userEmail: "{{ email }}"
       - think: 1
 
   - name: "Health Check"

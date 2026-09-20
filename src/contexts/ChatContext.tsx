@@ -60,14 +60,12 @@ interface ChatContextType {
   loadingPhase: LoadingPhase | null;
   responseStartedAt: number | null;
   lastActivityAt: number | null;
-  userEmail: string | null;
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
   addUploadedFile: (file: UploadedFile) => void;
   setCurrentConversationId: (conversationId: string | null) => void;
   setLoading: (loading: boolean, phase?: LoadingPhase) => void;
   beginResponse: () => void;
   markActivity: () => void;
-  setUserEmail: (email: string) => void;
   isolateForProviderSwitch: (conversationId: string) => void;
   clearChat: () => void;
   logChatMessage: (
@@ -94,20 +92,20 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [lastActivityAt, setLastActivityAt] = useState<number | null>(null);
   const lastActivityAtRef = useRef<number | null>(null);
   const lastActivityCommittedAtRef = useRef<number | null>(null);
-  const [userEmail, setUserEmailState] = useState<string | null>(null);
 
-  // Initialize session and check for stored email on component mount
+  // Initialize the anonymous session and remove identifiers stored by older versions.
   useEffect(() => {
+    try {
+      localStorage.removeItem('bombot-user-email');
+    } catch {
+      // Storage can be unavailable in restricted browser contexts.
+    }
+
     const initSession = async () => {
       await ChatLogger.initializeSession(sessionId);
     };
     initSession();
 
-    // Check for stored email in localStorage
-    const storedEmail = localStorage.getItem('bombot-user-email');
-    if (storedEmail) {
-      setUserEmailState(storedEmail);
-    }
   }, [sessionId]);
 
   const addMessage = (message: Omit<Message, 'id' | 'timestamp'>) => {
@@ -160,12 +158,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     setLastActivityAt(lastActivityAtRef.current);
   };
 
-  const setUserEmail = (email: string) => {
-    setUserEmailState(email);
-    // Store email in localStorage for persistence
-    localStorage.setItem('bombot-user-email', email);
-  };
-
   const clearChat = () => {
     setMessages([]);
     setUploadedFiles([]);
@@ -205,7 +197,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         fileName,
         fileSize,
         vulnerabilityCount,
-        userEmail,
       });
     } catch (error) {
       safeLog('error', safeValue("Error logging chat message:"), safeValue(errorClass(error)));
@@ -223,14 +214,12 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       loadingPhase,
       responseStartedAt,
       lastActivityAt,
-      userEmail,
       addMessage,
       addUploadedFile,
       setCurrentConversationId,
       setLoading,
       beginResponse,
       markActivity,
-      setUserEmail,
       isolateForProviderSwitch,
       clearChat,
       logChatMessage,

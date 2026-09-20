@@ -14,7 +14,7 @@ import {
 } from '@/hooks/useAssistantStream';
 
 const PackageQueryForm = () => {
-  const { addMessage, setLoading, beginResponse, markActivity, isLoading, currentConversationId, setCurrentConversationId, sessionId, userEmail } = useChat();
+  const { addMessage, setLoading, beginResponse, markActivity, isLoading, currentConversationId, setCurrentConversationId, sessionId } = useChat();
   const [formData, setFormData] = useState({
     packageName: '',
     ecosystem: '',
@@ -126,11 +126,6 @@ const PackageQueryForm = () => {
       // Include the Conversation ID if one is already active.
       if (currentConversationId) {
         requestBody.conversationId = currentConversationId;
-      }
-
-      // Include userEmail if available
-      if (userEmail) {
-        requestBody.userEmail = userEmail;
       }
 
       // Call the OSV query API

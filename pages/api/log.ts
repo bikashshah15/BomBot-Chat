@@ -29,7 +29,6 @@ const logMessageSchema = z.object({
   fileName: z.string().max(255).nullable().optional(),
   fileSize: z.number().int().nonnegative().nullable().optional(),
   vulnerabilityCount: z.number().int().nonnegative().nullable().optional(),
-  userEmail: z.string().email().max(255).nullable().optional(),
 }).strict();
 
 const logRequestSchema = z.discriminatedUnion('action', [
@@ -46,12 +45,26 @@ function safeErrorDetails(error: unknown) {
   };
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+interface LogHandlerDependencies {
+  insertLog: typeof insertLog;
+}
+
+function removeLegacyEmailField(body: unknown): unknown {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+  const sanitized = { ...body } as Record<string, unknown>;
+  Reflect.deleteProperty(sanitized, 'userEmail');
+  return sanitized;
+}
+
+export function createLogHandler(overrides: Partial<LogHandlerDependencies> = {}) {
+  const dependencies: LogHandlerDependencies = { insertLog, ...overrides };
+
+  return async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const parsedRequest = logRequestSchema.safeParse(req.body);
+  const parsedRequest = logRequestSchema.safeParse(removeLegacyEmailField(req.body));
   if (!parsedRequest.success) {
     safeLog('error', safeValue("Log API rejected an invalid request body"));
     return res.status(400).json({ error: 'Invalid log request' });
@@ -68,7 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const now = new Date().toISOString();
 
   try {
-    const log = await insertLog({
+    const log = await dependencies.insertLog({
       id: uuidv4(),
       session_id: request.sessionId,
       conversation_id: request.conversationId ?? null,
@@ -79,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       file_name: request.fileName ?? null,
       file_size: request.fileSize ?? null,
       vulnerability_count: request.vulnerabilityCount ?? null,
-      user_email: request.userEmail ?? null,
+      user_email: null,
       created_at: now,
       updated_at: now,
     });
@@ -89,4 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     safeLog('error', safeValue("Log API database write failed:"), safeValue(errorClass(error)));
     return res.status(500).json({ error: 'Failed to persist log entry' });
   }
+  };
 }
+
+export default createLogHandler();

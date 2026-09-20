@@ -8,9 +8,6 @@ config:
     headers:
       User-Agent: 'BOMbot-UploadTest/1.0'
   payload:
-    - path: "./test-data/sample-emails.csv"
-      fields:
-        - email
 
 scenarios:
   - name: "SBOM File Upload"
@@ -28,7 +25,6 @@ scenarios:
             file: "./test-data/sample-sbom.json"
             sessionId: "load-test-session-{{ $uuid }}"
             messageIndex: "1"
-            userEmail: "{{ email }}"
           capture:
             - json: "$.threadId"
               as: "uploadThreadId"
@@ -62,6 +58,5 @@ scenarios:
             file: "./test-data/invalid-file.txt"
             sessionId: "error-test-{{ $uuid }}"
             messageIndex: "1"
-            userEmail: "{{ email }}"
           expect:
             - statusCode: [400, 415] # Should reject invalid files 

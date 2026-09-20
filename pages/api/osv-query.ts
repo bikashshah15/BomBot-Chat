@@ -21,7 +21,6 @@ interface OSVQueryRequest {
   conversationId?: string;
   threadId?: string;
   sessionId: string;
-  userEmail?: string;
 }
 
 interface OSVVulnerability {

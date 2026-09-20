@@ -48,6 +48,75 @@ function responseRecorder() {
   };
 }
 
+async function captureConsole(action) {
+  const methods = ['log', 'error', 'warn', 'info', 'debug'];
+  const originals = new Map(methods.map(method => [method, console[method]]));
+  const output = [];
+  for (const method of methods) console[method] = (...args) => output.push(args);
+  try {
+    await action();
+  } finally {
+    for (const [method, original] of originals) console[method] = original;
+  }
+  return output;
+}
+
+test('upload ignores a legacy email field and persists no participant identifier (no Postgres)', async () => {
+  const legacyEmail = 'participant@example.invalid';
+  const fixturePath = new URL('../../tests/fixtures/small-spdx.json', import.meta.url);
+  const fixtureContent = await readFile(fixturePath, 'utf8');
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'bombot-upload-no-identifier-test-'));
+  const uploadPath = path.join(tempDir, 'small-spdx.json');
+  await copyFile(fixturePath, uploadPath);
+  let writtenRow;
+  const handler = createUploadHandler({
+    async parseForm() {
+      return {
+        fields: {
+          sessionId: '00000000-0000-4000-8000-000000000001',
+          messageIndex: '1',
+          userEmail: legacyEmail,
+        },
+        files: {
+          file: {
+            filepath: uploadPath,
+            originalFilename: 'small-spdx.json',
+            size: Buffer.byteLength(fixtureContent),
+          },
+        },
+      };
+    },
+    async captureScanSource(mode, client, scan) {
+      await scan(client);
+      return { osv_mode: mode, snapshot_date: 'synthetic' };
+    },
+    async queryOSVForPackage() {
+      return [];
+    },
+    async createConversation() {
+      return { id: 'conversation_no_identifier' };
+    },
+    async appendConversationMessages() {
+      return [];
+    },
+    async insertLog(row) {
+      writtenRow = row;
+      return row;
+    },
+    async wait() {},
+  });
+  const response = responseRecorder();
+
+  try {
+    const output = await captureConsole(() => handler({ method: 'POST' }, response));
+    assert.equal(response.statusCode, 200);
+    assert.equal(writtenRow.user_email, null);
+    assert.equal(output.flat().some(value => String(value).includes(legacyEmail)), false);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('dependency graph keeps vulnerability results distinct for duplicate package versions', async () => {
   const fixturePath = new URL('../../tests/fixtures/duplicate-versions-spdx.json', import.meta.url);
   const fixtureContent = await readFile(fixturePath, 'utf8');

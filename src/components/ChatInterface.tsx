@@ -4,7 +4,6 @@ import { useChat } from '@/contexts/ChatContext';
 import ChatMessage from '@/components/ChatMessage';
 import FileUploadOverlay from '@/components/FileUploadOverlay';
 import StatusIndicator from '@/components/StatusIndicator';
-import EmailCollectionDialog from '@/components/EmailCollectionDialog';
 import {
   AssistantStreamTimeoutError,
   useAssistantStream,
@@ -20,7 +19,7 @@ import {
 import { Shield, Send, Paperclip, Plus, MessageSquare } from 'lucide-react';
 
 const ChatInterface = () => {
-  const { messages, isLoading, addMessage, clearChat, currentConversationId, sessionId, messageIndex, setLoading, beginResponse, markActivity, setCurrentConversationId, addUploadedFile, isolateForProviderSwitch, logChatMessage, userEmail, setUserEmail } = useChat();
+  const { messages, isLoading, addMessage, clearChat, currentConversationId, sessionId, messageIndex, setLoading, beginResponse, markActivity, setCurrentConversationId, addUploadedFile, isolateForProviderSwitch, logChatMessage } = useChat();
   const [inputText, setInputText] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -29,14 +28,6 @@ const ChatInterface = () => {
   const [providerStatus, setProviderStatus] = useState<ModelProviderStatus | null>(null);
   const [activeProviderId, setActiveProviderId] = useState('primary');
   const providerView = providerStatus ? modelProviderToggleView(providerStatus) : null;
-
-  // Check if Email dialog should be shown
-  const shouldShowEmailDialog = !userEmail;
-
-  // Handle Email submission
-  const handleEmailSubmit = (email: string) => {
-    setUserEmail(email);
-  };
 
   useEffect(() => {
     const search = new URLSearchParams({ sessionId });
@@ -145,9 +136,6 @@ const ChatInterface = () => {
       formData.append('file', file);
       formData.append('sessionId', sessionId);
       formData.append('messageIndex', messageIndex.toString());
-      if (userEmail) {
-        formData.append('userEmail', userEmail);
-      }
       // Include the existing Conversation ID to maintain continuity.
       if (currentConversationId) {
         formData.append('conversationId', currentConversationId);
@@ -331,7 +319,6 @@ const ChatInterface = () => {
           message: message,
           sessionId,
           messageIndex,
-          userEmail,
         }),
       });
 
@@ -595,12 +582,6 @@ const ChatInterface = () => {
       {/* File Upload Overlay */}
       {isDragOver && <FileUploadOverlay />}
 
-      {/* Email Collection Dialog */}
-      <EmailCollectionDialog 
-        isOpen={shouldShowEmailDialog}
-        onEmailSubmit={handleEmailSubmit}
-      />
-      
       {/* Hidden file input */}
       <input
         ref={fileInputRef}

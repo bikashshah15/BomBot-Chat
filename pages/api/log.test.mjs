@@ -45,7 +45,7 @@ delete process.env.LLM_API_KEY;
 delete process.env.OSV_BASE_URL;
 delete process.env.PARTICIPANT_ID_SALT;
 
-const { default: handler } = await import('./log.ts');
+const { createLogHandler, default: handler } = await import('./log.ts');
 const { closeDb } = await import('../../lib/db/client.ts');
 
 for (const name of CONFIGURATION_VARIABLES) {
@@ -71,6 +71,19 @@ function responseRecorder() {
       return this;
     },
   };
+}
+
+async function captureConsole(action) {
+  const methods = ['log', 'error', 'warn', 'info', 'debug'];
+  const originals = new Map(methods.map(method => [method, console[method]]));
+  const output = [];
+  for (const method of methods) console[method] = (...args) => output.push(args);
+  try {
+    await action();
+  } finally {
+    for (const [method, original] of originals) console[method] = original;
+  }
+  return output;
 }
 
 test('log API accepts a version 4 session capability initialization', async () => {
@@ -125,4 +138,32 @@ test('log API rejects UUIDs that are not version 4 capabilities', async () => {
   }
 
   assert.equal(response.statusCode, 400);
+});
+
+test('log API ignores a legacy email field and persists no participant identifier (no Postgres)', async () => {
+  const legacyEmail = 'participant@example.invalid';
+  let writtenRow;
+  const legacyHandler = createLogHandler({
+    async insertLog(row) {
+      writtenRow = row;
+      return row;
+    },
+  });
+  const response = responseRecorder();
+
+  const output = await captureConsole(() => legacyHandler({
+    method: 'POST',
+    body: {
+      action: 'log_message',
+      sessionId: randomUUID(),
+      messageIndex: 1,
+      messageType: 'user',
+      userMessage: 'Synthetic message',
+      userEmail: legacyEmail,
+    },
+  }, response));
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(writtenRow.user_email, null);
+  assert.equal(output.flat().some(value => String(value).includes(legacyEmail)), false);
 });
