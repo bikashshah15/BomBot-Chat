@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { refusalMessage } from '../lib/modelProviderToggle.ts';
 
 export const ASSISTANT_STREAM_INACTIVITY_TIMEOUT_MS = 120_000;
 export const ASSISTANT_STREAM_MAX_DURATION_MS = 1_800_000;
@@ -199,8 +200,8 @@ export function useAssistantStream() {
         signal: controller.signal,
       });
       if (!response.ok) {
-        const error = await response.json().catch(() => ({})) as { error?: string };
-        throw new Error(error.error || 'Failed to start assistant stream');
+        const error = await response.json().catch(() => ({})) as { code?: string; error?: string };
+        throw new Error(refusalMessage(error.code, error.error || 'Failed to start assistant stream'));
       }
       await consumeAssistantEventStream(response, {
         ...options,

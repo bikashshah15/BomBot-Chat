@@ -68,6 +68,7 @@ interface ChatContextType {
   beginResponse: () => void;
   markActivity: () => void;
   setUserEmail: (email: string) => void;
+  isolateForProviderSwitch: (conversationId: string) => void;
   clearChat: () => void;
   logChatMessage: (
     messageType: 'user' | 'assistant' | 'file_upload',
@@ -172,6 +173,19 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     setMessageIndex(0);
   };
 
+  const isolateForProviderSwitch = (conversationId: string) => {
+    setMessages(previous => previous.filter(message =>
+      (message.type === 'user' && message.content.startsWith('📎 Uploaded:'))
+      || (message.type === 'assistant' && (
+        Boolean(message.dependencyGraph)
+        || Boolean(message.vulnerabilities)
+        || message.content.includes('**Coverage:**')
+      )),
+    ));
+    setCurrentConversationId(conversationId);
+    setMessageIndex(0);
+  };
+
   const logChatMessage = async (
     messageType: 'user' | 'assistant' | 'file_upload',
     userMessage?: string,
@@ -217,6 +231,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       beginResponse,
       markActivity,
       setUserEmail,
+      isolateForProviderSwitch,
       clearChat,
       logChatMessage,
     }}>

@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "vercel dev",
     "dev:ui": "vite",
-    "build": "node scripts/build.js",
+    "build": "node scripts/build.js && npm run check:client-bundle",
+    "check:client-bundle": "node scripts/check-client-bundle.mjs",
     "build:api": "next build",
     "build:ui": "vite build",
     "build:dev": "vite build --mode development",

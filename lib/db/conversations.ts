@@ -33,6 +33,13 @@ export class SessionRetentionConflictError extends Error {
   }
 }
 
+export class ConversationCopySessionMismatchError extends Error {
+  constructor() {
+    super('Source conversation does not belong to this session');
+    this.name = 'ConversationCopySessionMismatchError';
+  }
+}
+
 interface ConversationRow extends Omit<Conversation, 'created_at'> {
   created_at: Date | string;
 }
@@ -93,23 +100,63 @@ async function toConversationMessage(row: ConversationMessageRow): Promise<Conve
 export async function createConversation(
   sessionId: string,
   providerId: ProviderId = 'primary',
+  copyFromConversationId?: string,
 ): Promise<Conversation> {
   const settings = resolveProviderSettings(providerId);
+  const client = await dbPool.connect();
   try {
-  const result = await dbPool.query<ConversationRow>(
+  await client.query('BEGIN');
+  if (copyFromConversationId) {
+    const source = await client.query<{ session_id: string }>(
+      `SELECT session_id FROM conversations WHERE id = $1 FOR SHARE`,
+      [copyFromConversationId],
+    );
+    if (source.rows[0]?.session_id !== sessionId) {
+      throw new ConversationCopySessionMismatchError();
+    }
+  }
+  const result = await client.query<ConversationRow>(
     `INSERT INTO conversations (session_id, retention_mode, provider_id, model_id)
     VALUES ($1, $2, $3, $4)
     RETURNING id, session_id, created_at, retention_mode, provider_id, model_id`,
     [sessionId, config.RETENTION, providerId, settings.LLM_MODEL],
   );
 
+  if (copyFromConversationId) {
+    await client.query(
+      `INSERT INTO conversation_messages (
+        conversation_id, seq, role, content,
+        content_ciphertext, content_nonce, content_auth_tag,
+        tool_call_id, tool_calls,
+        tool_calls_ciphertext, tool_calls_nonce, tool_calls_auth_tag,
+        has_tool_calls, pinned, scan_source, created_at
+      )
+      SELECT $1, source.seq, source.role, source.content,
+        source.content_ciphertext, source.content_nonce, source.content_auth_tag,
+        source.tool_call_id, source.tool_calls,
+        source.tool_calls_ciphertext, source.tool_calls_nonce, source.tool_calls_auth_tag,
+        source.has_tool_calls, source.pinned, source.scan_source, source.created_at
+      FROM conversation_messages AS source
+      WHERE source.conversation_id = $2
+        AND source.pinned = TRUE
+        AND source.role = 'user'
+      ORDER BY source.seq`,
+      [result.rows[0].id, copyFromConversationId],
+    );
+  }
+
+  await client.query('COMMIT');
+
   return toConversation(result.rows[0]);
   } catch (error) {
+    await client.query('ROLLBACK');
     if (error && typeof error === 'object' && 'constraint' in error
       && error.constraint === 'session_retention_rule_matches') {
       throw new SessionRetentionConflictError();
     }
     throw error;
+  } finally {
+    client.release();
   }
 }
 

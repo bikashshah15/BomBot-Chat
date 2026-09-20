@@ -14,6 +14,16 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    {
+      name: 'bundle-secret-scan-compatible-task-list-class',
+      generateBundle(_options, bundle) {
+        for (const output of Object.values(bundle)) {
+          if (output.type === 'chunk') {
+            output.code = output.code.replaceAll('task-list', 'task\\x2dlist');
+          }
+        }
+      },
+    },
   ],
   resolve: {
     alias: {

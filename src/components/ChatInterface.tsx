@@ -12,15 +12,23 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatScanCoverageLines } from '@/lib/scanCoverage';
+import {
+  modelProviderToggleView,
+  refusalMessage,
+  type ModelProviderStatus,
+} from '@/lib/modelProviderToggle';
 import { Shield, Send, Paperclip, Plus, MessageSquare } from 'lucide-react';
 
 const ChatInterface = () => {
-  const { messages, isLoading, addMessage, clearChat, currentConversationId, sessionId, messageIndex, setLoading, beginResponse, markActivity, setCurrentConversationId, addUploadedFile, logChatMessage, userEmail, setUserEmail } = useChat();
+  const { messages, isLoading, addMessage, clearChat, currentConversationId, sessionId, messageIndex, setLoading, beginResponse, markActivity, setCurrentConversationId, addUploadedFile, isolateForProviderSwitch, logChatMessage, userEmail, setUserEmail } = useChat();
   const [inputText, setInputText] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { startStream } = useAssistantStream();
+  const [providerStatus, setProviderStatus] = useState<ModelProviderStatus | null>(null);
+  const [activeProviderId, setActiveProviderId] = useState('primary');
+  const providerView = providerStatus ? modelProviderToggleView(providerStatus) : null;
 
   // Check if Email dialog should be shown
   const shouldShowEmailDialog = !userEmail;
@@ -28,6 +36,45 @@ const ChatInterface = () => {
   // Handle Email submission
   const handleEmailSubmit = (email: string) => {
     setUserEmail(email);
+  };
+
+  useEffect(() => {
+    const search = new URLSearchParams({ sessionId });
+    if (currentConversationId) search.set('conversationId', currentConversationId);
+    fetch(`/api/model-providers?${search.toString()}`)
+      .then(response => response.ok ? response.json() : Promise.reject(new Error('Provider status unavailable')))
+      .then((status: ModelProviderStatus & { providers: Array<{ id: string; label: string; available: boolean }> }) => {
+        setProviderStatus(status);
+        if (currentConversationId) {
+          const active = status.providers.find(provider => provider.label === status.activeProviderLabel);
+          if (active) setActiveProviderId(active.id);
+        }
+      })
+      .catch(error => safeLog('error', safeValue('Provider status error:'), safeValue(errorClass(error))));
+  }, [currentConversationId, sessionId]);
+
+  const switchProvider = async (providerId: string) => {
+    if (providerId === activeProviderId || isLoading) return;
+    const response = await fetch('/api/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId,
+        providerId,
+        ...(currentConversationId ? { copyFromConversationId: currentConversationId } : {}),
+      }),
+    });
+    const result = await response.json().catch(() => ({})) as { conversationId?: string; error?: string };
+    if (!response.ok || !result.conversationId) {
+      addMessage({ type: 'assistant', content: result.error || 'Unable to switch models.' });
+      return;
+    }
+    const selected = providerStatus?.providers.find(provider => provider.id === providerId);
+    setActiveProviderId(providerId);
+    if (selected && providerStatus) {
+      setProviderStatus({ ...providerStatus, activeProviderLabel: selected.label });
+    }
+    isolateForProviderSwitch(result.conversationId);
   };
 
   // Auto-scroll to bottom on new messages
@@ -289,7 +336,8 @@ const ChatInterface = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message to assistant');
+        const error = await response.json().catch(() => ({})) as { code?: string; error?: string };
+        throw new Error(refusalMessage(error.code, error.error || 'Failed to send message to assistant'));
       }
 
       const result = await response.json();
@@ -334,11 +382,8 @@ const ChatInterface = () => {
       }
     } catch (error) {
       safeLog('error', safeValue("Error sending to assistant:"), safeValue(errorClass(error)));
-      addMessage({
-        type: 'assistant',
-        content: '⚠️ Sorry, I encountered an issue processing your message. Please try again.',
-        useMarkdown: true,
-      });
+      addMessage({ type: 'assistant', content: error instanceof Error
+        ? error.message : 'There was an issue processing your message.', useMarkdown: true });
       setLoading(false); // Only turn off loading on error
     }
     
@@ -423,6 +468,27 @@ const ChatInterface = () => {
               <p className="text-sm text-gray-500">Your SBOM security expert</p>
             </div>
           </div>
+          {providerView && (
+            <div className="flex items-center gap-3" aria-label="Model provider">
+              <div className="flex rounded-md border" role="group" aria-label="Choose model provider">
+                {providerView.options.map(option => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    disabled={option.disabled || isLoading}
+                    onClick={() => void switchProvider(option.id)}
+                    className={`px-3 py-1 text-sm first:rounded-l-md last:rounded-r-md ${activeProviderId === option.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'} disabled:bg-gray-100 disabled:text-gray-400`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {providerView.options.find(option => option.note)?.note && (
+                <span className="text-xs text-gray-500">OpenAI unavailable</span>
+              )}
+              <span className="text-sm text-gray-600">Current model: {providerView.currentLabel}</span>
+            </div>
+          )}
           
           {/* New Chat Button */}
           {messages.length > 0 && (
@@ -528,7 +594,7 @@ const ChatInterface = () => {
 
       {/* File Upload Overlay */}
       {isDragOver && <FileUploadOverlay />}
-      
+
       {/* Email Collection Dialog */}
       <EmailCollectionDialog 
         isOpen={shouldShowEmailDialog}
