@@ -13,6 +13,8 @@
     "build:ui": "vite build",
     "build:dev": "vite build --mode development",
     "start": "next start",
+    "start:local": "node --env-file=config/profiles/local.env ./node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000",
+    "start:openai": "node --env-file=config/profiles/openai.env ./node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000",
     "preview": "vite preview",
     "test": "node --test",
     "type-check": "tsc --noEmit",

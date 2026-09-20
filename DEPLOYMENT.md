@@ -145,6 +145,14 @@ npm start
 # Visit http://localhost:3000
 ```
 
+### Local and OpenAI profiles
+
+After building, run the production server with the local Ollama profile using
+`npm run start:local`, or with the hosted OpenAI profile using
+`npm run start:openai`. The non-secret overlays live in `config/profiles/`.
+Keep `LLM_API_KEY` only in the git-ignored `.env` file; never add credentials to
+the profile files.
+
 ## Build Output Analysis
 
 **UI Build (Vite):**
