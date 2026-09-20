@@ -20,13 +20,16 @@ function responseRecorder() {
   };
 }
 
-test('model provider status exposes no URL or key material', () => {
+test('model provider status exposes counters and labels but no URL or key material', async () => {
   const response = responseRecorder();
-  handler({ method: 'GET' }, response);
+  await handler({ method: 'GET', query: {} }, response);
 
   assert.equal(response.statusCode, 200);
   assert.equal(typeof response.jsonBody.toggleEnabled, 'boolean');
   assert.deepEqual(response.jsonBody.providers.map(provider => provider.id), ['primary', 'alternate']);
+  assert.equal(Number.isInteger(response.jsonBody.hostedRequestsThisSession), true);
+  assert.equal(Number.isInteger(response.jsonBody.rateLimitRejections), true);
+  assert.equal(typeof response.jsonBody.activeProviderLabel, 'string');
   const serialized = JSON.stringify(response.jsonBody);
   assert.doesNotMatch(serialized, /sk-/i);
   assert.doesNotMatch(serialized, /http/i);

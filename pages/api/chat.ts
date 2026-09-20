@@ -3,13 +3,18 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { insertLog } from '../../lib/db/chatLogs.ts';
 import {
   ConversationSequenceConflictError,
+  getConversationMessages,
   getConversationProviderId,
   getConversationSessionId,
 } from '../../lib/db/conversations.ts';
 import { appendConversationMessages } from '../../lib/llm/conversationHistory.ts';
-import { config } from '../../lib/config.ts';
+import { config as appConfig } from '../../lib/config.ts';
 import { resolveProviderSettings } from '../../lib/llm/providerRegistry.ts';
 import { formatOpenAIError } from '../../lib/openai-responses.ts';
+import {
+  checkHostedRequest,
+  sendHostedGuardFailure,
+} from '../../lib/security/hostedGuards.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ChatRequest {
@@ -27,6 +32,8 @@ interface ChatHandlerDependencies {
   appendConversationMessages: typeof appendConversationMessages;
   getConversationProviderId: typeof getConversationProviderId;
   resolveProviderSettings: typeof resolveProviderSettings;
+  getConversationMessages: typeof getConversationMessages;
+  checkHostedRequest: typeof checkHostedRequest;
   enableModelToggle: boolean;
 }
 
@@ -37,7 +44,9 @@ export function createChatHandler(overrides: Partial<ChatHandlerDependencies> = 
     appendConversationMessages,
     getConversationProviderId,
     resolveProviderSettings,
-    enableModelToggle: config.ENABLE_MODEL_TOGGLE,
+    getConversationMessages,
+    checkHostedRequest,
+    enableModelToggle: appConfig.ENABLE_MODEL_TOGGLE,
     ...overrides,
   };
 
@@ -53,6 +62,13 @@ export function createChatHandler(overrides: Partial<ChatHandlerDependencies> = 
 
   const { message, conversationId: requestedConversationId, threadId, sessionId, messageIndex, userEmail }: ChatRequest = req.body;
   const conversationId = requestedConversationId || threadId;
+
+  if (typeof message === 'string' && message.length > appConfig.MAX_USER_MESSAGE_CHARACTERS) {
+    return res.status(413).json({
+      code: 'message_too_long',
+      error: 'The message is too long.',
+    });
+  }
 
   if (!message || !conversationId || !sessionId || messageIndex === undefined) {
     return res.status(400).json({ 
@@ -73,7 +89,15 @@ export function createChatHandler(overrides: Partial<ChatHandlerDependencies> = 
     if (!dependencies.enableModelToggle && providerId !== 'primary') {
       return res.status(403).json({ error: 'Model provider selection is disabled' });
     }
-    dependencies.resolveProviderSettings(providerId);
+    const settings = dependencies.resolveProviderSettings(providerId);
+    if (settings.PROFILE === 'hosted') {
+      const messages = await dependencies.getConversationMessages(
+        conversationId,
+        2_147_483_647,
+      );
+      const failure = dependencies.checkHostedRequest(req, messages);
+      if (failure) return sendHostedGuardFailure(res, failure);
+    }
 
     // Log user message to the application-owned datastore.
     try {
@@ -126,3 +150,5 @@ export function createChatHandler(overrides: Partial<ChatHandlerDependencies> = 
 }
 
 export default createChatHandler();
+
+export const config = { api: { bodyParser: { sizeLimit: '32kb' } } };

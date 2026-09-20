@@ -5,6 +5,7 @@ import { config } from '../../lib/config.ts';
 import { updateAiResponse } from '../../lib/db/chatLogs.ts';
 import {
   ConversationSequenceConflictError,
+  getConversationMessages,
   getConversationProviderId,
   getConversationSessionId,
 } from '../../lib/db/conversations.ts';
@@ -26,6 +27,10 @@ import {
   getToolContinuationIdempotencyKey,
   MAX_FUNCTION_CALL_ROUNDS,
 } from '../../lib/openai-responses.ts';
+import {
+  acquireHostedStream,
+  sendHostedGuardFailure,
+} from '../../lib/security/hostedGuards.ts';
 
 export type AssistantStreamEvent = 'delta' | 'tool_start' | 'tool_end' | 'done' | 'error';
 
@@ -309,6 +314,8 @@ interface StreamHandlerDependencies {
   getConversationSessionId: typeof getConversationSessionId;
   getConversationProviderId: typeof getConversationProviderId;
   resolveProviderSettings: typeof resolveProviderSettings;
+  getConversationMessages: typeof getConversationMessages;
+  acquireHostedStream: typeof acquireHostedStream;
   enableModelToggle: boolean;
   runTurn: typeof runAssistantTurn;
   setInterval: typeof setInterval;
@@ -319,6 +326,8 @@ const defaultHandlerDependencies: StreamHandlerDependencies = {
   getConversationSessionId,
   getConversationProviderId,
   resolveProviderSettings,
+  getConversationMessages,
+  acquireHostedStream,
   enableModelToggle: config.ENABLE_MODEL_TOGGLE,
   runTurn: runAssistantTurn,
   setInterval,
@@ -354,6 +363,7 @@ export function createStreamHandler(
 
     let provider: ProviderId;
     let settings: LlmGatewayConfig;
+    let releaseHostedStream = () => {};
     try {
       // This session UUID is a bearer capability, not authentication. It limits practical
       // conversation enumeration but does not protect a capability obtained by another party.
@@ -367,6 +377,15 @@ export function createStreamHandler(
       }
       provider = storedProvider as ProviderId;
       settings = dependencies.resolveProviderSettings(storedProvider);
+      if (settings.PROFILE === 'hosted') {
+        const messages = await dependencies.getConversationMessages(
+          conversationId,
+          2_147_483_647,
+        );
+        const acquisition = dependencies.acquireHostedStream(req, sessionId, messages);
+        if (acquisition.failure) return sendHostedGuardFailure(res, acquisition.failure);
+        releaseHostedStream = acquisition.release;
+      }
     } catch (error) {
       safeLog('error', safeValue("Stream binding check error:"), safeValue(errorClass(error)));
       return res.status(500).json({ error: 'Failed to validate conversation session' });
@@ -397,6 +416,7 @@ export function createStreamHandler(
       });
     } finally {
       dependencies.clearInterval(heartbeat);
+      releaseHostedStream();
       res.end();
     }
   };

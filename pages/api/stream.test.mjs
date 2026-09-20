@@ -120,6 +120,9 @@ test('a simulated 60-second generation receives four 15-second heartbeats and co
     async getConversationProviderId() {
       return 'primary';
     },
+    resolveProviderSettings() {
+      return { PROFILE: 'local' };
+    },
     async runTurn(_options, emit) {
       emit('delta', { delta: 'buffered response' });
       emit('done', { response: 'buffered response', status: 'completed' });
@@ -305,6 +308,9 @@ test('a sequence conflict after SSE headers is emitted as an error event', async
     },
     async getConversationProviderId() {
       return 'primary';
+    },
+    resolveProviderSettings() {
+      return { PROFILE: 'local' };
     },
     async runTurn() {
       throw new ConversationSequenceConflictError('conversation_synthetic', 2);
