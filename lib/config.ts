@@ -110,11 +110,17 @@ const environmentSchema = z.object({
   PARTICIPANT_ID_SALT: z.string().trim().min(32).optional(),
   MAX_HISTORY_MESSAGES: numericEnvironmentVariable(z.number().finite().int().positive().default(20)),
   ENABLE_MODEL_TOOL_CALLS: booleanEnvironmentVariable(z.boolean().default(false)),
+  ENABLE_MODEL_TOGGLE: booleanEnvironmentVariable(z.boolean().default(false)),
   LLM_TEMPERATURE: numericEnvironmentVariable(z.number().finite().min(0).max(2)),
   LLM_TOP_P: numericEnvironmentVariable(z.number().finite().min(0).max(1)),
   LLM_MAX_OUTPUT_TOKENS: numericEnvironmentVariable(z.number().finite().int().positive()),
   LLM_REASONING_EFFORT: z.enum(['none', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
   LLM_SEED: nullableNumber,
+  ALT_PROFILE: z.enum(['hosted', 'local']).optional(),
+  ALT_LLM_BASE_URL: z.string().trim().url().optional(),
+  ALT_LLM_MODEL: z.string().trim().min(1).optional(),
+  ALT_LLM_API_KEY: z.string().trim().min(1).optional(),
+  ALT_LLM_REASONING_EFFORT: z.enum(['none', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
 }).superRefine((value, context) => {
   if (value.PROFILE === 'hosted' && !value.LLM_API_KEY) {
     context.addIssue({
@@ -130,6 +136,35 @@ const environmentSchema = z.object({
       path: ['LLM_BASE_URL'],
       message: 'must point to a local inference server when PROFILE=local',
     });
+  }
+
+  if (value.ENABLE_MODEL_TOGGLE) {
+    for (const key of ['ALT_PROFILE', 'ALT_LLM_BASE_URL', 'ALT_LLM_MODEL'] as const) {
+      if (!value[key]) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `is required when ENABLE_MODEL_TOGGLE=true`,
+        });
+      }
+    }
+
+    if (value.ALT_PROFILE === 'hosted' && !value.ALT_LLM_API_KEY) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ALT_LLM_API_KEY'],
+        message: 'is required when ENABLE_MODEL_TOGGLE=true and ALT_PROFILE=hosted',
+      });
+    }
+
+    if (value.ALT_PROFILE === 'local' && value.ALT_LLM_BASE_URL
+      && !isLocalInferenceUrl(value.ALT_LLM_BASE_URL)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ALT_LLM_BASE_URL'],
+        message: 'must point to a local inference server when ALT_PROFILE=local',
+      });
+    }
   }
 
   if (value.OSV_MODE === 'offline' && value.OSV_BASE_URL) {

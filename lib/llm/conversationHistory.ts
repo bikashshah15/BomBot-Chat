@@ -5,6 +5,7 @@ import {
 } from '../db/conversations.ts';
 import type { ConversationMessage } from '../db/types.ts';
 import { createLlmGateway } from './gateway.ts';
+import type { LlmGatewayConfig } from './gateway.ts';
 import type {
   LlmChunk,
   LlmContinuation,
@@ -63,6 +64,7 @@ export async function completeConversationMessages(options: {
   messages: LlmMessage[];
   tools?: LlmToolDef[];
   continuation?: LlmContinuation;
+  settings?: LlmGatewayConfig;
 }): Promise<LlmResult> {
   const history = await loadConversationHistory(options.conversationId);
   const nextSeq = await appendMessages(
@@ -71,7 +73,7 @@ export async function completeConversationMessages(options: {
     history.nextSeq,
   );
 
-  const gateway = createLlmGateway();
+  const gateway = createLlmGateway({ settings: options.settings });
   const response = await gateway.complete({
     messages: [
       { role: 'system', content: options.instructions },
@@ -117,6 +119,7 @@ export async function streamConversationMessages(options: {
   continuation?: LlmContinuation;
   onChunk?: (chunk: LlmChunk) => void | Promise<void>;
   onTiming?: (mark: 'model_request_start' | 'model_stream_end') => void;
+  settings?: LlmGatewayConfig;
 }): Promise<LlmResult> {
   const history = await loadConversationHistory(options.conversationId);
   const nextSeq = await appendMessages(
@@ -124,7 +127,7 @@ export async function streamConversationMessages(options: {
     options.messages,
     history.nextSeq,
   );
-  const gateway = createLlmGateway();
+  const gateway = createLlmGateway({ settings: options.settings });
   let streamedContent = '';
   const streamedToolCalls = [] as LlmResult['toolCalls'];
   let response: LlmResult | undefined;

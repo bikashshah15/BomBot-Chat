@@ -266,6 +266,10 @@ $$;
 ALTER TABLE conversations
     ALTER COLUMN retention_mode SET DEFAULT 'study';
 
+ALTER TABLE conversations
+    ADD COLUMN IF NOT EXISTS provider_id TEXT,
+    ADD COLUMN IF NOT EXISTS model_id TEXT;
+
 -- Preserve legacy rows whose recorded mode is outside the current vocabulary,
 -- while rejecting values outside that vocabulary on every future insert or update. PostgreSQL
 -- has no ADD CONSTRAINT IF NOT EXISTS for CHECK constraints, so resolve the

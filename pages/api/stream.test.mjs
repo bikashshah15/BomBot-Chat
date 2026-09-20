@@ -71,12 +71,54 @@ test('stream rejects a cross-session capability before sending SSE headers', asy
   assert.equal(response.headers.has('Content-Type'), false);
 });
 
+test('stream rejects a request-body provider field', async () => {
+  const handler = createStreamHandler();
+  const response = responseRecorder();
+
+  await handler({ ...streamRequest(), body: { provider: 'alternate' } }, response);
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.headers.has('Content-Type'), false);
+});
+
+test('toggle-off stream constructs no alternate provider or gateway', async () => {
+  let resolverCalls = 0;
+  let runTurnCalls = 0;
+  const handler = createStreamHandler({
+    async getConversationSessionId() {
+      return 'session_synthetic';
+    },
+    async getConversationProviderId() {
+      return 'alternate';
+    },
+    resolveProviderSettings() {
+      resolverCalls += 1;
+      throw new Error('alternate resolver must not run');
+    },
+    enableModelToggle: false,
+    async runTurn() {
+      runTurnCalls += 1;
+    },
+  });
+  const response = responseRecorder();
+
+  await handler(streamRequest(), response);
+
+  assert.equal(response.statusCode, 403);
+  assert.equal(resolverCalls, 0);
+  assert.equal(runTurnCalls, 0);
+  assert.equal(response.headers.has('Content-Type'), false);
+});
+
 test('a simulated 60-second generation receives four 15-second heartbeats and completes', async () => {
   let heartbeatInterval;
   let intervalCleared = false;
   const handler = createStreamHandler({
     async getConversationSessionId() {
       return 'session_synthetic';
+    },
+    async getConversationProviderId() {
+      return 'primary';
     },
     async runTurn(_options, emit) {
       emit('delta', { delta: 'buffered response' });
@@ -261,6 +303,9 @@ test('a sequence conflict after SSE headers is emitted as an error event', async
     async getConversationSessionId() {
       return 'session_synthetic';
     },
+    async getConversationProviderId() {
+      return 'primary';
+    },
     async runTurn() {
       throw new ConversationSequenceConflictError('conversation_synthetic', 2);
     },
@@ -394,6 +439,7 @@ test('tools-off turn emits one content-free timing line with deterministic phase
   assert.deepEqual(JSON.parse(timingLines[0]), {
     event: 'timing_v1',
     kind: 'chat_turn',
+    provider: 'primary',
     tools_enabled: false,
     outcome: 'completed',
     history_load_ms: 1,

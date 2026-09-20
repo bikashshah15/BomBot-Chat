@@ -56,6 +56,8 @@ export interface Conversation {
   session_id: string;
   created_at: string;
   retention_mode: string;
+  provider_id: string | null;
+  model_id: string | null;
 }
 
 export interface ConversationMessage {

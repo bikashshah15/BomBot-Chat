@@ -3,9 +3,12 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { insertLog } from '../../lib/db/chatLogs.ts';
 import {
   ConversationSequenceConflictError,
+  getConversationProviderId,
   getConversationSessionId,
 } from '../../lib/db/conversations.ts';
 import { appendConversationMessages } from '../../lib/llm/conversationHistory.ts';
+import { config } from '../../lib/config.ts';
+import { resolveProviderSettings } from '../../lib/llm/providerRegistry.ts';
 import { formatOpenAIError } from '../../lib/openai-responses.ts';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -18,9 +21,34 @@ interface ChatRequest {
   userEmail?: string;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+interface ChatHandlerDependencies {
+  insertLog: typeof insertLog;
+  getConversationSessionId: typeof getConversationSessionId;
+  appendConversationMessages: typeof appendConversationMessages;
+  getConversationProviderId: typeof getConversationProviderId;
+  resolveProviderSettings: typeof resolveProviderSettings;
+  enableModelToggle: boolean;
+}
+
+export function createChatHandler(overrides: Partial<ChatHandlerDependencies> = {}) {
+  const dependencies: ChatHandlerDependencies = {
+    insertLog,
+    getConversationSessionId,
+    appendConversationMessages,
+    getConversationProviderId,
+    resolveProviderSettings,
+    enableModelToggle: config.ENABLE_MODEL_TOGGLE,
+    ...overrides,
+  };
+
+  return async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  if (req.body && (Object.prototype.hasOwnProperty.call(req.body, 'provider')
+    || Object.prototype.hasOwnProperty.call(req.body, 'providerId'))) {
+    return res.status(400).json({ error: 'Provider may only be selected when creating a conversation' });
   }
 
   const { message, conversationId: requestedConversationId, threadId, sessionId, messageIndex, userEmail }: ChatRequest = req.body;
@@ -35,14 +63,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // This session UUID is a bearer capability, not authentication. It limits practical
     // conversation enumeration but does not protect a capability obtained by another party.
-    if (await getConversationSessionId(conversationId) !== sessionId) {
+    if (await dependencies.getConversationSessionId(conversationId) !== sessionId) {
       return res.status(403).json({ error: 'Conversation does not belong to this session' });
     }
+
+
+    const providerId = await dependencies.getConversationProviderId(conversationId);
+    if (!providerId) return res.status(404).json({ error: 'Conversation not found' });
+    if (!dependencies.enableModelToggle && providerId !== 'primary') {
+      return res.status(403).json({ error: 'Model provider selection is disabled' });
+    }
+    dependencies.resolveProviderSettings(providerId);
 
     // Log user message to the application-owned datastore.
     try {
       const now = new Date().toISOString();
-      await insertLog({
+      await dependencies.insertLog({
         id: uuidv4(),
         session_id: sessionId,
         conversation_id: conversationId,
@@ -62,7 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Continue with the chat even if logging fails
     }
 
-    await appendConversationMessages({
+    await dependencies.appendConversationMessages({
       conversationId,
       messages: [{ role: 'user', content: message }],
     });
@@ -86,4 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       details: formatOpenAIError(error)
     });
   }
+  };
 }
+
+export default createChatHandler();

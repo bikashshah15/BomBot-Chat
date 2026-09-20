@@ -26,6 +26,11 @@ import { matchOsvPackages } from '../../lib/osv/match.ts';
 import type { OsvEcosystem } from '../../lib/osv/ecosystems.ts';
 import type { OsvQueryClient } from '../../lib/osv/db.ts';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  isProviderId,
+  resolveProviderSettings,
+  type ProviderId,
+} from '../../lib/llm/providerRegistry.ts';
 
 export const config = {
   api: {
@@ -402,6 +407,9 @@ interface UploadHandlerDependencies {
   insertLog: typeof insertLog;
   wait: (milliseconds: number) => Promise<void>;
   now?: () => number;
+  enableModelToggle: boolean;
+  isProviderId: typeof isProviderId;
+  resolveProviderSettings: typeof resolveProviderSettings;
 }
 
 async function parseUploadForm(req: NextApiRequest, uploadDir: string) {
@@ -434,6 +442,9 @@ export function createUploadHandler(
     insertLog,
     wait: milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
     now: () => performance.now(),
+    enableModelToggle: environmentConfig.ENABLE_MODEL_TOGGLE,
+    isProviderId,
+    resolveProviderSettings,
     ...overrides,
   };
 
@@ -473,6 +484,19 @@ export function createUploadHandler(
     const userEmail = Array.isArray(fields.userEmail) ? fields.userEmail[0] : fields.userEmail;
     const conversationField = fields.conversationId || fields.threadId;
     const existingConversationId = Array.isArray(conversationField) ? conversationField[0] : conversationField;
+    const providerField = Array.isArray(fields.providerId) ? fields.providerId[0] : fields.providerId;
+
+    if (providerField !== undefined && !handlerDependencies.isProviderId(providerField)) {
+      return res.status(400).json({ error: 'Unknown model provider' });
+    }
+    const providerId: ProviderId = providerField ?? 'primary';
+    if (existingConversationId && providerField !== undefined) {
+      return res.status(400).json({ error: 'Provider may only be selected when creating a conversation' });
+    }
+    if (!handlerDependencies.enableModelToggle && providerId !== 'primary') {
+      return res.status(403).json({ error: 'Model provider selection is disabled' });
+    }
+    handlerDependencies.resolveProviderSettings(providerId);
 
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId is required' });
@@ -642,7 +666,7 @@ ${existingConversationId ?
     let conversationId: string;
     try {
       conversationId = existingConversationId
-        ?? (await handlerDependencies.createConversation(sessionId)).id;
+        ?? (await handlerDependencies.createConversation(sessionId, providerId)).id;
       await withCapturedScanSource({ ...scanSource, scanned_package_count: softwareContext.scanned_package_count,
         scan_truncated: softwareContext.scan_truncated, skip_counts: skipCounts }, async () =>
         handlerDependencies.appendConversationMessages({

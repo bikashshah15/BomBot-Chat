@@ -9,6 +9,10 @@ import type {
   ConversationMessage,
   NewConversationMessage,
 } from './types.ts';
+import {
+  resolveProviderSettings,
+  type ProviderId,
+} from '../llm/providerRegistry.ts';
 
 export class ConversationSequenceConflictError extends Error {
   readonly conversationId: string;
@@ -86,13 +90,17 @@ async function toConversationMessage(row: ConversationMessageRow): Promise<Conve
   };
 }
 
-export async function createConversation(sessionId: string): Promise<Conversation> {
+export async function createConversation(
+  sessionId: string,
+  providerId: ProviderId = 'primary',
+): Promise<Conversation> {
+  const settings = resolveProviderSettings(providerId);
   try {
   const result = await dbPool.query<ConversationRow>(
-    `INSERT INTO conversations (session_id, retention_mode)
-    VALUES ($1, $2)
-    RETURNING id, session_id, created_at, retention_mode`,
-    [sessionId, config.RETENTION],
+    `INSERT INTO conversations (session_id, retention_mode, provider_id, model_id)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, session_id, created_at, retention_mode, provider_id, model_id`,
+    [sessionId, config.RETENTION, providerId, settings.LLM_MODEL],
   );
 
   return toConversation(result.rows[0]);
@@ -235,4 +243,17 @@ export async function getConversationSessionId(conversationId: string): Promise<
   );
 
   return result.rows[0]?.session_id ?? null;
+}
+
+export async function getConversationProviderId(conversationId: string): Promise<ProviderId | null> {
+  const result = await dbPool.query<{ provider_id: string | null }>(
+    `SELECT provider_id
+    FROM conversations
+    WHERE id = $1`,
+    [conversationId],
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+  return row.provider_id === null ? 'primary' : row.provider_id as ProviderId;
 }

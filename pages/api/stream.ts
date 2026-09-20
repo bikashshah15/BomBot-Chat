@@ -5,6 +5,7 @@ import { config } from '../../lib/config.ts';
 import { updateAiResponse } from '../../lib/db/chatLogs.ts';
 import {
   ConversationSequenceConflictError,
+  getConversationProviderId,
   getConversationSessionId,
 } from '../../lib/db/conversations.ts';
 import {
@@ -12,6 +13,11 @@ import {
   streamConversationMessages,
 } from '../../lib/llm/conversationHistory.ts';
 import type { LlmMessage, LlmResult, LlmToolCall } from '../../lib/llm/types.ts';
+import type { LlmGatewayConfig } from '../../lib/llm/gateway.ts';
+import {
+  resolveProviderSettings,
+  type ProviderId,
+} from '../../lib/llm/providerRegistry.ts';
 import {
   BOMBOT_INSTRUCTIONS,
   BOMBOT_LLM_TOOLS,
@@ -107,6 +113,8 @@ export async function runAssistantTurn(
     conversationId: string;
     sessionId: string;
     messageIndex?: string;
+    provider?: ProviderId;
+    settings?: LlmGatewayConfig;
   },
   emit: EmitEvent,
   dependencies: AssistantTurnDependencies = defaultTurnDependencies,
@@ -160,6 +168,7 @@ export async function runAssistantTurn(
         conversationId: options.conversationId,
         instructions: BOMBOT_INSTRUCTIONS,
         messages,
+        ...(options.settings ? { settings: options.settings } : {}),
         ...(dependencies.enableModelToolCalls ? { tools: BOMBOT_LLM_TOOLS } : {}),
         ...(continuation ? { continuation } : {}),
         onChunk(chunk) {
@@ -284,6 +293,7 @@ export async function runAssistantTurn(
   } finally {
     logTiming({
       kind: 'chat_turn',
+      provider: options.provider ?? 'primary',
       tools_enabled: Boolean(dependencies.enableModelToolCalls),
       outcome,
       history_load_ms: historyLoadMs,
@@ -297,6 +307,9 @@ export async function runAssistantTurn(
 
 interface StreamHandlerDependencies {
   getConversationSessionId: typeof getConversationSessionId;
+  getConversationProviderId: typeof getConversationProviderId;
+  resolveProviderSettings: typeof resolveProviderSettings;
+  enableModelToggle: boolean;
   runTurn: typeof runAssistantTurn;
   setInterval: typeof setInterval;
   clearInterval: typeof clearInterval;
@@ -304,6 +317,9 @@ interface StreamHandlerDependencies {
 
 const defaultHandlerDependencies: StreamHandlerDependencies = {
   getConversationSessionId,
+  getConversationProviderId,
+  resolveProviderSettings,
+  enableModelToggle: config.ENABLE_MODEL_TOGGLE,
   runTurn: runAssistantTurn,
   setInterval,
   clearInterval,
@@ -319,6 +335,14 @@ export function createStreamHandler(
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
+
+    if ((req.body && (Object.prototype.hasOwnProperty.call(req.body, 'provider')
+      || Object.prototype.hasOwnProperty.call(req.body, 'providerId')))
+      || Object.prototype.hasOwnProperty.call(req.query, 'provider')
+      || Object.prototype.hasOwnProperty.call(req.query, 'providerId')) {
+      return res.status(400).json({ error: 'Provider may only be selected when creating a conversation' });
+    }
+
     const { conversationId, sessionId, messageIndex } = req.query as {
       conversationId?: string;
       sessionId?: string;
@@ -328,12 +352,21 @@ export function createStreamHandler(
       return res.status(400).json({ error: 'conversationId and sessionId are required' });
     }
 
+    let provider: ProviderId;
+    let settings: LlmGatewayConfig;
     try {
       // This session UUID is a bearer capability, not authentication. It limits practical
       // conversation enumeration but does not protect a capability obtained by another party.
       if (await dependencies.getConversationSessionId(conversationId) !== sessionId) {
         return res.status(403).json({ error: 'Conversation does not belong to this session' });
       }
+      const storedProvider = await dependencies.getConversationProviderId(conversationId);
+      if (!storedProvider) return res.status(404).json({ error: 'Conversation not found' });
+      if (!dependencies.enableModelToggle && storedProvider !== 'primary') {
+        return res.status(403).json({ error: 'Model provider selection is disabled' });
+      }
+      provider = storedProvider as ProviderId;
+      settings = dependencies.resolveProviderSettings(storedProvider);
     } catch (error) {
       safeLog('error', safeValue("Stream binding check error:"), safeValue(errorClass(error)));
       return res.status(500).json({ error: 'Failed to validate conversation session' });
@@ -352,7 +385,7 @@ export function createStreamHandler(
     }, 15_000);
 
     try {
-      await dependencies.runTurn({ conversationId, sessionId, messageIndex }, emit);
+      await dependencies.runTurn({ conversationId, sessionId, messageIndex, provider, settings }, emit);
     } catch (error) {
       const sequenceConflict = error instanceof ConversationSequenceConflictError;
       if (!sequenceConflict) safeLog('error', safeValue("Assistant stream error:"), safeValue(errorClass(error)));

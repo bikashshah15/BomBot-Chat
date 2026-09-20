@@ -92,10 +92,13 @@ export function formatTimingRecord(value: unknown): string {
 
     if (kind === 'chat_turn') {
       const allowed = [
-        'kind', 'tools_enabled', 'outcome', 'history_load_ms', 'rounds', 'tools',
+        'kind', 'provider', 'tools_enabled', 'outcome', 'history_load_ms', 'rounds', 'tools',
         'persist_ms', 'total_ms',
       ];
       if (!hasOnlyKeys(value, allowed)) markInvalid();
+
+      const provider = enumValue(value.provider, ['primary', 'alternate'] as const, markInvalid);
+      if (provider) output.provider = provider;
 
       const toolsEnabled = booleanValue(value.tools_enabled, markInvalid);
       if (toolsEnabled !== undefined) output.tools_enabled = toolsEnabled;
