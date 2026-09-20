@@ -273,12 +273,19 @@ export function parseSBOMData(sbomContent: string, fileName: string): { packages
 }
 
 // Helper function to extract simple severity from OSV data
-function extractSeverity(vuln: any) {
-  // Try to find CVSS severity first
-  if (vuln.severity && vuln.severity.length > 0) {
+export function extractSeverity(vuln: any) {
+  const databaseSeverity = vuln.database_specific?.severity;
+  if (typeof databaseSeverity === 'string' && databaseSeverity.trim().length > 0) {
+    return databaseSeverity.trim().toUpperCase();
+  }
+
+  if (Array.isArray(vuln.severity)) {
     for (const sev of vuln.severity) {
-      if (sev.type === 'CVSS_V3') {
-        const score = parseFloat(sev.score?.split('/')[0] || '0');
+      if (sev.type === 'CVSS_V3' || sev.type === 'CVSS_V4') {
+        const rawScore = typeof sev.score === 'string' ? sev.score.trim() : '';
+        if (!/^(?:10(?:\.0+)?|[0-9](?:\.\d+)?)$/.test(rawScore)) continue;
+
+        const score = Number(rawScore);
         if (score >= 9.0) return 'CRITICAL';
         if (score >= 7.0) return 'HIGH';
         if (score >= 4.0) return 'MEDIUM';
@@ -286,20 +293,8 @@ function extractSeverity(vuln: any) {
       }
     }
   }
-  
-  // Try database_specific for GHSA severity
-  if (vuln.database_specific?.severity) {
-    return vuln.database_specific.severity.toUpperCase();
-  }
-  
-  // Fallback to parsing from summary or other fields
-  const content = (vuln.summary || vuln.details || '').toUpperCase();
-  if (content.includes('CRITICAL')) return 'CRITICAL';
-  if (content.includes('HIGH')) return 'HIGH';
-  if (content.includes('MEDIUM') || content.includes('MODERATE')) return 'MEDIUM';
-  if (content.includes('LOW')) return 'LOW';
-  
-  return 'Unknown';
+
+  return 'Not provided';
 }
 
 // Generate dependency graph from packages and dependencies

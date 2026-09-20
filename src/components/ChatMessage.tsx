@@ -52,6 +52,7 @@ const ChatMessage = ({ message }: ChatMessageProps) => {
         return 'bg-red-600 text-white hover:bg-red-700';
       case 'HIGH':
         return 'bg-red-500 text-white hover:bg-red-600';
+      case 'MODERATE':
       case 'MEDIUM':
         return 'bg-orange-500 text-white hover:bg-orange-600';
       case 'LOW':
@@ -66,6 +67,7 @@ const ChatMessage = ({ message }: ChatMessageProps) => {
       case 'CRITICAL':
       case 'HIGH':
         return <AlertTriangle className="h-3 w-3" />;
+      case 'MODERATE':
       case 'MEDIUM':
         return <Info className="h-3 w-3" />;
       case 'LOW':
