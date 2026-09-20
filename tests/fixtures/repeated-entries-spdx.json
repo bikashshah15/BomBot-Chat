@@ -1,0 +1,68 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Repeated package entries fixture",
+  "documentNamespace": "https://example.invalid/bombot/repeated-entries",
+  "creationInfo": {
+    "created": "2026-09-20T00:00:00Z",
+    "creators": ["Tool: BOMbot test fixture"]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-repeat-1",
+      "name": "repeat-lib",
+      "versionInfo": "1.2.3",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [{
+        "referenceCategory": "PACKAGE-MANAGER",
+        "referenceType": "purl",
+        "referenceLocator": "pkg:pypi/repeat-lib@1.2.3"
+      }]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-repeat-2",
+      "name": "repeat-lib",
+      "versionInfo": "1.2.3",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [{
+        "referenceCategory": "PACKAGE-MANAGER",
+        "referenceType": "purl",
+        "referenceLocator": "pkg:pypi/repeat-lib@1.2.3"
+      }]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-repeat-3",
+      "name": "repeat-lib",
+      "versionInfo": "1.2.3",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [{
+        "referenceCategory": "PACKAGE-MANAGER",
+        "referenceType": "purl",
+        "referenceLocator": "pkg:pypi/repeat-lib@1.2.3"
+      }]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-other",
+      "name": "other-lib",
+      "versionInfo": "4.5.6",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [{
+        "referenceCategory": "PACKAGE-MANAGER",
+        "referenceType": "purl",
+        "referenceLocator": "pkg:pypi/other-lib@4.5.6"
+      }]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-github",
+      "name": "github-only",
+      "versionInfo": "7.8.9",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [{
+        "referenceCategory": "PACKAGE-MANAGER",
+        "referenceType": "purl",
+        "referenceLocator": "pkg:github/example/github-only@7.8.9"
+      }]
+    }
+  ]
+}

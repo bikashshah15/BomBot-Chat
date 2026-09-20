@@ -11,6 +11,7 @@ import {
 } from '@/hooks/useAssistantStream';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { formatScanCoverageLines } from '@/lib/scanCoverage';
 import { Shield, Send, Paperclip, Plus, MessageSquare } from 'lucide-react';
 
 const ChatInterface = () => {
@@ -137,14 +138,28 @@ const ChatInterface = () => {
       }
 
       // Show quick templated response first
-      const { quickSummary, vulnerabilitiesFound, packagesScanned } = uploadResult;
+      const {
+        quickSummary,
+        vulnerabilitiesFound,
+        packagesScanned,
+        totalPackages,
+        uniqueScannedPairs,
+        skipCounts,
+      } = uploadResult;
+      const coverageLines = formatScanCoverageLines({
+        totalPackages,
+        packagesScanned,
+        uniqueScannedPairs,
+        skipCounts,
+      });
+      const entriesNotScanned = totalPackages - packagesScanned;
       let responseContent = '';
       let vulnerabilities = [];
 
       if (vulnerabilitiesFound > 0) {
         responseContent = `🔍 **Quick Summary for "${file.name}"**\n\n`;
-        responseContent += `📊 **Overview:**\n`;
-        responseContent += `- Packages scanned: ${packagesScanned}\n`;
+        responseContent += `📊 **Coverage:**\n\n${coverageLines}\n\n`;
+        responseContent += `📊 **Findings:**\n\n`;
         responseContent += `- Packages with vulnerabilities: ${quickSummary.packagesWithVulns}\n`;
         responseContent += `- Total vulnerabilities: ${quickSummary.totalVulns}\n`;
         responseContent += `- Dependency relationships: ${quickSummary.dependenciesFound || 0}\n\n`;
@@ -171,10 +186,10 @@ const ChatInterface = () => {
         responseContent += `💡 *Ask me "detailed analysis", "executive summary", or "dependency analysis" for all ${quickSummary.totalVulns} vulnerabilities and comprehensive security insights*`;
       } else {
         responseContent = `✅ **Good news!** SBOM analysis complete for "${file.name}"\n\n`;
-        responseContent += `📊 **Results:**\n`;
-        responseContent += `- Packages scanned: ${packagesScanned}\n`;
-        responseContent += `- Vulnerabilities found: 0\n\n`;
-        responseContent += `🛡️ Your SBOM appears to be secure with no known vulnerabilities detected!\n\n`;
+        responseContent += `📊 **Coverage:**\n\n${coverageLines}\n\n`;
+        responseContent += entriesNotScanned === 0
+          ? `✅ No known vulnerabilities were found in any of the ${packagesScanned} entries scanned against the OSV snapshot.\n\n`
+          : `⚠️ No known vulnerabilities were found in the ${packagesScanned} entries that were scanned. ${entriesNotScanned} entries were not scanned, so this is not a clean result for the whole SBOM.\n\n`;
         responseContent += `💡 *You can ask me questions about specific packages or security recommendations*`;
       }
 
@@ -364,7 +379,7 @@ const ChatInterface = () => {
         setTimeout(() => {
           addMessage({
             type: 'assistant',
-            content: `📦 Querying package: ${detection.value}...\n\nGood news! The latest version of ${detection.value} appears to be secure with no known critical vulnerabilities. However, I recommend always using the latest stable version.\n\n**Latest version:** Check npm registry for current version\n**Security status:** ✅ No critical vulnerabilities found\n\nWould you like me to check a specific version of ${detection.value}?`,
+            content: `📦 Querying package: ${detection.value}...\n\nGood news! No known critical vulnerabilities were found for the latest version of ${detection.value}. However, I recommend always using the latest stable version.\n\n**Latest version:** Check npm registry for current version\n**Security status:** ✅ No critical vulnerabilities found\n\nWould you like me to check a specific version of ${detection.value}?`,
           });
         }, 1500);
       }

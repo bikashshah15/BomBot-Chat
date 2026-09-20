@@ -126,9 +126,89 @@ test('dependency graph keeps vulnerability results distinct for duplicate packag
     assert.equal(githubNode.vulnerabilityCount, -1);
     assert.equal(githubNode.scanned, false);
     assert.equal(githubNode.skipReason, 'unsupported_purl_type');
+    assert.equal(response.jsonBody.packagesScanned, 3);
+    assert.equal(response.jsonBody.uniqueScannedPairs, 3);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+async function uploadCoverageFixture(fixtureName) {
+  const fixturePath = new URL(`../../tests/fixtures/${fixtureName}`, import.meta.url);
+  const fixtureContent = await readFile(fixturePath, 'utf8');
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'bombot-upload-coverage-test-'));
+  const uploadPath = path.join(tempDir, fixtureName);
+  await copyFile(fixturePath, uploadPath);
+
+  const handler = createUploadHandler({
+    osvMode: 'offline',
+    async captureScanSource(mode, client, scan) {
+      await scan(client);
+      return { osv_mode: mode, snapshot_date: 'synthetic' };
+    },
+    async parseForm() {
+      return {
+        fields: {
+          sessionId: '00000000-0000-4000-8000-000000000001',
+          messageIndex: '1',
+        },
+        files: {
+          file: {
+            filepath: uploadPath,
+            originalFilename: fixtureName,
+            size: Buffer.byteLength(fixtureContent),
+          },
+        },
+      };
+    },
+    async matchOsvPackages(_client, packages) {
+      return packages.map(package_ => ({ package: package_, vulnerabilities: [] }));
+    },
+    async createConversation() {
+      return { id: `conversation_coverage_${fixtureName}` };
+    },
+    async appendConversationMessages() {
+      return [];
+    },
+    async insertLog() {},
+    async wait() {},
+  });
+
+  try {
+    const response = responseRecorder();
+    await handler({ method: 'POST' }, response);
+    assert.equal(response.statusCode, 200);
+    return response.jsonBody;
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+test('upload response reports scan coverage for mixed ecosystems', async () => {
+  const body = await uploadCoverageFixture('mixed-ecosystems-spdx.json');
+
+  assert.equal(body.packagesScanned, 3);
+  assert.equal(body.uniqueScannedPairs, 3);
+  assert.deepEqual(body.skipCounts, {
+    cap: 0,
+    unsupported_purl_type: 1,
+    undeterminable_ecosystem: 1,
+    unsupported_ecosystem: 0,
+  });
+});
+
+test('upload response distinguishes repeated entries from unique scanned pairs', async () => {
+  const body = await uploadCoverageFixture('repeated-entries-spdx.json');
+
+  assert.equal(body.packagesScanned, 4);
+  assert.equal(body.uniqueScannedPairs, 2);
+  assert.ok(body.uniqueScannedPairs < body.packagesScanned);
+  assert.deepEqual(body.skipCounts, {
+    cap: 0,
+    unsupported_purl_type: 1,
+    undeterminable_ecosystem: 0,
+    unsupported_ecosystem: 0,
+  });
 });
 
 test('upload wiring retains the full oversize inventory and exposes scan truncation in the prompt', async () => {

@@ -529,6 +529,9 @@ export function createUploadHandler(
     const packagesToScan = packagesWithinScanCap
       .filter(pkg => recognizedEcosystems.has(pkg.ecosystem));
     packagesScanned = packagesToScan.length;
+    const uniqueScannedPairs = new Set(packagesToScan.map(
+      pkg => `${pkg.ecosystem}\u0000${pkg.name}\u0000${pkg.version ?? ''}`,
+    )).size;
     const skipCounts: ScanSkipCounts = { cap: packages.length - packagesWithinScanCap.length,
       unsupported_purl_type: 0, undeterminable_ecosystem: 0, unsupported_ecosystem: 0 };
     for (const pkg of packagesWithinScanCap) {
@@ -697,6 +700,8 @@ ${existingConversationId ?
       packagesScanned: packagesToScan.length,
       totalPackages: packages.length,
       unrecognizedEcosystemCount,
+      skipCounts,
+      uniqueScannedPairs,
       vulnerabilitiesFound: totalVulns,
       dependencyRelationships: dependencies.length,
       dependencyGraph: dependencyGraph,
