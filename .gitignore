@@ -89,6 +89,7 @@ logs
 # IDE files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo
@@ -135,3 +136,9 @@ storybook-static
 # Temporary files
 BomBot_Analysis_Summary.md
 BomBot_Introduction_Slide_Deck.md
+
+# Study materials — never commit
+
+study/
+studySbomCheck/
+*.spdx.json
