@@ -399,13 +399,16 @@ export function createStreamHandler(
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders?.();
 
     const emit: EmitEvent = (event, data) => {
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      (res as unknown as { flush?: () => void }).flush?.();
     };
     const heartbeat = dependencies.setInterval(() => {
       res.write(': heartbeat\n\n');
+      (res as unknown as { flush?: () => void }).flush?.();
     }, 15_000);
 
     try {

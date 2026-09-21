@@ -147,8 +147,79 @@ test('a simulated 60-second generation receives four 15-second heartbeats and co
   assert.equal(response.headers.get('Content-Type'), 'text/event-stream; charset=utf-8');
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.equal(response.headers.get('Connection'), 'keep-alive');
+  assert.equal(response.headers.get('X-Accel-Buffering'), 'no');
   assert.equal(intervalCleared, true);
   assert.equal(response.ended, true);
+});
+
+test('stream flushes after every event write and heartbeat write', async () => {
+  const calls = [];
+  const handler = createStreamHandler({
+    async getConversationSessionId() {
+      return 'session_synthetic';
+    },
+    async getConversationProviderId() {
+      return 'primary';
+    },
+    resolveProviderSettings() {
+      return { PROFILE: 'local' };
+    },
+    async runTurn(_options, emit) {
+      emit('delta', { delta: 'progressive response' });
+      emit('done', { response: 'progressive response', status: 'completed' });
+    },
+    setInterval(callback) {
+      callback();
+      return 1;
+    },
+    clearInterval() {},
+  });
+  const response = responseRecorder();
+  response.write = function write(chunk) {
+    calls.push('write');
+    this.body += chunk;
+    return true;
+  };
+  response.flush = function flush() {
+    calls.push('flush');
+  };
+
+  await handler(streamRequest(), response);
+
+  assert.deepEqual(calls, [
+    'write', 'flush',
+    'write', 'flush',
+    'write', 'flush',
+  ]);
+});
+
+test('stream remains compatible with a response that has no flush method', async () => {
+  const handler = createStreamHandler({
+    async getConversationSessionId() {
+      return 'session_synthetic';
+    },
+    async getConversationProviderId() {
+      return 'primary';
+    },
+    resolveProviderSettings() {
+      return { PROFILE: 'local' };
+    },
+    async runTurn(_options, emit) {
+      emit('delta', { delta: 'compatible response' });
+      emit('done', { response: 'compatible response', status: 'completed' });
+    },
+    setInterval() {
+      return 1;
+    },
+    clearInterval() {},
+  });
+  const response = responseRecorder();
+
+  await handler(streamRequest(), response);
+
+  assert.equal(response.ended, true);
+  assert.match(response.body, /event: delta/);
+  assert.match(response.body, /event: done/);
 });
 
 test('model tools are absent from every request when model tool calls are disabled', async () => {
