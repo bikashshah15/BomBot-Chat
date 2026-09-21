@@ -77,6 +77,8 @@ export interface StartAssistantStreamOptions {
   sessionId: string;
   messageIndex?: number;
   onDone: (response: string) => void;
+  onDelta?: (delta: string) => void;
+  onResetStream?: () => void;
   onActivity?: () => void;
   onToolStart?: (round: number) => void;
   onToolEnd?: (round: number) => void;
@@ -120,11 +122,13 @@ export async function consumeAssistantEventStream(
     if (!parsed) return;
     if (parsed.event === 'delta' && typeof parsed.data.delta === 'string') {
       bufferedResponse += parsed.data.delta;
+      options.onDelta?.(parsed.data.delta);
       return;
     }
     if (parsed.event === 'tool_start') {
       // Match the previous presentation: only the final post-tool response is rendered.
       bufferedResponse = '';
+      options.onResetStream?.();
       if (typeof parsed.data.round === 'number') options.onToolStart?.(parsed.data.round);
       return;
     }

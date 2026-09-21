@@ -7,6 +7,13 @@ import {
   shouldCommitActivity,
   type LoadingPhase,
 } from '@/hooks/progressStatus';
+import {
+  advanceAssistantStreamMessageIndex,
+  appendAssistantStreamState,
+  discardAssistantStreamState,
+  endAssistantStreamState,
+  resetAssistantStreamState,
+} from './assistantStreamState';
 
 interface DependencyGraphNode {
   id: string;
@@ -61,6 +68,11 @@ interface ChatContextType {
   responseStartedAt: number | null;
   lastActivityAt: number | null;
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
+  startAssistantStream: () => string;
+  appendAssistantStream: (id: string, delta: string) => void;
+  resetAssistantStream: (id: string) => void;
+  endAssistantStream: (id: string, finalText: string | null) => void;
+  discardAssistantStream: (id: string) => void;
   addUploadedFile: (file: UploadedFile) => void;
   setCurrentConversationId: (conversationId: string | null) => void;
   setLoading: (loading: boolean, phase?: LoadingPhase) => void;
@@ -116,6 +128,36 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     };
     setMessages(prev => [...prev, newMessage]);
     setMessageIndex(prev => prev + 1);
+  };
+
+  const startAssistantStream = () => {
+    const id = Math.random().toString(36).substr(2, 9);
+    const newMessage: Message = {
+      id,
+      type: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      useMarkdown: true,
+    };
+    setMessages(prev => [...prev, newMessage]);
+    setMessageIndex(advanceAssistantStreamMessageIndex);
+    return id;
+  };
+
+  const appendAssistantStream = (id: string, delta: string) => {
+    setMessages(prev => appendAssistantStreamState(prev, id, delta));
+  };
+
+  const resetAssistantStream = (id: string) => {
+    setMessages(prev => resetAssistantStreamState(prev, id));
+  };
+
+  const endAssistantStream = (id: string, finalText: string | null) => {
+    setMessages(prev => endAssistantStreamState(prev, id, finalText));
+  };
+
+  const discardAssistantStream = (id: string) => {
+    setMessages(prev => discardAssistantStreamState(prev, id));
   };
 
   const addUploadedFile = (file: UploadedFile) => {
@@ -215,6 +257,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       responseStartedAt,
       lastActivityAt,
       addMessage,
+      startAssistantStream,
+      appendAssistantStream,
+      resetAssistantStream,
+      endAssistantStream,
+      discardAssistantStream,
       addUploadedFile,
       setCurrentConversationId,
       setLoading,

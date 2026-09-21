@@ -41,6 +41,79 @@ test('wire deltas are buffered and the final assistant response renders once at 
   assert.deepEqual(toolEvents, ['start:1', 'end:1']);
 });
 
+test('onDelta fires for every delta in order while onDone receives the full buffered text', async () => {
+  const deltas = [];
+  const completed = [];
+
+  await consumeAssistantEventStream(responseFromChunks([
+    'event: delta\ndata: {"delta":"first"}\n\n',
+    'event: delta\ndata: {"delta":" second"}\n\n',
+    'event: delta\ndata: {"delta":" third"}\n\n',
+    'event: done\ndata: {"response":"fallback must not replace the buffer"}\n\n',
+  ]), {
+    conversationId: 'conversation_deltas',
+    sessionId: 'session_deltas',
+    onDelta(delta) {
+      deltas.push(delta);
+    },
+    onDone(responseText) {
+      completed.push(responseText);
+    },
+  });
+
+  assert.deepEqual(deltas, ['first', ' second', ' third']);
+  assert.deepEqual(completed, ['first second third']);
+});
+
+test('done response fallback is delivered once when the delta buffer is empty', async () => {
+  const deltas = [];
+  const completed = [];
+
+  await consumeAssistantEventStream(responseFromChunks([
+    'event: done\ndata: {"response":"fallback response"}\n\n',
+  ]), {
+    conversationId: 'conversation_fallback',
+    sessionId: 'session_fallback',
+    onDelta(delta) {
+      deltas.push(delta);
+    },
+    onDone(responseText) {
+      completed.push(responseText);
+    },
+  });
+
+  assert.deepEqual(deltas, []);
+  assert.deepEqual(completed, ['fallback response']);
+});
+
+test('tool_start resets the live stream alongside the buffered response', async () => {
+  const liveDeltas = [];
+  const events = [];
+
+  await consumeAssistantEventStream(responseFromChunks([
+    'event: delta\ndata: {"delta":"discarded"}\n\n',
+    'event: tool_start\ndata: {"round":1}\n\n',
+    'event: delta\ndata: {"delta":"kept"}\n\n',
+    'event: done\ndata: {"response":"fallback"}\n\n',
+  ]), {
+    conversationId: 'conversation_reset',
+    sessionId: 'session_reset',
+    onDelta(delta) {
+      liveDeltas.push(delta);
+    },
+    onResetStream() {
+      events.push(`reset:${liveDeltas.join('')}`);
+      liveDeltas.length = 0;
+    },
+    onDone(responseText) {
+      events.push(`done:${responseText}`);
+    },
+  });
+
+  assert.deepEqual(liveDeltas, ['kept']);
+  assert.deepEqual(events, ['reset:discarded', 'done:kept']);
+});
+
 const {
   ASSISTANT_STREAM_INACTIVITY_TIMEOUT_MS,
   ASSISTANT_STREAM_MAX_DURATION_MS,

@@ -19,7 +19,7 @@ import {
 import { Shield, Send, Paperclip, Plus, MessageSquare } from 'lucide-react';
 
 const ChatInterface = () => {
-  const { messages, isLoading, addMessage, clearChat, currentConversationId, sessionId, messageIndex, setLoading, beginResponse, markActivity, setCurrentConversationId, addUploadedFile, isolateForProviderSwitch, logChatMessage } = useChat();
+  const { messages, isLoading, addMessage, startAssistantStream, appendAssistantStream, resetAssistantStream, endAssistantStream, discardAssistantStream, clearChat, currentConversationId, sessionId, messageIndex, setLoading, beginResponse, markActivity, setCurrentConversationId, addUploadedFile, isolateForProviderSwitch, logChatMessage } = useChat();
   const [inputText, setInputText] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -239,22 +239,26 @@ const ChatInterface = () => {
       });
 
       if (uploadConversationId) {
+        addQuickUploadResponse();
+        const streamMessageId = startAssistantStream();
         try {
           beginResponse();
           await startStream({
             conversationId: uploadConversationId,
             sessionId,
             onActivity: markActivity,
+            onDelta(delta) {
+              appendAssistantStream(streamMessageId, delta);
+            },
+            onResetStream() {
+              resetAssistantStream(streamMessageId);
+            },
             onDone(response) {
-              addQuickUploadResponse();
-              addMessage({
-                type: 'assistant',
-                content: response || `🔍 Analysis complete for "${file.name}"! The scan has been processed. You can ask me questions about the vulnerabilities found or request specific package information.`,
-              });
+              endAssistantStream(streamMessageId, response || `🔍 Analysis complete for "${file.name}"! The scan has been processed. You can ask me questions about the vulnerabilities found or request specific package information.`);
             },
           });
         } catch (error) {
-          addQuickUploadResponse();
+          discardAssistantStream(streamMessageId);
           if (error instanceof AssistantStreamTimeoutError) {
             addMessage({
               type: 'assistant',
@@ -332,6 +336,7 @@ const ChatInterface = () => {
       const conversationId = result.conversationId || result.threadId || currentConversationId;
       if (conversationId) {
         setCurrentConversationId(conversationId);
+        const streamMessageId = startAssistantStream();
         try {
           beginResponse();
           await startStream({
@@ -339,17 +344,18 @@ const ChatInterface = () => {
             sessionId,
             messageIndex,
             onActivity: markActivity,
+            onDelta(delta) {
+              appendAssistantStream(streamMessageId, delta);
+            },
+            onResetStream() {
+              resetAssistantStream(streamMessageId);
+            },
             onDone(responseText) {
-              if (responseText) {
-                addMessage({
-                  type: 'assistant',
-                  content: responseText,
-                  useMarkdown: true,
-                });
-              }
+              endAssistantStream(streamMessageId, responseText);
             },
           });
         } catch (error) {
+          discardAssistantStream(streamMessageId);
           if (error instanceof AssistantStreamTimeoutError) {
             addMessage({
               type: 'assistant',
