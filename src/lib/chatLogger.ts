@@ -14,6 +14,26 @@ export interface LogChatMessageParams {
 }
 
 export class ChatLogger {
+  static async logClientTiming(params: {
+    sessionId: string;
+    provider: 'primary' | 'alternate';
+    client_send_to_first_delta_ms: number;
+    client_send_to_first_paint_ms: number;
+    client_send_to_done_ms: number;
+  }): Promise<boolean> {
+    try {
+      const response = await fetch('/api/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'log_client_timing', ...params }),
+      });
+      return response.ok;
+    } catch (error) {
+      safeLog('error', safeValue('Client timing logging request failed:'), safeValue(errorClass(error)));
+      return false;
+    }
+  }
+
   static async logMessage(params: LogChatMessageParams): Promise<ChatLog | null> {
     try {
       const response = await fetch('/api/log', {

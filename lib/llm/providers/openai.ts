@@ -111,6 +111,9 @@ function toLlmResult(response: OpenAI.Responses.Response): LlmResult {
       outputTokens: response.usage.output_tokens,
       totalTokens: response.usage.total_tokens,
     };
+    if (typeof response.usage.input_tokens_details?.cached_tokens === 'number') {
+      result.usage.cachedInputTokens = response.usage.input_tokens_details.cached_tokens;
+    }
     result.rawUsage = response.usage;
   }
 

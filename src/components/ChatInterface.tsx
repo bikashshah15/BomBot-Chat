@@ -1,5 +1,5 @@
 import { safeLog, safeValue, errorClass } from '../../lib/logging/redact.ts';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import ChatMessage from '@/components/ChatMessage';
 import FileUploadOverlay from '@/components/FileUploadOverlay';
@@ -17,6 +17,16 @@ import {
   type ModelProviderStatus,
 } from '@/lib/modelProviderToggle';
 import { Shield, Send, Paperclip, Plus, MessageSquare } from 'lucide-react';
+import { ChatLogger } from '@/lib/chatLogger';
+
+type ClientTurnTiming = {
+  startedAt: number;
+  streamMessageId: string;
+  provider: 'primary' | 'alternate';
+  firstDeltaMs?: number;
+  firstPaintMs?: number;
+  doneMs?: number;
+};
 
 const ChatInterface = () => {
   const { messages, isLoading, addMessage, startAssistantStream, appendAssistantStream, resetAssistantStream, endAssistantStream, discardAssistantStream, clearChat, currentConversationId, sessionId, messageIndex, setLoading, beginResponse, markActivity, setCurrentConversationId, addUploadedFile, isolateForProviderSwitch, logChatMessage } = useChat();
@@ -28,6 +38,30 @@ const ChatInterface = () => {
   const [providerStatus, setProviderStatus] = useState<ModelProviderStatus | null>(null);
   const [activeProviderId, setActiveProviderId] = useState('primary');
   const providerView = providerStatus ? modelProviderToggleView(providerStatus) : null;
+  const clientTimingRef = useRef<ClientTurnTiming | null>(null);
+
+  const flushClientTiming = useCallback(() => {
+    const timing = clientTimingRef.current;
+    if (!timing || timing.firstDeltaMs === undefined || timing.firstPaintMs === undefined
+      || timing.doneMs === undefined) return;
+    clientTimingRef.current = null;
+    void ChatLogger.logClientTiming({
+      sessionId,
+      provider: timing.provider,
+      client_send_to_first_delta_ms: timing.firstDeltaMs,
+      client_send_to_first_paint_ms: timing.firstPaintMs,
+      client_send_to_done_ms: timing.doneMs,
+    });
+  }, [sessionId]);
+
+  useLayoutEffect(() => {
+    const timing = clientTimingRef.current;
+    if (!timing || timing.firstDeltaMs === undefined || timing.firstPaintMs !== undefined) return;
+    const rendered = messages.find(message => message.id === timing.streamMessageId);
+    if (!rendered?.content) return;
+    timing.firstPaintMs = Math.max(0, Math.round(performance.now() - timing.startedAt));
+    flushClientTiming();
+  }, [flushClientTiming, messages]);
 
   useEffect(() => {
     const search = new URLSearchParams({ sessionId });
@@ -153,6 +187,7 @@ const ChatInterface = () => {
       }
 
       const uploadResult = await uploadResponse.json();
+      const uploadCompletedAt = performance.now();
 
       // Add file to context
       const uploadedFile = {
@@ -241,6 +276,11 @@ const ChatInterface = () => {
       if (uploadConversationId) {
         addQuickUploadResponse();
         const streamMessageId = startAssistantStream();
+        clientTimingRef.current = {
+          startedAt: uploadCompletedAt,
+          streamMessageId,
+          provider: activeProviderId === 'alternate' ? 'alternate' : 'primary',
+        };
         try {
           beginResponse();
           await startStream({
@@ -250,11 +290,22 @@ const ChatInterface = () => {
             onDelta(delta) {
               appendAssistantStream(streamMessageId, delta);
             },
+            onFirstDelta() {
+              const timing = clientTimingRef.current;
+              if (timing?.streamMessageId === streamMessageId && timing.firstDeltaMs === undefined) {
+                timing.firstDeltaMs = Math.max(0, Math.round(performance.now() - timing.startedAt));
+              }
+            },
             onResetStream() {
               resetAssistantStream(streamMessageId);
             },
             onDone(response) {
               endAssistantStream(streamMessageId, response || `🔍 Analysis complete for "${file.name}"! The scan has been processed. You can ask me questions about the vulnerabilities found or request specific package information.`);
+              const timing = clientTimingRef.current;
+              if (timing?.streamMessageId === streamMessageId) {
+                timing.doneMs = Math.max(0, Math.round(performance.now() - timing.startedAt));
+                flushClientTiming();
+              }
             },
           });
         } catch (error) {
@@ -306,7 +357,7 @@ const ChatInterface = () => {
   };
 
   // Function to send message to OpenAI Assistant
-  const sendToAssistant = async (message: string) => {
+  const sendToAssistant = async (message: string, sentAt: number) => {
     if (!currentConversationId) return false;
 
     try {
@@ -337,6 +388,11 @@ const ChatInterface = () => {
       if (conversationId) {
         setCurrentConversationId(conversationId);
         const streamMessageId = startAssistantStream();
+        clientTimingRef.current = {
+          startedAt: sentAt,
+          streamMessageId,
+          provider: activeProviderId === 'alternate' ? 'alternate' : 'primary',
+        };
         try {
           beginResponse();
           await startStream({
@@ -347,11 +403,22 @@ const ChatInterface = () => {
             onDelta(delta) {
               appendAssistantStream(streamMessageId, delta);
             },
+            onFirstDelta() {
+              const timing = clientTimingRef.current;
+              if (timing?.streamMessageId === streamMessageId && timing.firstDeltaMs === undefined) {
+                timing.firstDeltaMs = Math.max(0, Math.round(performance.now() - timing.startedAt));
+              }
+            },
             onResetStream() {
               resetAssistantStream(streamMessageId);
             },
             onDone(responseText) {
               endAssistantStream(streamMessageId, responseText);
+              const timing = clientTimingRef.current;
+              if (timing?.streamMessageId === streamMessageId) {
+                timing.doneMs = Math.max(0, Math.round(performance.now() - timing.startedAt));
+                flushClientTiming();
+              }
             },
           });
         } catch (error) {
@@ -385,6 +452,7 @@ const ChatInterface = () => {
 
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
+    const sentAt = performance.now();
 
     // Add user message
     addMessage({
@@ -397,7 +465,7 @@ const ChatInterface = () => {
 
     // If there's an active conversation, send to the real AI assistant.
     if (currentConversationId) {
-      const sent = await sendToAssistant(userMessage);
+      const sent = await sendToAssistant(userMessage, sentAt);
       if (sent) {
         return;
       }

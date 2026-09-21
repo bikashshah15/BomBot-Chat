@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
 import { insertLog } from '../../lib/db/chatLogs.ts';
+import { logTiming } from '../../lib/logging/timing.ts';
 
 // A session UUID is a bearer capability, not identity proof. It is not registered
 // against a person: possession permits use, while logging, sharing, or leaking the
@@ -31,9 +32,19 @@ const logMessageSchema = z.object({
   vulnerabilityCount: z.number().int().nonnegative().nullable().optional(),
 }).strict();
 
+const logClientTimingSchema = z.object({
+  action: z.literal('log_client_timing'),
+  sessionId: sessionCapabilitySchema,
+  provider: z.enum(['primary', 'alternate']),
+  client_send_to_first_delta_ms: z.number().int().nonnegative(),
+  client_send_to_first_paint_ms: z.number().int().nonnegative(),
+  client_send_to_done_ms: z.number().int().nonnegative(),
+}).strict();
+
 const logRequestSchema = z.discriminatedUnion('action', [
   initializeSessionSchema,
   logMessageSchema,
+  logClientTimingSchema,
 ]);
 
 function safeErrorDetails(error: unknown) {
@@ -51,6 +62,7 @@ interface LogHandlerDependencies {
 
 function removeLegacyEmailField(body: unknown): unknown {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+  if ((body as Record<string, unknown>).action !== 'log_message') return body;
   const sanitized = { ...body } as Record<string, unknown>;
   Reflect.deleteProperty(sanitized, 'userEmail');
   return sanitized;
@@ -75,6 +87,17 @@ export function createLogHandler(overrides: Partial<LogHandlerDependencies> = {}
     // the browser generated the capability in the expected format without inventing
     // a synthetic chat row that would distort message and analytics semantics.
     return res.status(200).json({ success: true });
+  }
+
+  if (parsedRequest.data.action === 'log_client_timing') {
+    logTiming({
+      kind: 'client_turn',
+      provider: parsedRequest.data.provider,
+      client_send_to_first_delta_ms: parsedRequest.data.client_send_to_first_delta_ms,
+      client_send_to_first_paint_ms: parsedRequest.data.client_send_to_first_paint_ms,
+      client_send_to_done_ms: parsedRequest.data.client_send_to_done_ms,
+    });
+    return res.status(204).end();
   }
 
   const request = parsedRequest.data;

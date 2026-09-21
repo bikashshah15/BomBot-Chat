@@ -24,7 +24,6 @@ export function createStreamWatchdog({
   clearTimer = globalThis.clearTimeout,
 }: CreateStreamWatchdogOptions) {
   let inactivityTimer: TimerHandle | undefined;
-  let maxDurationTimer: TimerHandle | undefined;
   let stopped = false;
   let expired = false;
 
@@ -45,8 +44,7 @@ export function createStreamWatchdog({
   };
 
   armInactivityTimer();
-  maxDurationTimer = setTimer(() => expire('max_duration'), maxDurationMs);
-
+  const maxDurationTimer = setTimer(() => expire('max_duration'), maxDurationMs);
   return {
     touch() {
       if (stopped || expired) return;
@@ -78,6 +76,7 @@ export interface StartAssistantStreamOptions {
   messageIndex?: number;
   onDone: (response: string) => void;
   onDelta?: (delta: string) => void;
+  onFirstDelta?: () => void;
   onResetStream?: () => void;
   onActivity?: () => void;
   onToolStart?: (round: number) => void;
@@ -117,10 +116,15 @@ export async function consumeAssistantEventStream(
   let pending = '';
   let bufferedResponse = '';
   let completed = false;
+  let receivedFirstDelta = false;
 
   const handleEvent = (parsed: ParsedEvent | null) => {
     if (!parsed) return;
     if (parsed.event === 'delta' && typeof parsed.data.delta === 'string') {
+      if (!receivedFirstDelta) {
+        receivedFirstDelta = true;
+        options.onFirstDelta?.();
+      }
       bufferedResponse += parsed.data.delta;
       options.onDelta?.(parsed.data.delta);
       return;

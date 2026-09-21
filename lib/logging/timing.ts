@@ -87,7 +87,7 @@ export function formatTimingRecord(value: unknown): string {
       return JSON.stringify(output);
     }
 
-    const kind = enumValue(value.kind, ['chat_turn', 'upload'] as const, markInvalid);
+    const kind = enumValue(value.kind, ['chat_turn', 'client_turn', 'upload'] as const, markInvalid);
     if (kind) output.kind = kind;
 
     if (kind === 'chat_turn') {
@@ -123,14 +123,18 @@ export function formatTimingRecord(value: unknown): string {
           }
           const allowedRoundKeys = [
             'db_prep_ms', 'model_first_chunk_ms', 'model_stream_ms', 'db_append_ms',
-            'input_tokens', 'output_tokens', 'tool_calls_requested',
+            'input_tokens', 'cached_input_tokens', 'output_tokens', 'tool_calls_requested',
           ];
           if (!hasOnlyKeys(round, allowedRoundKeys)) markInvalid();
           const cleanRound: Record<string, unknown> = {};
-          for (const key of allowedRoundKeys) {
+          for (const key of allowedRoundKeys.filter(key => key !== 'cached_input_tokens')) {
             const parsed = numberOrNull(round[key], markInvalid,
               key.endsWith('_ms') ? MAX_DURATION_MS : undefined);
             if (parsed !== undefined) cleanRound[key] = parsed;
+          }
+          if (round.cached_input_tokens !== undefined) {
+            const cachedInputTokens = numberOrNull(round.cached_input_tokens, markInvalid);
+            if (cachedInputTokens !== undefined) cleanRound.cached_input_tokens = cachedInputTokens;
           }
           rounds.push(cleanRound);
         }
@@ -162,6 +166,23 @@ export function formatTimingRecord(value: unknown): string {
         output.tools = tools;
       }
       for (const key of ['persist_ms', 'total_ms'] as const) {
+        const parsed = numberOrNull(value[key], markInvalid, MAX_DURATION_MS);
+        if (parsed !== undefined) output[key] = parsed;
+      }
+    } else if (kind === 'client_turn') {
+      const allowed = [
+        'kind', 'provider', 'client_send_to_first_delta_ms',
+        'client_send_to_first_paint_ms', 'client_send_to_done_ms',
+      ];
+      if (!hasOnlyKeys(value, allowed)) markInvalid();
+
+      const provider = enumValue(value.provider, ['primary', 'alternate'] as const, markInvalid);
+      if (provider) output.provider = provider;
+      for (const key of [
+        'client_send_to_first_delta_ms',
+        'client_send_to_first_paint_ms',
+        'client_send_to_done_ms',
+      ] as const) {
         const parsed = numberOrNull(value[key], markInvalid, MAX_DURATION_MS);
         if (parsed !== undefined) output[key] = parsed;
       }

@@ -37,6 +37,7 @@ export interface LlmContinuation {
 
 export interface LlmUsage {
   inputTokens: number;
+  cachedInputTokens?: number;
   outputTokens: number;
   totalTokens: number;
 }

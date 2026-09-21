@@ -44,6 +44,7 @@ test('wire deltas are buffered and the final assistant response renders once at 
 test('onDelta fires for every delta in order while onDone receives the full buffered text', async () => {
   const deltas = [];
   const completed = [];
+  let firstDeltaCalls = 0;
 
   await consumeAssistantEventStream(responseFromChunks([
     'event: delta\ndata: {"delta":"first"}\n\n',
@@ -56,12 +57,16 @@ test('onDelta fires for every delta in order while onDone receives the full buff
     onDelta(delta) {
       deltas.push(delta);
     },
+    onFirstDelta() {
+      firstDeltaCalls += 1;
+    },
     onDone(responseText) {
       completed.push(responseText);
     },
   });
 
   assert.deepEqual(deltas, ['first', ' second', ' third']);
+  assert.equal(firstDeltaCalls, 1);
   assert.deepEqual(completed, ['first second third']);
 });
 

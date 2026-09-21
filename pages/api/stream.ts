@@ -135,6 +135,7 @@ export async function runAssistantTurn(
     model_stream_ms: number | null;
     db_append_ms: number | null;
     input_tokens: number | null;
+    cached_input_tokens?: number;
     output_tokens: number | null;
     tool_calls_requested: number | null;
   }> = [];
@@ -195,7 +196,7 @@ export async function runAssistantTurn(
       });
       return response;
     } finally {
-      rounds.push({
+      const round: (typeof rounds)[number] = {
         db_prep_ms: dbPrepMs,
         model_first_chunk_ms: firstChunkMs,
         model_stream_ms: modelStreamMs,
@@ -203,7 +204,11 @@ export async function runAssistantTurn(
         input_tokens: response?.usage?.inputTokens ?? null,
         output_tokens: response?.usage?.outputTokens ?? null,
         tool_calls_requested: response?.toolCalls.length ?? null,
-      });
+      };
+      if (response?.usage?.cachedInputTokens !== undefined) {
+        round.cached_input_tokens = response.usage.cachedInputTokens;
+      }
+      rounds.push(round);
     }
   };
 

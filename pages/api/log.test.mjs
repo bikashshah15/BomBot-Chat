@@ -70,6 +70,9 @@ function responseRecorder() {
       this.body = body;
       return this;
     },
+    end() {
+      return this;
+    },
   };
 }
 
@@ -166,4 +169,58 @@ test('log API ignores a legacy email field and persists no participant identifie
   assert.equal(response.statusCode, 201);
   assert.equal(writtenRow.user_email, null);
   assert.equal(output.flat().some(value => String(value).includes(legacyEmail)), false);
+});
+
+test('log API accepts client timing without a database write (no Postgres)', async () => {
+  let insertCalls = 0;
+  const timingHandler = createLogHandler({
+    async insertLog() {
+      insertCalls += 1;
+      throw new Error('client timing must not reach the database');
+    },
+  });
+  const response = responseRecorder();
+
+  const output = await captureConsole(() => timingHandler({
+    method: 'POST',
+    body: {
+      action: 'log_client_timing',
+      sessionId: randomUUID(),
+      provider: 'primary',
+      client_send_to_first_delta_ms: 101,
+      client_send_to_first_paint_ms: 109,
+      client_send_to_done_ms: 507,
+    },
+  }, response));
+
+  assert.equal(response.statusCode, 204);
+  assert.equal(insertCalls, 0);
+  assert.equal(output.flat().some(value => String(value).includes('"kind":"client_turn"')), true);
+});
+
+test('log API rejects unsafe client timing payloads (no Postgres)', async () => {
+  const valid = {
+    action: 'log_client_timing',
+    sessionId: randomUUID(),
+    provider: 'alternate',
+    client_send_to_first_delta_ms: 1,
+    client_send_to_first_paint_ms: 2,
+    client_send_to_done_ms: 3,
+  };
+  const invalidBodies = [
+    { ...valid, message: 'prose is forbidden' },
+    { ...valid, userEmail: 'also-forbidden@example.invalid' },
+    { ...valid, client_send_to_first_delta_ms: -1 },
+    { ...valid, client_send_to_first_paint_ms: 1.5 },
+    { ...valid, unexpected: 4 },
+  ];
+
+  await captureConsole(async () => {
+    for (const body of invalidBodies) {
+      const response = responseRecorder();
+      await handler({ method: 'POST', body }, response);
+      assert.equal(response.statusCode, 400);
+      assert.deepEqual(response.body, { error: 'Invalid log request' });
+    }
+  });
 });
